@@ -1,0 +1,32 @@
+{% load static %}
+<html>
+<head>
+<style>
+table {
+	width:50%;
+	text-align:center;
+	background-color:#fffff0;
+}
+table td {
+	border:1px solid black;
+	padding:0px ;
+	margin:0px ;
+}
+</style>
+<meta charset="UTF-8"/> 
+<body>
+<table>
+	{% for deck_obj in decks_obj %}
+    {% if deck_obj == -1 %}
+    <tr>
+        <td>裏向きのカード</td>
+    </tr>
+    {% else %}
+<tr>
+<td><a target="_blank" href="{% url 'tcgcreator:explain'%}?id={{deck_obj.id}}">{{deck_obj.monster_name}}</a></td>
+</tr>
+    {% endif %}
+{% endfor %}
+</table>
+</body>
+</html>

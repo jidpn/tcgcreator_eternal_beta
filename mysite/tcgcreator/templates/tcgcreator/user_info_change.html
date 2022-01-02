@@ -1,0 +1,15 @@
+<html>
+<head></head>
+
+<body>
+{% block content %}
+  <h2>ユーザー情報変更</h2>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.errors.first_name }}
+    ユーザーネーム{{ form.first_name }}
+    <button type="submit">ユーザー情報変更</button>
+  </form>
+{% endblock %}
+</body>
+</html>

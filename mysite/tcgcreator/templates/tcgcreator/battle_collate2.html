@@ -1,0 +1,4213 @@
+{% load tcgcreatorlookup %}
+{% load static %}
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+#deck_side {
+    border-collapse:collapse;
+}
+#control input{
+    margin-left:30px;
+}
+.arrow{
+    width:{{Config.card_width}};
+    height:5px;
+}
+#deck_side td{
+    padding:0px;
+    margin:0px;
+    border:1px #000000 solid;
+}
+body {
+        background-image:url({% get_static_prefix %}tcgcreator/img/{{Config.background_image}});
+        background-position:right top;
+        background-repeat:repeat;
+        color:{{Config.font_color}};
+        font-size:18px;
+}
+span{
+    z-index:0;
+    position:relative;
+}
+div{
+    font-size:18px;
+}
+img.explain_card{
+    padding:10px;
+    width:{{Config.card_width | multiple:2}};
+    height:{{Config.card_height | multiple:2}};
+    position:relative;
+    z-index:100;
+}
+img.img_card{
+    padding:10px;
+    width:{{Config.card_width}};
+    height:{{Config.card_height}};
+    position:relative;
+    z-index:100;
+}
+ input[type="button"]{
+
+        font-size:18px;
+        background-color:white;
+        -webkit-appearance: none;
+}
+.control input[type="button"]{
+
+        font-size:18px;
+        margin-bottom:25px;
+        background-color:white;
+        -webkit-appearance: none;
+}
+#log{
+        background-color:{{Config.log_background_color}};
+}
+.turn{
+        font-size:{{Config.turn_font_size}};
+}
+.time{
+        font-size:{{Config.time_font_size}};
+}
+.phase{
+        font-size:{{Config.phase_font_size}};
+}
+.life{
+        font-size:{{Config.life_font_size}};
+}
+.deck{
+        font-size:{{Config.deck_font_size}};
+}
+a:link{
+        color:{{Config.link_color}};
+}
+a:visited{
+        color:{{Config.link_color}};
+}
+a:hover{
+        color:{{Config.link_color}};
+}
+
+div.field{
+    height:{{Config.card_height|add:60}}px;
+    margin:0px;
+    padding:0px;
+        color:black;
+}
+div.box{
+    height:{{Config.card_height|add:60}}px;
+    width:{{Config.card_width}}px;
+    margin:0px;
+    padding:10px;
+        color:black;
+}
+table .field{
+        margin:0px;
+        color:black;
+}
+#show_chain{
+    text-align:center
+}
+#show_chain td{
+    border:1px solid;
+    border-collapse:collapse;
+    font-size:12px;
+}
+table .card td{
+    border-collapse:separate;
+    border:1px solid;
+    width:120px;
+    }
+table td{
+    z-index:0;
+}
+</style>
+<script type="text/javascript" src="{% static 'tcgcreator/js/jquery.min.js'%}"></script>
+<script type="text/javascript" src="{% static 'tcgcreator/js/jquery-ui/jquery-ui.min.js'%}"></script>
+<script type="text/javascript" src="{% static 'tcgcreator/js/ajax.js'%}"></script>
+<script type="text/javascript">
+    function getCookie(name) {
+    var cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        var cookies = document.cookie.split(';');
+        for (var i = 0; i < cookies.length; i++) {
+            var cookie = jQuery.trim(cookies[i]);
+            // Does this cookie string begin with the name we want?
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+        return cookieValue;
+    }
+    function csrfSafeMethod(method) {
+    // these HTTP methods do not require CSRF protection
+    return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
+}
+    var music_flag = false;
+       var exclude;
+       var ai_doing_flag=false;
+       var ai_choosing = "{{ Duel.ai_choosing }}";
+       var deck_choosing1 = "{{ Duel.deck_choose_flag1 }}";
+       var deck_choosing2 = "{{ Duel.deck_choose_flag2 }}";
+       var global_id;
+       var timer_change;
+        var variables;
+        var monster_name_kind;
+        var ask_field;
+        var global_double = false;
+        var global_org_data;
+        var global_field_kind;
+        var global_field_ids;
+        var global_field_mine_or_other;
+        var global_field_user;
+        var global_ask_decks;
+        var global_ask_graves;
+        var global_ask_hands;
+        var global_auto_data;
+        var global_field_whether_monster;
+        var global_to_monsters;
+        var global_choosed_monster;
+        var global_prompt;
+        var global_field_sentence;
+        var current_choice_array;
+        var multiple_answer;
+        var double;
+        var user;
+        var flag;
+        var global_order;
+        var global_ask_data;
+        var global_answer_deck;
+        var global_answer_grave;
+        var global_answer_hand;
+        var global_field_fields;
+        var global_ask_fields2;
+        var global_ask_fields;
+        var global_ask_unders;
+        var global_all_result;
+        var min_equation_number;
+        var max_equation_number;
+        var mine_color = "{{Config.mine_color}}";
+        var other_color = "{{Config.other_color}}";
+        var sound_effect_ary = [];
+    var static_url = "{% get_static_prefix %}/tcgcreator";
+    var gray_out = "{{gray_out.monster_variable_name}}";
+    var show_img = true;
+    var music= new Audio();
+    var music_name ="";
+    var sound_effect= new Audio();
+    var sound_effect2= new Audio();
+    var timer = 0;
+    var multiple_number = 0;
+    var global_data = "";
+    var auto_select = "";
+        var all_flag = false;
+    var stored_data = null;
+    var stored_data2 = null;
+    var message_log = "";
+    var global_all_fields = [];
+    var prompt;
+    function getDeckSide(decks,graves,user_name1,user_name2,user){
+        var label_html = "<table id=\"deck_side\"><tr><td></td>";
+        var user_1_html = "<tr><td>"+user_name1+"</td>";
+        var user_2_html = "<tr><td>"+user_name2+"</td>";
+        var html = "";
+        var i,j,k;
+        if(user == 1){
+            other_user =2;
+        }else{
+            other_user =1;
+        }
+        for(i=0;i<decks.length;i++){
+            label_html+="<td>"+decks[i]["deck_name"]+"</td>";
+            if(decks[i]["commondecknum"] != undefined){
+                if(decks[i]["commondeck"] != undefined){
+                    html += "<td><a target=\"_blank\" href=\"{% url 'tcgcreator:explain_deck' %}?room_number={{room_number}}&deck="+decks[i]["id"]+"\">共通</a> "+decks[i]["commondecknum"]+"</td>";
+                }else{
+                    html += "<td>"+decks[i]["commondecknum"]+"</td>";
+                }
+            }else{
+                if(decks[i]["mydeck"] != undefined){
+                    user_1_html += "<td><a target=\"_blank\" href=\"{% url 'tcgcreator:explain_deck' %}?room_number={{room_number}}&user_number="+user+"&deck="+decks[i]["id"]+"\">"+decks[i]["mydecknum"]+"</a></td>";
+                    for(j=0;j<decks[i]["mydecknum"];j++){
+                        if(decks[i]["mydeck"][j]["trigger"] != undefined){
+                            for(k=0;k<decks[i]["mydeck"][j]["trigger"].length;k++){
+                                html += "<input type=\"button\" onclick=\"sendDeckTrigger('"+(i+1)+"','"+decks[i]["mydeck"][j]["place_unique_id"]+"','"+decks[i]["mydeck"][j]["trigger"][k]["id"]+"',1)\" value=\""+decks[i]["mydeck"][j]["trigger"][k]["name"]+"\">";
+                            }
+                        }
+                    }
+                }else{
+                    user_1_html+="<td>"+decks[i]["mydecknum"]+"</td>";
+                }
+                if(decks[i]["otherdeck"] != undefined){
+                    user_2_html += "<td><a target=\"_blank\" href=\"{% url 'tcgcreator:explain_deck' %}?room_number={{room_number}}&user_number="+other_user+"&deck="+decks[i]["id"]+"\">"+decks[i]["otherdecknum"]+"</a></td>";
+                    for(j=0;j<decks[i]["otherdecknum"];j++){
+                        if(decks[i]["otherdeck"][j]["trigger"] != undefined){
+                            for(k=0;k<decks[i]["otherdeck"][j]["trigger"].length;k++){
+                                html += "<input type=\"button\" onclick=\"sendDeckTrigger('"+(i+1)+"','"+decks[i]["mydeck"][j]["place_unique_id"]+"','"+decks[i]["mydeck"][j]["trigger"][k]["id"]+"',1)\" value=\""+decks[i]["mydeck"][j]["trigger"][k]["name"]+"\">";
+                            }
+                        }
+                    }
+                }else{
+                    user_2_html+="<td>"+decks[i]["otherdecknum"]+"</td>";
+                }
+            }
+        }
+        for(i=0;i<graves.length;i++){
+            label_html+="<td>"+graves[i]["grave_name"]+"</td>";
+            if(graves[i]["commongravenum"] != undefined){
+                if(graves[i]["commongrave"] != undefined){
+                    html += "<td><a target=\"_blank\" href=\"{% url 'tcgcreator:explain_grave' %}?room_number={{room_number}}&grave="+graves[i]["id"]+"\">共通</a> "+graves[i]["commongravenum"]+"</td>";
+                }else{
+                    html += "<td>"+graves[i]["commongravenum"]+"</td>";
+                }
+            }else{
+                if(graves[i]["mygrave"] != undefined){
+                    user_1_html += "<td><a target=\"_blank\" href=\"{% url 'tcgcreator:explain_grave' %}?room_number={{room_number}}&user_number="+user+"&grave="+graves[i]["id"]+"\">"+graves[i]["mygravenum"]+"</a></td>";
+                    for(j=0;j<graves[i]["mygravenum"];j++){
+                        if(graves[i]["mygrave"][j]["trigger"] != undefined){
+                            for(k=0;k<graves[i]["mygrave"][j]["trigger"].length;k++){
+                                html += "<input type=\"button\" onclick=\"sendGraveTrigger('"+(i+1)+"','"+graves[i]["mygrave"][j]["place_unique_id"]+"','"+graves[i]["mygrave"][j]["trigger"][k]["id"]+"',1)\" value=\""+graves[i]["mygrave"][j]["trigger"][k]["name"]+"\">";
+                            }
+                        }
+                    }
+                }else{
+                    user_1_html+="<td>"+graves[i]["mygravenum"]+"</td>";
+                }
+                if(graves[i]["othergrave"] != undefined){
+                    user_2_html += "<td><a target=\"_blank\" href=\"{% url 'tcgcreator:explain_grave' %}?room_number={{room_number}}&user_number="+other_user+"&grave="+graves[i]["id"]+"\">"+graves[i]["othergravenum"]+"</a></td>";
+                    for(j=0;j<graves[i]["othergravenum"];j++){
+                        if(graves[i]["othergrave"][j]["trigger"] != undefined){
+                            for(k=0;k<graves[i]["othergrave"][j]["trigger"].length;k++){
+                                html += "<input type=\"button\" onclick=\"sendGraveTrigger('"+(i+1)+"','"+graves[i]["mygrave"][j]["place_unique_id"]+"','"+graves[i]["mygrave"][j]["trigger"][k]["id"]+"',1)\" value=\""+graves[i]["mygrave"][j]["trigger"][k]["name"]+"\">";
+                            }
+                        }
+                    }
+                }else{
+                    user_2_html+="<td>"+graves[i]["othergravenum"]+"</td>";
+                }
+            }
+        }
+        label_html+="</tr>";
+        user_1_html+="</tr>";
+        user_2_html+="</tr></table>";
+        return label_html+user_1_html+user_2_html+html;
+    }
+    function checkAddVal(monster){
+        var value;
+        var i_value;
+        var flag=false;
+        var html ="";
+        var tmp;
+        if(monster["add_variable"] == undefined){
+                return "";
+        }
+        {% for add_variable in add_variables %}
+        tmp = "{{add_variable}}";
+        tmp = tmp.split("-");
+        tmp = tmp[0];
+        if(monster["add_variable"][tmp] == undefined){
+
+        }else{
+            value = monster["add_variable"][tmp];
+            i_value = parseInt(monster["variables"][tmp]["i_val"]);
+        if(i_value < value){
+
+            html += "+" + String(value - i_value);
+            flag = true;
+       } else if(i_value > value){
+            html += "-" + String(i_value - value);
+            flag = true;
+       } else if(i_value == value){
+            html += "+0";
+       }
+        }
+       {% endfor %}
+       if(flag == true){
+        return html;
+       }else{
+        return "";
+       }
+    }
+    function checkVal(monster,variable){
+        var value;
+        var i;
+        if(monster["variables"][variable] == undefined){
+            value = 0;
+        }else{
+            value = parseInt(monster["variables"][variable]["value"]);
+        }
+        if( monster["eternal"] == undefined){
+            return value
+        }
+
+        for( i=0;i<monster["eternal"].length;i++){
+                if (!monster["eternal"][i]){
+                    continue
+                }
+                if(monster["eternal"][i]["variables"][variable] != undefined){
+                        value+=parseInt(monster["eternal"][i]["variables"][variable]["value"]);
+                }
+        }
+        return value;
+    }
+    function changeWait(){
+        var check="";
+        {% for phase in phase_my_show %}
+        if($("#phase_my_"+{{phase.id}}).prop("checked") == true){
+            check += "phase-my-{{phase.id}}-check_";
+        }else{
+            check += "phase-my-{{phase.id}}-uncheck_";
+        }
+        if($("#phase_other_"+{{phase.id}}).prop("checked") == true){
+            check += "phase-other-{{phase.id}}-check_";
+        }else{
+            check += "phase-other-{{phase.id}}-uncheck_";
+        }
+        {% endfor %}
+        {% for timing in timing_my_show %}
+        if($("#timing_my_"+{{timing.id}}).prop("checked") == true){
+            check += "timing-my-{{timing.id}}-check_";
+        }else{
+            check += "timing-my-{{timing.id}}-uncheck_";
+        }
+        if($("#timing_other_"+{{timing.id}}).prop("checked") == true){
+            check += "timing-other-{{timing.id}}-check_";
+        }else{
+            check += "timing-other-{{timing.id}}-uncheck_";
+        }
+        {% endfor %}
+        {% for kind in kind_my_show %}
+        if($("#kind_my_"+{{kind.id}}).prop("checked") == true){
+            check += "kind-my-{{kind.id}}-check_";
+        }else{
+            check += "kind-my-{{kind.id}}-uncheck_";
+        }
+        if($("#kind_other_"+{{kind.id}}).prop("checked") == true){
+            check += "kind-other-{{kind.id}}-check_";
+        }else{
+            check += "kind-other-{{kind.id}}-uncheck_";
+        }
+        {% endfor %}
+        check = check.substring(0,check.length);
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:change_wait'  %}",
+   data: "room_number={{room_number}}&check="+check,
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        timer_change = setTimeout (changeWait,1000);
+        return;
+    }else{
+        return;
+    }
+    },
+   error:function(){
+        //alert("error");
+    }
+    });
+    }
+    function SendMessage(){
+        var message = $("#tomessage").val();
+        $("#tomessage").val("");
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:send_message'  %}",
+   data: "room_number={{room_number}}&message="+message,
+   timeout: 60000,
+success: function(data){
+    var tmp = {};
+    data = JSON.parse(data);
+    tmp["log"] = data["log"];
+    tmp["message_log"] = data["message_log"];
+    tmp["current_log"] = data["current_log"];
+    WriteLog(tmp);
+        Wait();
+   },
+   error:function(){
+        //alert("error");
+    }
+    });
+    }
+    function WaitAi(){
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:battle_det'  %}",
+   data: "room_number={{room_number}}&wait_ai=1",
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        return;
+    }else{
+		if(ai_doing_flag == true){
+            Success3(data);
+	    	}
+    }
+   },
+   error:function(){
+        //alert("error");
+    }
+
+ });
+    if(ai_doing_flag == true){
+        timer_ai = setTimeout(WaitAi,1000);
+    }
+    }
+    function Wait(){
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:battle_det'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(Wait,1000);
+        return;
+    }else{
+        clearTimeout(timer);
+        Success(data);
+    }
+   },
+   error:function(){
+        //alert("error");
+    }
+
+ });
+    }
+    $(document).ready(function(){
+    $("body").on("click",function(){
+        music_flag = true;
+    });
+    var csrftoken = getCookie("csrftoken");
+        $.ajaxSetup({
+    crossDomain: false, // obviates need for sameOrigin test
+    beforeSend: function(xhr, settings) {
+        if (!csrfSafeMethod(settings.type)) {
+            xhr.setRequestHeader("X-CSRFToken", csrftoken);
+        }
+    }
+});
+        if(ai_choosing == "True"){
+            ChooseAi();
+            return;
+        }
+        $('body').keypress( function ( e ) {
+	        if ( e.which == 13 ) {
+	                $("#tomessage").focus();
+	        }
+	    });
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:battle_det'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(Wait,1000);
+        return;
+    }
+        clearTimeout(timer);
+    Success(data);
+   },
+   error:function(){
+        //alert("error");
+    }
+
+ });
+});
+function cancel(){
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:battle_det'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(Wait,1000);
+        return;
+    }else{
+        clearTimeout(timer);
+        Success(data);
+    }
+   },
+   error:function(){
+        //alert("error");
+    }
+});
+}
+function none(){
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:battle_det'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting" || data == "error"){
+        clearTimeout(timer);
+        timer = setTimeout(Wait,1000);
+        return;
+    }else{
+        clearTimeout(timer);
+    Success(data);
+    }
+   },
+   error:function(){
+        //alert("error");
+    }
+});
+}
+// 一度選択後に表示
+function ask_det2(type,k,l,under_id = ""){
+    //一度選択をクリア
+    Success2();
+    var pid = [];
+    var img_url;
+    $("#center_message").html("");
+    $("#message").html("");
+    var org_data = global_org_data;
+    var data = global_ask_data;
+    var tmp = {};
+    var result_html = "";
+    if(type == "deck"){
+        global_answer_deck.push(k+"_"+l);
+        tmp["val"] = k+"_"+l;
+        tmp["type"] = "deck";;
+        global_all_result.push(tmp);
+    }else if(type == "grave"){
+        global_answer_grave.push(k+"_"+l);
+        tmp["val"] = k+"_"+l;
+        tmp["type"] = "grave";;
+        global_all_result.push(tmp);
+    }else if(type == "hand"){
+        global_answer_hand.push(k+"_"+l);
+        tmp["val"] = k+"_"+l;
+        tmp["type"] = "hand";;
+        global_all_result.push(tmp);
+    }else if(type == "field"){
+        global_ask_fields.push(k+"_"+l);
+        tmp["val"] = k+"_"+l;
+        tmp["type"] = "field";;
+        global_all_result.push(tmp);
+    }else if(type == "under"){
+        tmp = {}
+        tmp["x_and_y"] = k+"_"+l;
+        tmp["under_id"] = under_id;
+        global_ask_unders.push(tmp);
+        tmp["val"] = k+"_"+l;
+        tmp["under_id"] = under_id;
+        tmp["type"] = "under";;
+        global_all_result.push(tmp);
+    }
+    min_equation_number = data["min_equation_number"];
+    max_equation_number = data["max_equation_number"];
+    if(global_all_result.length == max_equation_number){
+        sendAnswer();
+        return;
+    }
+    result_html =prompt+"<br>";
+    data = data["return_val"];
+    result_html = "";
+    // フィールドで複数回ループが回るときよう
+    global_ask_fields2 = [];
+    var i,j;
+    $("#end_chain").hide();
+    global_field_fields = null;
+        if(ask_field != undefined){
+            MakeFieldsChoose(org_data,ask_field,ask_under)
+        }
+    var deck_i = 0;
+    var grave_i = 0;
+    var hand_i = 0;
+    for(i = 0;i<data.length;i++){
+        if(data[i]["mine_or_other"]){
+            result_html += "<br>"+data[i]["mine_or_other"]+"<br>";
+        }
+        if(data[i]["cards"] != undefined){
+            for(j=0;j<data[i]["cards"].length;j++){
+                if($.inArray(i+"_"+j,global_answer_deck) == -1){
+                    if(Validate(data[i]["cards"][j])){
+                        img_url = data[i]["cards"][j]["img"];
+                        pid.push(data[i]["cards"][j]["place_unique_id"]);
+                        result_html += "<a target=\"_blank\" onclick=\"ask_det2('deck',"+deck_i+","+j+")\"  ><img card_id=\""+img_url+"\"  id=\""+data[i]["cards"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
+                    }
+                }
+            }
+            deck_i++;
+        }
+        if(data[i]["grave"] != undefined){
+            for(j=0;j<data[i]["grave"].length;j++){
+                if($.inArray(i+"_"+j,global_answer_grave) == -1){
+                    if(Validate(data[i]["grave"][j])){
+                        pid.push(data[i]["grave"][j]["place_unique_id"]);
+                        img_url = data[i]["grave"][j]["img"];
+                        result_html += "<a target=\"_blank\" onclick=\"ask_det2('grave',"+grave_i+","+j+")\"  ><img card_id=\""+img_url+"\"  id=\""+data[i]["grave"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
+                    }
+                }
+            }
+            grave_i++;
+        }
+        if(data[i]["hand"] != undefined){
+            //MakeHandsGray();
+            for(j=0;j<data[i]["hand"].length;j++){
+                if($.inArray(i+"_"+j,global_answer_hand) == -1){
+                    if(Validate(data[i]["hand"][j])){
+                        pid.push("hand"+data[i]["hand"][j]["place_unique_id"]);
+                        img_url = data[i]["hand"][j]["img"];
+                        result_html +="<a target=\"_blank\" onclick=\"ask_det2('hand',"+hand_i+","+j+")\"  ><img card_id=\""+img_url+"\"  id=\"hand"+data[i]["hand"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
+                        //result_html_hand += "<br><input type=\"button\" onclick=\"ask_det2('hand',"+i+","+j+")\" value=\""+data[i]["hand"][j]["monster_name"]+"\">";;
+                        //$("#"+data[i]["hand"][j]["place_unique_id"]).html(result_html_hand);
+                    }
+                }
+            }
+            hand_i++;
+        }
+    }
+    result_html += "<br><input type=\"button\" value=\"選択完了\" onclick=\"sendAnswer()\"><input type=\"button\" style=\"width:100px\" value=\"{{Config.cancel_name}}\" onclick=\"javascript:Cancel()\">";
+    $("#choosing_area").html(result_html);
+    var offset = $("#upper_line").offset();
+    var height = $("#choosing_area").height();
+    $("#choosing_area").draggable();
+    $("#choosing_area").show();
+    $("#choosing_area").offset({top:offset.top+500-height});
+        for(i =0;i<pid.length;i++){
+                $("#"+pid[i]).hover(
+                    function(){
+                    $("#card_img").html("<img class=\"explain_card\" src=\""+static_url+"/img/"+$(this).attr("card_id")+"\">");
+                },
+                    function(){
+                    //$("#card_img").html("");
+                }
+                );
+        }
+
+}
+
+function AnswerMultiple(data){
+    $("#choosing_area").hide();
+    if(data == undefined){
+        data = global_data;
+    }
+    global_data = data;
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:multiple_choice'  %}",
+   data: "room_number={{room_number}}&answer="+data,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+            alert("正しい対象を選択してくだい。");
+        }
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(AnswerYesOrNo,1000);
+        return;
+    }else{
+        Success(data);
+    }
+   },
+   error:function(){
+        //alert("error");
+    }
+});
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+    WaitAi();
+ {% endif %}
+}
+function AnswerYesOrNo(data){
+    $("#choosing_area").hide();
+    if(data == undefined){
+        data = global_data;
+    }
+    global_data = data;
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:yes_or_no'  %}",
+   data: "room_number={{room_number}}&answer="+data,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+            alert("正しい対象を選択してくだい。");
+        }
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(AnswerYesOrNo,1000);
+        return;
+    }else{
+        Success(data);
+    }
+   },
+   error:function(){
+        //alert("error");
+    }
+});
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+        WaitAi();
+ {% endif %}
+}
+function AnswerChainVariable2(){
+    $("#choosing_area").hide();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:chain_variable'  %}",
+   data: "room_number={{room_number}}&chain_variable="+global_chain_variable,
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(AnswerChainVariable2,1000);
+        return;
+    }else{
+        Success(data);
+    }
+   },
+   error:function(){
+        //alert("error");
+    }
+});
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+        WaitAi();
+ {% endif %}
+}
+function AnswerChainVariable(min,max){
+    $("#choosing_area").hide();
+    if(min == undefined || max == undefined){
+        min= global_data["min"];
+        max= global_data["max"];
+    }
+    global_data = {};
+    global_data["min"] =min;
+    global_data["max"] =max;
+    global_chain_variable = $("#chain_variable").val();
+    if(global_chain_variable <min || global_chain_variable > max){
+        alert("選択できるのは"+min+"以上"+max+"以下です");
+        ask();
+        return;
+    }
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:chain_variable'  %}",
+   data: "room_number={{room_number}}&chain_variable="+global_chain_variable,
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(AnswerChainVariable2,1000);
+        return;
+    }else{
+        Success(data);
+    }
+   },
+   error:function(){
+        //alert("error");
+    }
+});
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+        WaitAi();
+ {% endif %}
+}
+function YesOrNoDet(data){
+    var sentence = data["prompt"];
+    var result_html = sentence+"<br>";
+    result_html += "<input type=\"button\" value=\"はい\" onclick=\"AnswerYesOrNo('yes')\"><input type=\"button\" value=\"いいえ\" onclick=\"AnswerYesOrNo('no')\">";
+    $("#choosing_area").show();
+        $("#choosing_area").html(result_html);
+        var height = $("#choosing_area").height();
+    var offset = $("#upper_line").offset();
+        $("#choosing_area").offset({top:offset.top+500-height});
+        $("#choosing_area").draggable();
+    }
+    function MultipleChoiceDet(data){
+        var sentence = data["prompt"];
+        var i;
+        var buttons="";
+        var det;
+        var det = data["multiple_det"];
+        for(i=0;i<det["monster_effect_wrapper"].length;i++){
+            buttons += "<input type=\"button\" value=\""+det["sentence"][i]+"\" onclick=\"AnswerMultiple('"+det["monster_effect_wrapper"][i]+"')\">";
+        }
+        var result_html = sentence+"<br>";
+        $("#choosing_area").html(result_html);
+    result_html += buttons;
+    var offset = $("#upper_line").offset();
+    $("#choosing_area").show();
+    $("#choosing_area").draggable();
+    var height = $("#choosing_area").height();
+    $("#choosing_area").offset({top:offset.top+500-height});
+}
+function ChooseOrder(i){
+    global_order.push(i);
+    ValOrderDet(null);
+}
+function ValOrderDet(data){
+    if(data!= null ){
+        prompt = data["prompt"];
+        global_data = data["variables"];
+    }
+    var result_html = prompt;
+    if(global_order.length == global_data.length){
+        sendAnswerOrder();
+    }
+    for(var i=0;i<global_data.length;i++){
+        if($.inArray(i,global_order) == -1){
+            result_html += '<input type="button" value="'+global_data[i]["monster_name"]+' '+ global_data[i]["change_val"]+'" onclick="ChooseOrder('+i+')">';
+        }
+    }
+    $("#choosing_area").show();
+    var offset = $("#upper_line").offset();
+    $("#choosing_area").html(result_html);
+    var height = $("#choosing_area").height();
+    $("#choosing_area").offset({top:offset.top+500-height});
+    $("#choosing_area").draggable();
+}
+function ChainVariableDet(data){
+    var prompt = data["prompt"];
+    var result_html = prompt+"<br>";
+    result_html += "<input type=\"number\" id=\"chain_variable\" value=\""+data["min"]+"\"> <input type=\"button\" value=\"選択完了\" onclick=\"AnswerChainVariable("+data["min"]+","+data["max"]+")\">";
+    $("#choosing_area").html(result_html);
+    $("#choosing_area").offset({top:offset.top+50});
+    $("#choosing_area").draggable();
+    $("#choosing_area").show();
+    var height = $("#choosing_area").height();
+    $("#choosing_area").offset({top:offset.top+500-height});
+
+}
+function ShowChooseMonster(monster){
+    if(monster["place"] == "field"){
+        ShowChooseMonsterField(monster);
+    }
+}
+function ShowChooseMonsterField(monster){
+        if(monster["place"] == "field"){
+        var fields = global_field_fields;
+        var x = monster["x"];
+        var y = monster["y"];
+        var color;
+        var result;
+        var sentence;
+                    if(fields[x][y]["color"] != ""){
+                        color = fields[x][y]["color"];
+                    }else if(fields[x][y]["mine_or_other"] == user){
+                        color = mine_color;
+                    }else{
+                        color = other_color;
+                    }
+                    if(fields[x][y]["sentence"] != ""){
+                        sentence = "<br>"+fields[x][y]["sentence"]+"<br>";
+                    }else{
+                        sentence = "";
+                    }
+        var pid=[];
+        var img_url="";
+        pid.push(fields[x][y]["det"]["place_unique_id"]);
+        img_url = fields[x][y]["det"]["img"];
+
+        result="<table><tr><td style=\"border:1px solid red;background-color:"+color+"\"><a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" {% if Config.card_href %} href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {%endif%}> <img class=\"img_card\" src=\""+static_url+"/img/"+fields[x][y]["det"]["img"]+"\" width=\"\" height=\"210px\" ></a>"+sentence+"</td></tr></table>";
+        if(user == 1){
+            $("#"+x+"_"+y).html(result);
+        }else{
+            $("#"+x+"_"+({{field_y}}-y-1)).html(result);
+        }
+        for(i =0;i<pid.length;i++){
+                $("#"+pid[i]).hover(
+                    function(){
+                    $("#card_img").html("<img class=\"explain_card\" src=\""+static_url+"/img/"+$(this).attr("card_id")+"\">");
+                },
+                    function(){
+                    //$("#card_img").html("");
+                }
+                );
+        }
+            }
+}
+function ChooseMultiple(data){
+    var result_html;
+    multiple_answer = [];
+    min_equation_number = data["min_equation_number"];
+    max_equation_number = data["max_equation_number"];
+    prompt = data["prompt"];
+    double = data["double"];
+    user = data["user"];
+    if(data["auto_select"] != undefined && data["auto_select"] != ""){
+        auto_select = data["auto_select"].split("_");
+    }else{
+        auto_select = [];
+    }
+    var data2 = data["return_val"];
+    current_choice_array = [];
+    global_choosed_monster = data2[0];
+    if(global_choosed_monster.length==0){
+        sendMultipleAnswer([]);
+        return;
+    }
+    global_field_sentence = data["sentence"];
+    global_prompt = data["prompt"];
+    result_html = global_field_sentence+"<br>";
+    result_html += global_choosed_monster[multiple_number]["det"]["monster_name"]+global_prompt;
+    ShowFieldMultiple(global_choosed_monster[multiple_number]["det"]["place_unique_id"]);
+    if(min_equation_number == 0){
+        result_html += "<input type=\"button\" value=\"{{Config.choose_multiple_cancel }}\" onclick=\"choosed('')\">";
+    }
+    var offset = $("#upper_line").offset();
+    $("#choosing_area").show();
+    $("#choosing_area").draggable();
+    $("#choosing_area").html(result_html);
+    var height = $("#choosing_area").height();
+    $("#choosing_area").offset({top:offset.top+500-height,left:400});
+    ShowChooseMonster(global_choosed_monster[multiple_number]);
+    global_to_monsters = data2[1];
+    ChooseMonsterForMultiple("");
+}
+function choosed(data){
+    var result_html;
+    //一度選択をクリア
+    Success2();
+        multiple_answer.push(current_choice_array.slice(1));
+        multiple_number += 1;
+        if(global_choosed_monster[multiple_number] == undefined){
+            sendMultipleAnswer(multiple_answer);
+            return;
+        }
+        ShowChooseMonster(global_choosed_monster[multiple_number]);
+        result_html = global_field_sentence+"<br>";
+        result_html += global_choosed_monster[multiple_number]["det"]["monster_name"]+global_prompt;
+    if(min_equation_number == 0){
+        result_html += "<input type=\"button\" value=\"迎撃しない\" onclick=\"choosed('')\">";
+    }
+        $("#message").html(result_html);
+    current_choice_array = [];
+    ChooseMonsterForMultiple("");
+
+}
+function ChooseMonsterForMultiple(current_choice){
+    var img_url;
+    var pid = [];
+    var tmp;
+    var result_html;
+    var result_html_deck;
+    var result_html_grave;
+    var result_html_hand;
+    var result;
+    var to_monsters = global_to_monsters;
+    var auto_selected = [];
+    var auto_max = [];
+    var html_for_auto = "";
+    var tmp_val;
+    var i,j,k;
+    var color;
+    var sentence;
+    var exist_flag = false;
+    for(i=0;i<auto_select.length;i++){
+        auto_max[i] = -1;
+        auto_selected[i] = -1;
+    }
+    if(current_choice != ""){
+        current_choice_array = current_choice.split("_");
+    }else{
+        current_choice_array = [];
+    }
+    if(current_choice_array.length>= max_equation_number){
+        multiple_answer.push(current_choice_array[0]);
+        multiple_number += 1;
+        if(global_choosed_monster[multiple_number] == undefined){
+            sendMultipleAnswer(multiple_answer);
+            return;
+        }
+        ShowChooseMonster(global_choosed_monster[multiple_number]);
+    }
+        result_html = global_field_sentence+"<br>";
+        result_html += global_choosed_monster[multiple_number]["det"]["monster_name"]+prompt;
+        if(min_equation_number == 0){
+            result_html += "<input type=\"button\" value=\"選択完了\" onclick=\"choosed('')\">";
+        }
+    result_html_hand = {};
+    result_html_grave = {};
+    result_html_deck = {};
+
+    //一度選択をクリア
+    Success2();
+        ShowFieldMultiple(global_choosed_monster[multiple_number]["det"]["place_unique_id"]);
+    for(i=0;i<to_monsters.length;i++){
+
+        var none_flag = false;
+        if(global_double == false){
+            for(j=0;j<multiple_number;j++){
+                if($.inArray(String(i),multiple_answer[j]) != -1){
+                    none_flag = true;
+                    break;
+                }
+            }
+        }
+        if($.inArray(String(i),current_choice_array && double == false) != -1){
+            continue;
+        }
+        if(none_flag == true && double == false){
+            continue;
+        }
+        if(to_monsters[i]["place"] == "field"){
+        var fields = global_field_fields;
+        var x = to_monsters[i]["x"];
+        var y = to_monsters[i]["y"];
+        if(fields[x][y]["det"] == undefined){
+            exist_flag = true;
+            result="<table><tr><td style=\"\"><input type=\"button\" onclick=\"ChooseMonsterForMultiple("+String(i)+")\" value=\"ここ\"></td></tr></table>";
+
+        }else{
+            exist_flag = true;
+            for(k=0;k<auto_select.length;k++){
+                tmp_val =  checkVal(fields[x][y]["det"],auto_select[k]);
+                if(auto_max[k] < tmp_val){
+                    auto_max[k] = tmp_val;
+                    auto_selected[k] = i;
+                }
+            }
+                    if(fields[x][y]["color"] != ""){
+                        color = fields[x][y]["color"];
+                    }else if(fields[x][y]["mine_or_other"] == user){
+                        color = mine_color;
+                    }else{
+                        color = other_color;
+                    }
+                    if(fields[x][y]["sentence"] != ""){
+                        sentence = "<br>"+fields[x][y]["sentence"]+"<br>";
+                    }else{
+                        sentence = "";
+                    }
+        pid.push(fields[x][y]["det"]["place_unique_id"]);
+        img_url = fields[x][y]["det"]["img"];
+            result="<table><tr><td style=\"background-color:"+color+"\"><a onclick=\"ChooseMonsterForMultiple('"+String(i)+"')\"  target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\"  {%if Config.card_href%}  href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {%endif%}> <img class=\"img_card\"  src=\""+static_url+"/img/"+fields[x][y]["det"]["img"]+"\"></a><br><input type=\"button\" onclick=\"ChooseMonsterForMultiple('"+String(i)+"')\" value=\"選択\">"+sentence+"</td></tr></table>";
+        }
+        if(user == 1){
+            $("#"+x+"_"+y).html(result);
+        }else{
+            $("#"+x+"_"+({{field_y}}-y-1)).html(result);
+        }
+        }
+    }
+    for(tmp in  result_html_deck){
+        result_html += tmp
+    }
+    for(tmp in  result_html_grave){
+        result_html += tmp
+    }
+    for(tmp in  result_html_hand){
+        result_html += tmp
+    }
+
+    for(k=0;k<auto_select.length;k++){
+        if(auto_selected[k] == -1){
+            continue;
+        }
+        html_for_auto += "<input type=\"button\"  onclick=\"ChooseMonsterForMultiple('"+String(auto_selected[k])+"')\" value=\""+auto_select[k]+"{{Config.auto_max}}\"> ";
+    }
+    if(html_for_auto != ""){
+        html_for_auto+="<br>";
+    }
+    if(exist_flag == false){
+        choosed("");
+        return;
+    }
+        for(i =0;i<pid.length;i++){
+                $("#"+pid[i]).hover(
+                    function(){
+                    $("#card_img").html("<img class=\"explain_card\" src=\""+static_url+"/img/"+$(this).attr("card_id")+"\">");
+                },
+                    function(){
+                    //$("#card_img").html("");
+                }
+                );
+        }
+    result_html = html_for_auto + result_html;
+    var offset = $("#upper_line").offset();
+    $("#choosing_area").show();
+    $("#choosing_area").draggable();
+    $("#choosing_area").html(result_html);
+    var height = $("#choosing_area").height();
+    $("#choosing_area").offset({top:offset.top+500-height});
+}
+function end_message(){
+    var result_html = "終了";
+    $("#message").html(result_html);
+}
+function ask_det(data){
+
+    Success2();
+    $("#center_message").html("");
+    var img_url;
+    global_all_result = [];
+    var pid = [];
+    var auto_flag = true;
+    var auto_count = 0;
+    var auto_data = [];
+    var tmp_auto = {};
+    var tmp,tmp2;
+    var tmp_det;
+    if(data == "end"){
+        end_message();
+        return;
+    }
+    data = JSON.parse(data);
+        all_flag = data["all_flag"];
+    if(data["chain_variable"] == true){
+       ChainVariableDet(data);
+           return;
+    }
+    if(data["force_effect"] == true){
+       ForceEffect(data["return_val"]);
+           return;
+    }
+    if(data["val_order"] == true){
+        global_order = [];
+       ValOrderDet(data);
+           return;
+    }
+    if(data["yes_or_no"] == true){
+       YesOrNoDet(data);
+           return;
+    }
+    if(data["multiple_choice"] == true){
+       MultipleChoiceDet(data);
+           return;
+    }
+    if(data["multiple"] == true){
+       multiple_number = 0;
+       if(data["double"] == true){
+            global_double = true;
+       }else{
+            global_double = false;
+       }
+       ChooseMultiple(data);
+           return;
+    }
+    global_ask_data = data;
+    global_answer_deck = [];
+    global_answer_grave = [];
+    global_answer_hand = [];
+    global_ask_fields= [];
+    global_ask_unders= [];
+    min_equation_number = data["min_equation_number"];
+    max_equation_number = data["max_equation_number"];
+    if(max_equation_number != min_equation_number){
+        auto_flag = false;
+    }
+    global_field_whether_monster = data["whether_monster"];
+    global_field_sentence = data["sentence"];
+    monster_name_kind = data["monster_name_kind"];
+    if(data["variables"] != undefined){
+        variables = data["variables"];
+    }else{
+        variables = Array();
+    }
+    if(data["flag"] != undefined){
+        flag = data["flag"];
+    }else{
+        flag = false;
+    }
+    {% if Config.from_left %}
+        var from_left = data["from_left"];
+    {%else %}
+        var from_left = "";
+    {%endif %}
+    exclude = data["exclude"];
+
+    prompt = data["prompt"];
+    ask_field = data["ask_field"];
+    ask_under = data["ask_under"];
+    global_field_info = data["field_info"];
+    org_data = data;
+    global_org_data = org_data;
+    data = data["return_val"];
+    var result_html = "";
+    var decks = [];
+    var graves = [];
+    var hands = [];
+    global_ask_fields = [];
+    global_ask_unders= [];
+    // フィールドで複数回ループが回るときよう
+    global_ask_fields2 = [];
+    var i,j;
+    result_html = prompt+"<br>";
+        if(all_flag == true){
+                result_html+="<input type=\"button\" value=\"全て選択\" onclick=\"sendAnswerAll()\"> ";
+        }
+    $("#end_chain").hide();
+        var space = false;
+        if(ask_field != undefined || ask_under != undefined){
+            auto_flag = false;
+            MakeFieldsChoose(org_data,ask_field,ask_under);
+        }else{
+            space = true
+        }
+    var deck_i = 0;
+    var grave_i = 0;
+    var hand_i = 0;
+    for(i = 0;i<data.length;i++){
+        if(data[i]["mine_or_other"]){
+            result_html += "<br>"+data[i]["mine_or_other"]+"<br>";
+        }
+        if(data[i]["cards"] != undefined){
+            tmp_det  = [];
+            for(j=0;j<data[i]["cards"].length;j++){
+                if(Validate(data[i]["cards"][j])){
+                        img_url = data[i]["cards"][j]["img"];
+                        pid.push(data[i]["cards"][j]["place_unique_id"]);
+                        result_html +="<a target=\"_blank\" onclick=\"ask_det2('deck',"+deck_i+","+j+")\"  ><img class=\"img_card\" card_id=\""+img_url+"\"  id=\""+data[i]["cards"][j]["place_unique_id"]+"\"    src=\""+static_url+"/img/"+img_url+"\"></a>";
+
+                auto_count++;
+                    tmp_auto = {};
+                    tmp_auto["place"] = "deck";
+                    tmp_auto["i"] = i;
+                    tmp_auto["j"] = j;
+                    auto_data.push(tmp_auto);
+                }
+                tmp= data[i]["cards"][j];
+                tmp["type"] = "deck";
+                tmp["mine_or_other"] = data[i]["mine_or_other_val"];
+                tmp_det.push(tmp);
+            }
+            deck_i++;
+            tmp2 = {};
+            tmp2["key"] = data[i]["deck_id"];
+            tmp2["val"]= j;
+            tmp2["det"]= tmp_det;
+            decks.push(tmp2);
+        }
+        if(data[i]["grave"] != undefined){
+            tmp_det  = [];
+            for(j=0;j<data[i]["grave"].length;j++){
+                if(Validate(data[i]["grave"][j])){
+                        img_url = data[i]["grave"][j]["img"];
+                        pid.push(data[i]["grave"][j]["place_unique_id"]);
+                        result_html +="<a target=\"_blank\" onclick=\"ask_det2('grave',"+grave_i+","+j+")\"  ><img class=\"img_card\" card_id=\""+img_url+"\"  id=\""+data[i]["grave"][j]["place_unique_id"]+"\"    src=\""+static_url+"/img/"+img_url+"\"></a>";
+                auto_count++;
+                    tmp_auto = {};
+                    tmp_auto["place"] = "grave";
+                    tmp_auto["i"] = i;
+                    tmp_auto["j"] = j;
+                    auto_data.push(tmp_auto);
+                }
+                tmp = data[i]["grave"][j];
+                tmp["type"] = "grave";
+                tmp["mine_or_other"] = data[i]["mine_or_other_val"];
+                tmp_det.push(tmp);
+            }
+            grave_i++;
+            tmp2 = {};
+            tmp2["key"] = data[i]["grave_id"];
+            tmp2["val"]= j;
+            tmp2["det"]= tmp_det;
+            graves.push(tmp2);
+        }
+        if(data[i]["hand"] != undefined){
+            //MakeHandsGray();
+            tmp_det  = [];
+            for(j=0;j<data[i]["hand"].length;j++){
+                if(Validate(data[i]["hand"][j])){
+                    auto_count++;
+                    tmp_auto = {};
+                    tmp_auto["place"] = "hand";
+                    tmp_auto["i"] = i;
+                    tmp_auto["j"] = j;
+                    auto_data.push(tmp_auto);
+                    if($("#"+data[i]["hand"][j]["place_unique_id"]).length>0){
+                        img_url = data[i]["hand"][j]["img"];
+                        pid.push("hand"+data[i]["hand"][j]["place_unique_id"]);
+                        result_html +="<a target=\"_blank\" onclick=\"ask_det2('hand',"+hand_i+","+j+")\"  ><img class=\"img_card\" card_id=\""+img_url+"\"  id=\"hand"+data[i]["hand"][j]["place_unique_id"]+"\"    src=\""+static_url+"/img/"+img_url+"\"></a>";
+                        //result_html_hand += "<br><input type=\"button\" onclick=\"ask_det2('hand',"+i+","+j+")\" value=\""+data[i]["hand"][j]["monster_name"]+"\">";;
+                        //$("#"+data[i]["hand"][j]["place_unique_id"]).html(result_html_hand);
+                    }else{
+                        result_html += "<input type=\"button\" onclick=\"ask_det2('hand',"+i+","+j+")\" value=\""+data[i]["hand"][j]["monster_name"]+"\">";
+                    }
+                }
+                tmp = data[i]["hand"][j];
+                tmp["type"] = "hand";
+                tmp["mine_or_other"] = data[i]["mine_or_other_val"];
+                tmp_det.push(tmp);
+            }
+            tmp2 = {};
+            tmp2["key"] = data[i]["hand_id"];
+            tmp2["val"]= j;
+            tmp2["det"]= tmp_det;
+            hands.push(tmp2);
+            hand_i++;
+        }
+    }
+    global_ask_decks = decks;
+    global_ask_graves = graves;
+    global_ask_hands = hands;
+    global_auto_data = auto_data;
+    if(auto_flag == true && auto_count == max_equation_number){
+        autoSend(auto_data);
+        return;
+    }
+    result_html += "<br><input type=\"button\" value=\"選択完了\" onclick=\"sendAnswer()\"><input type=\"button\" style=\"width:100px\" value=\"{{Config.cancel_name}}\" onclick=\"javascript:Cancel()\">";
+    if(from_left != undefined && from_left == true){
+        result_html += "<input style=\"margin-left:20px\" type=\"button\" value=\"左から選択\" onclick=\"sendFromLeft()\">";
+    }
+    var offset = $("#upper_line").offset();
+    $("#choosing_area").html(result_html);
+    $("#choosing_area").draggable();
+    $("#choosing_area").show();
+    var height = $("#choosing_area").height();
+    $("#choosing_area").offset({top:offset.top+500-height});
+        for(i =0;i<pid.length;i++){
+                $("#"+pid[i]).hover(
+                    function(){
+                    $("#card_img").html("<img class=\"explain_card\" src=\""+static_url+"/img/"+$(this).attr("card_id")+"\">");
+                },
+                    function(){
+                    //$("#card_img").html("");
+                }
+                );
+        }
+}
+function ForceEffect(data){
+    var i;
+    var result_html = "";
+    for(i=0;i<data.length;i++){
+        if(data[i]["able"] == 1){
+            result_html += "<input type=\"button\" onclick=\"SendForceEffect('"+data[i]["det"]["place_unique_id"]+"')\" value=\""+data[i]["det"]["monster_name"]+"\">";
+        }else{
+            result_html += "("+data[i]["det"]["monster_name"]+")";
+        }
+    }
+    var offset = $("#upper_line").offset();
+    $("#choosing_area").show();
+    $("#choosing_area").draggable();
+    $("#choosing_area").html(result_html);
+    var height = $("#choosing_area").height();
+    $("#choosing_area").offset({top:offset.top+500-height});
+}
+function SendForceEffect(id){
+    $("#choosing_area").hide();
+    if(id == undefined){
+        id = global_data;
+    }
+    global_data = id;
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:force_trigger'  %}",
+   data: "room_number={{room_number}}&place_unique_id="+id,
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(SendForceEffect,1000);
+        return;
+    }
+    Success(data);
+   },
+   error:function(){
+        //alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+        WaitAi();
+ {% endif %}
+}
+function InvokeChoice(id){
+    if(id == undefined){
+        id = global_data;
+    }
+    global_data = id;
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:choices'  %}",
+   data: "room_number={{room_number}}&trigger_id="+id,
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(InvokeChoice,1000);
+        return;
+    }
+    InvokeChoiceDet(data);
+   },
+   error:function(){
+        //alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+    WaitAi();
+ {% endif %}
+}
+function InvokeChoiceDet(data){
+	/*
+    if(data == undefined){
+        data = global_data;
+
+    }
+    global_data = data;
+		*/
+    Success(data);
+	/*
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:battle_det'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(InvokeChoiceDet,1000);
+        return;
+    }else{
+        Success(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+});
+	*/
+}
+function sendFieldTrigger(x,y,place_unique_id,trigger_id,mine_or_other){
+    if(x==undefined || y == undefined || place_unique_id == undefined || trigger_id == undefined || mine_or_other == undefined || mine_or_other == undefined){
+        x = global_data["x"];
+        y = global_data["y"];
+        place_unique_id = global_data["place_unique_id"];
+        trigger_id = global_data["trigger_id"];
+        mine_or_other = global_data["mine_or_other"];
+    }
+    global_data = {};
+    global_data["x"] = x;
+    global_data["y"] = y;
+    global_data["place_unique_id"] = place_unique_id;
+    global_data["trigger_id"] = trigger_id;
+    global_data["mine_or_other"] = mine_or_other;
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:field_trigger'  %}",
+   data: "room_number={{room_number}}&trigger_id="+trigger_id+"&x="+x+"&y="+y+"&place_unique_id="+place_unique_id+"&mine_or_other="+mine_or_other,
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(sendFieldTrigger,1000);
+        return;
+    }
+    sendFieldTriggerDet(data);
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+    WaitAi();
+ {% endif %}
+}
+function sendGraveTrigger(grave_id,place_unique_id,trigger_id,mine_or_other){
+    if(grave_id == undefined){
+        grave_id= global_data["grave_id"];
+        place_unique_id= global_data["place_unique_id"];
+        mine_or_other =  global_data["mine_or_other"];
+        trigger_id == global_data["trigger_id"];
+    }
+    global_data = {};
+    global_data["grave_id"] = grave_id;
+    global_data["place_unique_id"] = place_unique_id;
+    global_data["mine_or_other"] = mine_or_other;
+    global_data["trigger_id"] = trigger_id;
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:grave_trigger'  %}",
+   data: "room_number={{room_number}}&trigger_id="+trigger_id+"&grave_id="+grave_id+"&place_unique_id="+place_unique_id+"&mine_or_other="+mine_or_other,
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(sendGraveTrigger,1000);
+        return;
+    }else{
+    sendHandTriggerDet(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+    WaitAi();
+ {% endif %}
+}
+function sendDeckTrigger(deck_id,place_unique_id,trigger_id,mine_or_other){
+    if(deck_id == undefined){
+        deck_id= global_data["deck_id"];
+        place_unique_id= global_data["place_unique_id"];
+        mine_or_other =  global_data["mine_or_other"];
+        trigger_id == global_data["trigger_id"];
+    }
+    global_data = {};
+    global_data["deck_id"] = deck_id;
+    global_data["place_unique_id"] = place_unique_id;
+    global_data["mine_or_other"] = mine_or_other;
+    global_data["trigger_id"] = trigger_id;
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:deck_trigger'  %}",
+   data: "room_number={{room_number}}&trigger_id="+trigger_id+"&deck_id="+deck_id+"&place_unique_id="+place_unique_id+"&mine_or_other="+mine_or_other,
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(sendDeckTrigger,1000);
+        return;
+    }else{
+    sendHandTriggerDet(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+    WaitAi();
+ {% endif %}
+}
+function sendHandTrigger(hand_id,place_unique_id,trigger_id,mine_or_other){
+    if(hand_id == undefined){
+        hand_id= global_data["hand_id"];
+        trigger_id= global_data["trigger_id"];
+        place_unique_id= global_data["place_unique_id"];
+        mine_or_other =  global_data["mine_or_other"];
+    }
+    global_data = {};
+    global_data["hand_id"] = hand_id;
+    global_data["trigger_id"] = trigger_id;
+    global_data["place_unique_id"] = place_unique_id;
+    global_data["mine_or_other"] = mine_or_other;
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:hand_trigger'  %}",
+   data: "room_number={{room_number}}&trigger_id="+trigger_id+"&hand_id="+hand_id+"&place_unique_id="+place_unique_id+"&mine_or_other="+mine_or_other,
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(sendHandTrigger,1000);
+        return;
+    }else{
+        sendHandTriggerDet(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+    WaitAi();
+ {% endif %}
+}
+function sendMultipleAnswer(answer){
+    $("#choosing_area").hide();
+    if(answer == undefined){
+        answer = global_data;
+    }
+    global_data = answer;
+    answer = JSON.stringify(answer);
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:multiple_answer'  %}",
+   data: "room_number={{room_number}}&answer="+answer,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        ask();
+        return;
+    }
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(sendMultipleAnswer,1000);
+        return;
+    }else{
+        Success(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+    WaitAi();
+ {% endif %}
+}
+function sendAnswerOrder(){
+    $("#choosing_area").hide();
+    var result = "";
+    for(var i=0;i<global_order.length;i++){
+        result += String(i) + "_";
+    }
+    result = result.substr(0,result.length-1);
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:answerorder'  %}",
+   data: "room_number={{room_number}}&order="+result,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        alert("正しい対象を選択してください。");
+        ask();
+        return;
+    }
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(sendAnswerOrder,1000);
+        return;
+    }else{
+        Success(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+    WaitAi();
+ {% endif %}
+}
+function sendAnswerAll(){
+        var i;
+        var return_value = [];
+        var tmp,tmp2;
+        for(i=0;i<global_all_fields.length;i++){
+            tmp2 = global_all_fields[i].split("_");
+        tmp = {};
+        tmp["x"] = tmp2[0];
+        tmp["y"] = tmp2[1];
+        tmp["place"] = "field";
+        return_value.push(tmp);
+
+        }
+    if(return_value.length <min_equation_number || return_value.length >max_equation_number){
+        alert("選択できるのは"+min_equation_number+"以上"+max_equation_number+"以下です");
+
+        return;
+    }
+    var answer = JSON.stringify(return_value);
+    Success2();
+    $('#choosing_area').hide();
+
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:answer'  %}",
+   data: "room_number={{room_number}}&answer="+answer,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        alert("正しい対象を選択してください。");
+        ask();
+        return;
+    }
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(sendAnswerAll,1000);
+        return;
+    }else{
+        Success(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+    WaitAi();
+ {% endif %}
+}
+function sendFromLeft(){
+    var decks = global_ask_decks;
+    var graves = global_ask_graves;
+    var hands = global_ask_hands;
+    var answer;
+    var i,j,k;
+    var tmp;
+    Success2();
+    var return_value = [];
+    var data = global_auto_data;
+    for(k=0;k<Math.min(max_equation_number,data.length);k++){
+        if(data[k]["place"] == "deck"){
+            i = data[k]["i"];
+            j = data[k]["j"];
+            tmp = decks[i]["det"][j];
+            tmp["deck_id"] = decks[i]["key"];
+            tmp["place"] = "deck";;
+            return_value.push(tmp);
+        }
+        if(data[k]["place"] == "grave"){
+            i = data[k]["i"];
+            j = data[k]["j"];
+            tmp = graves[i]["det"][j];
+            tmp["grave_id"] = graves[i]["key"];
+            tmp["place"] = "grave";;
+            return_value.push(tmp);
+        }
+        if(data[k]["place"] == "hand"){
+            i = data[k]["i"];
+            j = data[k]["j"];
+            tmp = hands[i]["det"][j];
+            tmp["hand_id"] = hands[i]["key"];
+            tmp["place"] = "hand";;
+            return_value.push(tmp);
+        }
+    }
+    answer = JSON.stringify(return_value);
+    $('#choosing_area').hide();
+
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:answer'  %}",
+   data: "room_number={{room_number}}&answer="+answer,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        alert("正しい対象を選択してください。");
+        ask();
+        return;
+    }
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(sendFromLeft,1000);
+        return;
+    }else{
+        Success(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+    WaitAi();
+ {% endif %}
+}
+function autoSend(data){
+    var tmp;
+    var answer;
+    if(data == undefined){
+        data = stored_data2;
+    }
+    stored_data2 = data;
+    var decks = global_ask_decks;
+    var graves = global_ask_graves;
+    var hands = global_ask_hands;
+    var i,j,k;
+    Success2();
+    var return_value = [];
+    for(k=0;k<data.length;k++){
+        if(data[k]["place"] == "deck"){
+            i = data[k]["i"];
+            j = data[k]["j"];
+            tmp = decks[i]["det"][j];
+            tmp["deck_id"] = decks[i]["key"];
+            tmp["place"] = "deck";;
+            return_value.push(tmp);
+        }
+        if(data[k]["place"] == "grave"){
+            i = data[k]["i"];
+            j = data[k]["j"];
+            tmp = graves[i]["det"][j];
+            tmp["grave_id"] = graves[i]["key"];
+            tmp["place"] = "grave";;
+            return_value.push(tmp);
+        }
+        if(data[k]["place"] == "hand"){
+            i = data[k]["i"];
+            j = data[k]["j"];
+            tmp = hands[i]["det"][j];
+            tmp["hand_id"] = hands[i]["key"];
+            tmp["place"] = "hand";;
+            return_value.push(tmp);
+        }
+    }
+    answer = JSON.stringify(return_value);
+
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:answer'  %}",
+   data: "room_number={{room_number}}&answer="+answer,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        alert("正しい対象を選択してください。");
+        ask();
+        return;
+    }
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(autoSend,1000);
+        return;
+    }else{
+        Success(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+    WaitAi();
+ {% endif %}
+}
+function sendAnswer(){
+    var decks = global_ask_decks;
+    var graves = global_ask_graves;
+    var hands = global_ask_hands;
+    var return_value = [];
+    var tmp,tmp2;
+    var key_all;
+    var i,j;
+    var answer;
+    for(key_all in global_all_result){
+        if(global_all_result[key_all]["type"] == "field"){
+            tmp2 = global_all_result[key_all]["val"].split("_");
+            tmp = {};
+            tmp["x"] = tmp2[0];
+            tmp["y"] = tmp2[1];
+            tmp["place"] = "field";
+            return_value.push(tmp);
+        }else if(global_all_result[key_all]["type"] == "under"){
+            tmp2 = global_all_result[key_all]["val"].split("_");
+            tmp = {};
+            tmp["x"] = tmp2[0];
+            tmp["y"] = tmp2[1];
+            tmp["under_id"] = global_all_result[key_all]["under_id"];
+            tmp["place"] = "under";
+            return_value.push(tmp);
+        }else if(global_all_result[key_all]["type"] == "deck"){
+            for(i=0;i<decks.length;i++){
+                for(j=0;j<decks[i]["val"];j++){
+                    if(global_all_result[key_all]["val"] == i+"_"+j){
+                        tmp = decks[i]["det"][j];
+                        tmp["deck_id"] = decks[i]["key"];
+                        tmp["place"] = "deck";;
+                        return_value.push(tmp);
+                    }
+                }
+            }
+        }else if(global_all_result[key_all]["type"] == "grave"){
+            for(var i=0;i<graves.length;i++){
+                for(j=0;j<graves[i]["val"];j++){
+                    if(global_all_result[key_all]["val"] == i+"_"+j){
+                        tmp = graves[i]["det"][j];
+                        tmp["grave_id"] = graves[i]["key"];
+                        tmp["place"] = "grave";;
+                        return_value.push(tmp);
+                    }
+                }
+            }
+        }else if(global_all_result[key_all]["type"] == "hand"){
+            for(var i=0;i<hands.length;i++){
+                for(j=0;j<hands[i]["val"];j++){
+                    if(global_all_result[key_all]["val"] == i+"_"+j){
+                        tmp = hands[i]["det"][j];
+                        tmp["hand_id"] = hands[i]["key"];
+                        tmp["place"] = "hand";;
+                        return_value.push(tmp);
+                    }
+                }
+            }
+        }
+    }
+    if(return_value.length <min_equation_number || return_value.length >max_equation_number){
+        alert("選択できるのは"+min_equation_number+"以上"+max_equation_number+"以下です");
+
+        return;
+    }
+    answer = JSON.stringify(return_value);
+    Success2();
+    $('#choosing_area').hide();
+
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:answer'  %}",
+   data: "room_number={{room_number}}&answer="+answer,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        alert("正しい対象を選択してください。");
+        ask();
+        return;
+    }
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(sendAnswer,1000);
+        return;
+    }else{
+        Success(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+        WaitAi();
+ {% endif %}
+}
+function sendFieldTriggerDet(data){
+    if(data == undefined){
+        data = global_data;
+    }
+    global_data = data;
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:battle_det'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(sendFieldTriggerDet,1000);
+        return;
+    }else{
+        Success(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+});
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+        WaitAi();
+ {% endif %}
+}
+function sendHandTriggerDet(data){
+    if(data == undefined){
+        data = global_data;
+    }
+    global_data = data;
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:battle_det'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(sendHandTriggerDet,1000);
+        return;
+    }else{
+        Success(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+});
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+        WaitAi();
+ {% endif %}
+}
+function answerDet(data){
+    if(data == undefined){
+        data = global_data;
+    }
+    global_data = data;
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:battle_det'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(answerDet,1000);
+        return;
+    }else{
+        Success(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+});
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+        WaitAi();
+ {% endif %}
+}
+function ask(){
+    Success2();
+    $("#center_message").html("");
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:ask_place'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    clearTimeout(timer);
+    ask_det(data);
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+}
+function None(){
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:none'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(None,1000);
+        return;
+    }else if( data == "error"){
+	    consoel.log("ZZZ");
+        clearTimeout(timer);
+        timer = setTimeout(Wait,1000);
+        return;
+    }else{
+        data = JSON.parse(data);
+        if(data["sound_effect"] != ""){
+            PlaySoundEffect(data["sound_effect"]);
+        }
+        none(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+        WaitAi();
+ {% endif %}
+}
+function ChooseGuestName(){
+        Init();
+    $("#guest_name_choosing").show();
+    $("#guest_name_choosing").draggable();
+    $("#guest_name_choosing").offset({top:300});
+}
+function SendGuestName(){
+    var guest_name = $("#choose_guest_name").val();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:chooseguestname'  %}",
+   data: "room_number={{room_number}}&guest_name="+guest_name,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        alert("エラーが発生しました");
+        return;
+    }else{
+            $("#guest_name_choosing").hide();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:battle_det'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(Wait,1000);
+        return;
+    }
+        clearTimeout(timer);
+    Success(data);
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+});
+}
+{% if user == 1 %}
+    {% if user_flag == False %}
+function ChooseDeck(){
+        Init();
+        var html = "デッキを選択<br>";
+        var default_deck_html = "";
+        {% if default_deck_groups %}
+            var default_deck_html='自分のデッキ<select id="default_deck">';
+            {% for default_deck in default_deck_groups %}
+                default_deck_html+='<option value="{{default_deck.id}}">{{default_deck.deck_name}}</option>';
+            {% endfor %}
+            default_deck_html+="</select>";
+        {% endif %}
+        default_deck_html+='<input type="button" value="選択完了" onclick="SendChooseDeck()">';
+    $("#own_choosing").html(html+default_deck_html);
+    $("#own_choosing").show();
+    $("#own_choosing").draggable();
+    $("#own_choosing").offset({top:300});
+
+}
+        {% else %}
+function ChooseDeck(){
+        Init();
+        var html = "デッキを選択<br>";
+        var user_deck_html = "";
+        {% if user_deck_groups %}
+            var user_deck_html='自分のデッキ<select id="user_deck">';
+            {% for user_deck in user_deck_groups %}
+                user_deck_html+='<option value="{{user_deck.id}}">{{user_deck.deck_name}}</option>';
+            {% endfor %}
+            user_deck_html+="</select>";
+        {% endif %}
+        user_deck_html+='<input type="button" value="選択完了" onclick="SendUserChooseDeck()">';
+    $("#own_choosing").html(html+user_deck_html);
+    $("#own_choosing").show();
+    $("#own_choosing").draggable();
+    $("#own_choosing").offset({top:300});
+
+}
+        {% endif %}
+function SendUserChooseDeck(){
+    {% if user_deck_groups %}
+        var user_deck = $("#user_deck").val();
+    {%else %}
+        var user_deck = "-1";
+    {% endif %}
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:chooseuserdeck'  %}",
+   data: "room_number={{room_number}}&user_deck="+user_deck,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        alert("エラーが発生しました");
+        return;
+    }else{
+            deck_choosing1 = "False";
+            deck_choosing2 = "False";
+            $("#own_choosing").hide();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:battle_det'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(Wait,1000);
+        return;
+    }
+        clearTimeout(timer);
+    Success(data);
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+});
+}
+function SendChooseDeck(){
+    {% if default_deck_groups %}
+        var default_deck = $("#default_deck").val();
+    {%else %}
+        var default_deck = "-1";
+    {% endif %}
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:choosedeck'  %}",
+   data: "room_number={{room_number}}&default_deck="+default_deck,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        alert("エラーが発生しました");
+        return;
+    }else{
+            deck_choosing1 = "False";
+            deck_choosing2 = "False";
+            $("#own_choosing").hide();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:battle_det'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(Wait,1000);
+        return;
+    }
+        clearTimeout(timer);
+    Success(data);
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+});
+}
+{% elif user == 2 %}
+    {% if user_flag == False %}
+function ChooseDeck(){
+        Init();
+        var html = "デッキを選択<br>";
+        var default_deck_html = "";
+        {% if default_deck_groups %}
+            var default_deck_html='自分のデッキ<select id="default_deck">';
+            {% for default_deck in default_deck_groups %}
+                default_deck_html+='<option value="{{default_deck.id}}">{{default_deck.deck_name}}</option>';
+            {% endfor %}
+            default_deck_html+="</select>";
+        {% endif %}
+        default_deck_html+='<input type="button" value="選択完了" onclick="SendChooseDeck()">';
+    $("#own_choosing").html(html+default_deck_html);
+    $("#own_choosing").show();
+    $("#own_choosing").draggable();
+    $("#own_choosing").offset({top:300});
+
+}
+    {%else %}
+function ChooseDeck(){
+        Init();
+        var html = "デッキを選択<br>";
+        var user_deck_html = "";
+        {% if user_deck_groups %}
+            var user_deck_html='自分のデッキ<select id="user_deck">';
+            {% for user_deck in user_deck_groups %}
+                user_deck_html+='<option value="{{user_deck.id}}">{{user_deck.deck_name}}</option>';
+            {% endfor %}
+            user_deck_html+="</select>";
+        {% endif %}
+        user_deck_html+='<input type="button" value="選択完了" onclick="SendUserChooseDeck()">';
+    $("#own_choosing").html(html+user_deck_html);
+    $("#own_choosing").show();
+    $("#own_choosing").draggable();
+    $("#own_choosing").offset({top:300});
+
+}
+    {%endif%}
+function SendUserChooseDeck(){
+    {% if user_deck_groups %}
+        var user_deck = $("#user_deck").val();
+    {%else %}
+        var user_deck = "-1";
+    {% endif %}
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:chooseuserdeck'  %}",
+   data: "room_number={{room_number}}&user_deck="+user_deck,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        alert("エラーが発生しました");
+        return;
+    }else{
+            deck_choosing1 = "False";
+            deck_choosing2 = "False";
+            $("#own_choosing").hide();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:battle_det'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(Wait,1000);
+        return;
+    }
+        clearTimeout(timer);
+    Success(data);
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+});
+}
+function SendChooseDeck(){
+    {% if default_deck_groups %}
+        var default_deck = $("#default_deck").val();
+    {%else %}
+        var default_deck = "-1";
+    {% endif %}
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:choosedeck'  %}",
+   data: "room_number={{room_number}}&default_deck="+default_deck,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        alert("エラーが発生しました");
+        return;
+    }else{
+         deck_choosing1 = "False";
+         deck_choosing2 = "False";
+         $("#own_choosing").hide();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:battle_det'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(Wait,1000);
+        return;
+    }
+        clearTimeout(timer);
+    Success(data);
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+});
+}
+{% endif %}
+{% if Duel.is_ai == True %}
+function ChooseAi(){
+        Init();
+        var html = "デッキを選択<br>";
+        var default_deck_html = "";
+    var enemy_deck_html='NPCのデッキ<select id="enemy_deck">';
+        {% for enemy_deck in enemy_deck_groups %}
+            enemy_deck_html+='<option value="{{enemy_deck.id}}">{{enemy_deck.deck_name}}</option>';
+        {% endfor %}
+    enemy_deck_html+="</select>";
+    enemy_deck_html+='<input type="button" value="選択完了" onclick="SendChooseAi()">';
+    $("#ai_choosing").html(html+default_deck_html+enemy_deck_html);
+    $("#ai_choosing").show();
+    $("#ai_choosing").draggable();
+    $("#ai_choosing").offset({top:300});
+
+}
+function SendChooseAi(){
+    var default_deck = "-1";
+    var user_deck = "-1";
+    var enemy_deck = $("#enemy_deck").val();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:chooseai'  %}",
+   data: "room_number={{room_number}}&user_deck="+user_deck+"&enemy_deck="+enemy_deck+"&default_deck="+default_deck,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        alert("エラーが発生しました");
+        return;
+    }else if(data == "init_duel"){
+        alert("対戦相手が入室しました。");
+        location.reload();
+        return;
+    }else if(data == "time"){
+        alert("一定時間操作がありませんでした");
+        history.back('-1');
+        return;
+    }else{
+        ai_choosing = "False";
+        $("#ai_choosing").hide();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:battle_det'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(Wait,1000);
+        return;
+    }
+        clearTimeout(timer);
+    Success(data);
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+});
+}
+{% endif %}
+{% if cheat == True %}
+function ChooseCheat(data){
+    var cheat_html='<select id="cheat_monster">';
+        {% for monster in monsters %}
+            cheat_html+='<option value="{{monster.id}}">{{monster.monster_name}}</option>';
+            cheat_html+='<option value="{{monster.id}}_bottom">{{monster.monster_name}}_bottom</option>';
+        {% endfor %}
+    cheat_html+="</select>";
+    cheat_html+='<select id="cheat_place">'+data+'</select>';
+    cheat_html+='<input type="button" value="選択完了" onclick="SendCheat()">';
+    $("#message").html(cheat_html);
+}
+function SendCheat(){
+    var tmp = $("#cheat_place").val();
+    tmp = tmp.split("_");
+    var place = tmp[0];
+    var deck_id = tmp[1];
+    var mine_or_other = tmp[2];
+    var monster_id = $("#cheat_monster").val();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:cheat'  %}",
+   data: "room_number={{room_number}}&place="+place+"&deck_id="+deck_id+"&mine_or_other="+mine_or_other+"&monster_id="+monster_id,
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(Wait,1000);
+        return;
+    }else{
+        clearTimeout(timer);
+        Success(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+});
+}
+function Cheat(){
+        clearTimeout(timer);
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:get_place_kind'  %}",
+   data: "mode=1",
+   timeout: 60000,
+success: function(data){
+        ChooseCheat(data);
+   },
+   error:function(){
+        alert("error");
+    }
+});
+}
+function Cheat2(user_turn){
+        clearTimeout(timer);
+	if( user_turn == undefined){
+		user_turn = tmp_turn;
+	}
+	tmp_turn = user_turn;
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:cheat2'  %}",
+   data: "room_number={{room_number}}&user_turn="+String(user_turn),
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(Cheat2,1000);
+        return;
+    }
+        Success(data);
+   },
+   error:function(){
+        alert("error");
+    }
+});
+}
+{% endif %}
+function Cancel(){
+    Success2();
+    $("#choosing_area").hide();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:cancel'  %}",
+   timeout: 60000,
+   data: "room_number={{room_number}}",
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(Cancel,1000);
+        return;
+    }else{
+        cancel(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+});
+
+}
+    function PlayAskMusic(){
+            sound_effect.pause();
+            sound_effect.volume = {{Config.audio_volume}};
+            sound_effect.src = static_url+"/audio/{{Config.ask_audio}}";
+            sound_effect.play();
+    }
+    function PlayMessageMusic(){
+            sound_effect.pause();
+            sound_effect.volume = {{Config.audio_volume}};
+            sound_effect.src = static_url+"/audio/{{Config.chat_audio}}";
+            sound_effect.play();
+    }
+    function PlaySoundEffect(audio_name){
+        var audio_names = audio_name.split(",");
+        var i;
+        var flag = false;
+        sound_effect2.pause();
+        sound_effect2.repeat = true;
+        sound_effect2.volume = {{Config.audio_volume}};
+        for(i=0;i<audio_names.length;i++){
+            var audio_name2 = audio_names[i].split("_");
+            if($.inArray(audio_name2[1],sound_effect_ary)== -1 ){
+                sound_effect2.src = static_url+"/audio/"+ audio_name2[0];
+                sound_effect_ary.push(audio_name2[1]);
+                flag = true;
+                break;
+            }
+        }
+        if(flag == false){
+             sound_effect2.repeat = false;
+             return;
+        }
+        sound_effect2.play();
+        sound_effect2.addEventListener('ended',function(){
+
+            if (!!this.repeat){
+                flag = false;
+                for(;i<audio_names.length;i++){
+                    var audio_name2 = audio_names[i].split("-");
+                    if($.inArray(audio_name2[1],sound_effect_ary) == -1 ){
+                        sound_effect2.src = static_url+"/audio/"+ audio_name2[0];
+                        sound_effect_ary.push(audio_name2[1]);
+                        flag = true;
+                        break;
+                    }
+                }
+                if(flag == false){
+                     this.repeat = false;
+                }
+            }
+        })
+    }
+    function PlayWinMusic(){
+            music.pause();
+            sound_effect.pause();
+            sound_effect.volume = {{Config.audio_volume}};
+            sound_effect.src = static_url+"/audio/{{Config.win_audio}}";
+            sound_effect.play();
+    }
+    function PlayLoseMusic(){
+            music.pause();
+            sound_effect.volume = {{Config.audio_volume}};
+            sound_effect.pause();
+            sound_effect.src = static_url+"/audio/{{Config.lose_audio}}";
+            sound_effect.play();
+    }
+    function PlayMusic(audio_name){
+        if(music_flag == false){
+            return;
+        }
+        if(audio_name != music_name){
+            music.pause();
+            music.volume =  {{Config.audio_volume}};
+            music.src = static_url+"/audio/"+audio_name;
+            music_name = audio_name;
+            music.play();
+            music.repeat = true;
+            music.addEventListener('ended',function(){
+    if (!!this.repeat){
+        this.play();
+    }
+});
+        }
+    }
+    function Init(){
+    $("#choices").html("");
+    $("#center_message").html("");
+    $("#message").html("");
+    $("#hands").html("");
+    $("#choosing_area").hide();
+    var x,y,data;
+    if(stored_data == null){
+        return;
+
+    }else{
+        data = stored_data;
+    var fields = data["field_info"];
+        for(x = 0;x<fields.length;x++){
+            for(y = 0;y<fields[x].length;y++){
+                 $("#"+x+"_"+y).html("");
+            }
+
+        }
+    }
+}
+    // 表示するために二つ目の関数を作る
+    function Success2(){
+        $("#control").show();
+        if(stored_data == null){
+            return;
+        }
+        var data = stored_data;
+    MakeHands(data,1);
+    MakeFields(data,data["koka"],1);
+    $("#choices").html("");
+    $("#center_message").html("処理中ですしばらくお待ちください");
+    $("#message").html("");
+
+}
+    function Success3(data_org){
+        if(data_org == "init_duel"){
+            alert("対戦相手が入室しました。");
+            location.reload();
+        }
+        var koka;
+        $("#control").hide();
+        $("#center_message").html("");
+            global_all_fields = [];
+    data = JSON.parse(data_org);
+    if(data["waiting_ai"] == undefined){
+        Success(data_org);
+
+    }
+    stored_data = data;
+    koka = data["koka"];
+						       /*
+    if(data["appoint"] == true){
+        clearTimeout(timer);
+        timer = setTimeout(Wait,1000);
+        return;
+    }
+    if(data["ask"] != false){
+        clearTimeout(timer);
+        timer = setTimeout(Wait,1000);
+        return;
+    }
+						       */
+    //MakeLeftColumn(data);
+    MakeOpponentHands(data);
+    MakeRightColumn(data);
+    MakeChoices(data);
+    MakeNone(data);
+    $("#message").html("");
+    MakeHands(data,0);
+    MakeFields(data,koka,0);
+    WriteLog(data);
+   if(data["sound_effect"]){
+        PlaySoundEffect(data["sound_effect"]);
+    }
+}
+    function Success(data){
+        if(data == "init_duel"){
+            alert("対戦相手が入室しました。");
+            location.reload();
+            return;
+        }
+        if(data == "choose_name"){
+             ChooseGuestName();
+             return;
+        }else if(data == "choosing_deck"){
+                    ChooseDeck();
+                    return;
+        }else if(data == "waiting_choosing_deck"){
+            $("#center_message").html("相手入力待ちです。");
+            clearTimeout(timer);
+            timer = setTimeout(Wait,5000);
+            return;
+        }
+        $("#control").show();
+        $("#ai_choosing").hide();
+        {% if duel.is_ai is False %}
+            if(user == 1){
+                if(deck_choosing1 == "True"){
+                    ChooseDeck();
+                }
+            }else{
+                if(deck_choosing2 == "True"){
+                    ChooseDeck();
+                }
+            }
+        {% endif %}
+    ai_doing_flag = false;
+    var koka;
+        $("#center_message").html("");
+            global_all_fields = [];
+    data = JSON.parse(data);
+    MakeOpponentHands(data);
+    MakeRightColumn(data);
+    var choice_flag = MakeChoices(data);
+    MakeNone(data);
+    if(data["winner"] == true){
+        if(data["winner_who"] == data["user"]){
+            PlayWinMusic();
+        }else{
+            PlayLoseMusic();
+        }
+        $("#back").show();
+        $("#choices").html("");
+        WriteLog(data);
+        var tmp = $("#center_logs").html();
+        //$("#center_logs").html(tmp +'<span style=""><a href="{{ Config.return_url }}">戻る</a></span>');
+        $("#return").show();
+        $("#surrender").hide();
+        {% if Duel.is_ai is True %}
+            ai_choosing = "True";
+            ChooseAi();
+        {% endif %}
+        return;
+    }
+    if(data["ask"] != false){
+        PlayAskMusic();
+        koka = data["koka"];
+        stored_data =data;
+        if(data["sound_effect"]){
+            PlaySoundEffect(data["sound_effect"]);
+        }
+        PlayMusic(data["audio"]);
+        $("#message").html("");
+        MakeHands(data,1);
+        MakeFields(data,koka,0);
+        WriteLog(data);
+        ask();
+        return;
+    }else if(data["ask_org"] == true ){
+        koka = data["koka"];
+        stored_data =data;
+        if(data["sound_effect"]){
+            PlaySoundEffect(data["sound_effect"]);
+        }
+        PlayMusic(data["audio"]);
+        $("#message").html("");
+        MakeHands(data,1);
+        MakeFields(data,koka,0);
+        WriteLog(data);
+        clearTimeout(timer);
+        timer = setTimeout(Wait,5000);
+        return;
+    }
+    if(data["appoint"] == false ){
+        if(data["sound_effect"]){
+        PlaySoundEffect(data["sound_effect"]);
+        }
+        PlayMusic(data["audio"]);
+        stored_data =data;
+        Success2();
+        WriteLog(data);
+        $("#message").html("");
+        $("#center_message").html("相手入力待ちです。");
+        clearTimeout(timer);
+        timer = setTimeout(Wait,5000);
+        return;
+    }
+    koka = data["koka"];
+    stored_data =data;
+    PlayAskMusic();
+    if(data["sound_effect"]){
+        PlaySoundEffect(data["sound_effect"]);
+    }
+    PlayMusic(data["audio"]);
+    $("#message").html("");
+    MakeHands(data,0);
+    MakeFields(data,koka,0);
+    WriteLog(data);
+   if(!choice_flag){
+	 Wait();
+	}	
+}
+    function WriteLog(data){
+        var log = data["log"].replace(/\n/g,"<br>");
+        $("#log").html(log);
+        $('#log').animate( {scrollTop: $("#log").get(0).scrollHeight }, '1');
+        if(message_log != data["message_log"].replace(/\n/g,"<br>")){
+            message_log = data["message_log"].replace(/\n/g,"<br>");
+            PlayMessageMusic();
+        }
+        $("#message_log").html(message_log);
+        $("#center_logs").html(data["current_log"].replace(/\n/g,"<br>"));
+
+    }
+    function MakeNone(data){
+        if(data["pri"] == false){
+           return;
+        }
+        var html = $("#choices").html();
+        html += '<input type="button" value="優先権を放棄" onclick ="None()">';
+        $("#choices").html(html);
+    }
+    function MakeChoices(data){
+        var i;
+        var html="";
+        if(data["choices"] == "monster_trigger"){
+            $("#choices").html("");
+            return true;
+        }
+        if(data["choices"] == null){
+            $("#choices").html("");
+            return false;
+        }
+        for(i=0;i<data["choices"].length;i++){
+            html += '<input style="min-width:100px;margin-left:30px" type="button" value="'+data["choices"][i]["sentence"]+'" onclick ="InvokeChoice('+data["choices"][i]["id"]+')">';
+
+        }
+        $("#choices").html(html);
+										   
+	return true;
+    }
+    function ShowFieldMultiple(place_unique_id){
+        var fields = global_field_fields;
+        var x,y;
+        var arrow_html = "";
+        var arrow_html_before = "";
+        var color;
+        var sentence;
+        var result;
+        var rotate_css;
+        var pid=[];
+        var img_url="";
+        for(x = 0;x<fields.length;x++){
+            for(y = 0;y<fields[x].length;y++){
+                if(fields[x][y]["det"] == null){
+                }else{
+                    if(fields[x][y]["color"] != ""){
+                        color = fields[x][y]["color"];
+                    }else if(fields[x][y]["mine_or_other"] == user){
+                        color = mine_color;
+                    }else{
+                        color = other_color;
+                    }
+                    if(fields[x][y]["sentence"] != ""){
+                        sentence = "<br>"+fields[x][y]["sentence"]+"<br>";
+                    }else{
+                        sentence = "";
+                    }
+                    if(fields[x][y]["det"]["place_unique_id"] == place_unique_id){
+                            if(checkVal(fields[x][y]["det"],"arrow")>=1){
+                                if(fields[x][y]["mine_or_other"] == user){
+                                    arrow_html_before = "<img class=\"arrow\" style=\"transform: rotate(180deg)\" src=\""+static_url+"/img/yajirusi.png\"><br>";
+                                    arrow_html = "";
+                                }else{
+                                    arrow_html_before = "";
+                                    arrow_html = "<br><img class=\"arrow\" src=\""+static_url+"/img/yajirusi.png\">";
+                                }
+                            }else{
+                                arrow_html_before = "";
+                                arrow_html = "";
+                            }
+                        pid.push(fields[x][y]["det"]["place_unique_id"]);
+                        var img_url = fields[x][y]["det"]["img"];
+
+                        result="<table><tr><td style=\"background-color:"+color+"\">"+arrow_html_before+"<a target=\"_blank\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\"   {% if Config.card_href %} href=\"{% url "tcgcreator:explain" %}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\"  style=\"opacity:0.4:background:gray;"+rotate_css+"\" src=\""+static_url+"/img/"+fields[x][y]["det"]["img"]+"\" ></a>"+sentence+arrow_html+"</td></tr>";
+                        result+="<tr><td \"style=height:30px\">対象 </td></tr>";
+                        result+="</table>";
+                        if(user == 1){
+                            $("#"+x+"_"+y).html(result);
+                        }else{
+                            $("#"+x+"_"+({{field_y}}-y-1)).html(result);
+                        }
+                    }
+                }
+            }
+        }
+        for(i =0;i<pid.length;i++){
+                $("#"+pid[i]).hover(
+                    function(){
+                    $("#card_img").html("<img class=\"explain_card\" src=\""+static_url+"/img/"+$(this).attr("card_id")+"\">");
+                },
+                    function(){
+                    //$("#card_img").html("");
+                }
+                );
+        }
+    }
+    function MakeFieldsChoose2(result_x,result_y){
+        var fields = global_field_fields;
+        var gray_flag = false;
+        var arrow_html = "";
+        var arrow_html_before = "";
+        var rotate_css = "";
+        var result;
+        var under;
+
+        var tmp = {};
+        tmp["val"] = result_x+"_"+result_y;
+        tmp["type"] = "field";
+        global_all_result.push(tmp);
+        global_ask_fields.push(tmp["val"]);
+        var under_flag;
+        var pid=[];
+        if(global_under_ids){
+            under_flag = false;
+        }else{
+            under_flag = true;
+        }
+        if(global_all_result.length == max_equation_number){
+            sendAnswer();
+        }
+        var i;
+        var x,y;
+        var color;
+        var sentence;
+        for(x = 0;x<fields.length;x++){
+            for(y = 0;y<fields[x].length;y++){
+                if(fields[x][y]["color"] != ""){
+                    color = fields[x][y]["color"];
+                }else if(fields[x][y]["mine_or_other"] == user){
+                    color = mine_color;
+                }else{
+                    color = other_color;
+                }
+                if(fields[x][y]["sentence"] != ""){
+                    sentence = "<br>"+fields[x][y]["sentence"]+"<br>";
+                }else{
+                    sentence = "";
+                }
+                if(fields[x][y]["det"] == null){
+                    if(global_field_whether_monster == 0 ){
+                        if($.inArray(x+"_"+y,global_ask_fields) != -1){
+                            if(user == 1){
+                                $("#"+x+"_"+y).html("");
+                            }else{
+                                $("#"+x+"_"+(fields[x].length-y-1)).html("");
+                            }
+
+                            continue;
+
+                        }
+                        result="<input type=\"button\" style=\"height:30px;background-color:"+color+"\" value=\""+global_field_sentence+"\" onclick=\"MakeFieldsChoose2("+x+","+y+")\")>";
+
+                        if(user == 1){
+                            $("#"+x+"_"+y).html(result);
+                        }else{
+                            $("#"+x+"_"+({{field_y}}-y-1)).html(result);
+                        }
+                    }else{
+                        if(user == 1){
+                            $("#"+x+"_"+y).html("");
+                        }else{
+                            $("#"+x+"_"+({{field_y}}-y-1)).html("");
+                        }
+                    }
+                }else{
+
+                    if(show_img == false){
+                    result="<table><tr><td colspan=\"2\">"+fields[x][y]["det"]["monster_name"]+"</td></tr>";
+                    for(i=0;i<fields[x][y]["det"]["variables"].length;i++){
+                            result += "<tr><td>"+fields[x][y]["det"]["variables"][i]["name"]+"</td><td>"+fields[x][y]["det"]["variables"][i]["str"]+"</td></tr>";
+                    }
+                    }else{
+
+                        gray_flag = false;
+                            if(checkVal(fields[x][y]["det"],gray_out) >= 1){
+
+                                gray_flag = true;
+                            }else{
+                                gray_flag = false;
+                            }
+                            if(checkVal(fields[x][y]["det"],"arrow")>=1){
+                                if(fields[x][y]["mine_or_other"] == user){
+                                    arrow_html_before = "<img class=\"arrow\" style=\"transform: rotate(180deg)\" src=\""+static_url+"/img/yajirusi.png\"><br>";
+                                    arrow_html = "";
+                                }else{
+                                    arrow_html_before = "";
+                                    arrow_html = "<br><img class=\"arrow\" src=\""+static_url+"/img/yajirusi.png\">";
+                                }
+                            }else{
+                                arrow_html_before = "";
+                                arrow_html = "";
+                            }
+                            if(checkVal(fields[x][y]["det"],"rotate")>=1){
+                                rotate_css = "transform: rotate(90deg)"
+                            }else{
+                                rotate_css = "";
+                            }
+                         add_val_html = checkAddVal(fields[x][y]["det"]);
+                        pid.push(fields[x][y]["det"]["place_unique_id"]);
+                        {% if config.up_reverse is False %}
+                        var img_url = fields[x][y]["det"]["img"];
+                        var add_name_html = "";
+                            if(fields[x][y]["det"]["under"] != undefined){
+                                under = fields[x][y]["det"]["under"];
+                                for(var i=0;i<under.length;i++){
+                                    add_name_html += "<br>"+fields[x][y]["det"]["monster_name"];
+                                }
+                        {% else %}
+                            if(fields[x][y]["det"]["under"] != undefined){
+                                under = fields[x][y]["det"]["under"];
+                                var img_url = under[0]["img"];
+                                add_name_html = "<br>"+fields[x][y]["det"]["monster_name"];
+                            }else{
+                                var img_url = fields[x][y]["det"]["img"];
+                                add_name_html = "";
+                            }
+                       {% endif %}
+                        if(gray_flag == true){
+                            result="<table><tr><td style=\"background-color:"+color+"\"><a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" onclick=\"MakeFieldsChoose2("+x+","+y+")\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\"  {% if Config.card_href %} href=\"{% url "tcgcreator:explain" %}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\"  style=\"opacity:0.4:background:gray;"+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+add_val_html+add_name_html+"</td></tr>";
+                        }else{
+                            result="<table><tr><td style=\"background-color:"+color+"\">"+arrow_html_before+"<a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" onclick=\"MakeFieldsChoose2("+x+","+y+")\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\"  {% if Config.card_href %}  href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\"  style=\""+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+add_val_html+add_name_html+"</td></tr>";
+                        }
+                    }
+                    if(under_flag == false){
+                        if(global_field_whether_monster == 1 && ($.inArray(fields[x][y]["det"]["place_unique_id"],global_field_ids) != -1)){
+                            if($.inArray(x+"_"+y,global_ask_fields)!= -1){
+                            }else if(Validate(fields[x][y]["det"])){
+                                tmp = {};
+                                tmp["x"] = x;
+                                tmp["y"] = y;
+                                    result+="<tr><td style=\"height:30px;background-color:"+color+"\"><input type=\"button\" value=\""+global_field_sentence+"\" onclick=\"MakeFieldsChoose2("+x+","+y+")\"></td></tr>";
+                            }
+                        }
+                    }else{
+                        if(Validate(fields[x][y]["det"])){
+                            if(fields[x][y]["det"]["under"] != undefined){
+                                under = fields[x][y]["det"]["under"];
+                                for(i=0;i<under.length;i++){
+                                    tmp = {};
+                                    tmp["x_and_y"] == x+"_"+y;
+                                    tmp["under_id"] == under[i]["place_unique_id"];
+                                    if($.inArray(under[i]["place_unique_id"],global_under_ids)!=-1){
+                                        if($.inArray(tmp,global_ask_unders)== -1){
+                                            result += "<input style=\"height:30px\" type=\"button\" onclick=\"ask_det2('under',"+x+","+y+",'"+under[i]["place_unique_id"]+"')\" value=\""+under[i]["monster_name"]+"\">";
+                                        }
+                                    }
+                                }
+
+                            }
+                        }
+                    }
+                    result+="</table>";
+                    if(user == 1){
+                        $("#"+x+"_"+y).html(result);
+                    }else{
+                        $("#"+x+"_"+({{field_y}}-y-1)).html(result);
+                    }
+                }
+            }
+        }
+        for(i =0;i<pid.length;i++){
+                $("#"+pid[i]).hover(
+                    function(){
+                    $("#card_img").html("<img class=\"explain_card\" src=\""+static_url+"/img/"+$(this).attr("card_id")+"\">");
+                },
+                    function(){
+                //    $("#card_img").html("");
+                }
+                );
+        }
+    }
+    function MakeFieldsChoose(data,field_ids,under_ids){
+        var tmp;
+        var global_field_ids = field_ids;
+        var global_under_ids = under_ids;
+        var fields = global_field_info;
+        var color;
+        var sentence;
+        var result_tmp;
+        var tmp_flag = false;
+        var pid = [];
+        if(data["auto_select"] != undefined){
+            auto_select = data["auto_select"].split("_");
+        }else{
+            auto_select = [];
+        }
+        var user = data["user"];
+        var arrow_html = "";
+        var arrow_html_before = "";
+    var under_flag = false;
+    var under;
+    var gray_flag = false;
+    var rotate_css ="";
+    var result;
+    var x,y;
+    var i;
+    if(under_ids){
+        under_flag = true;
+    }
+    for(x = 0;x<fields.length;x++){
+        for(y = 0;y<fields[x].length;y++){
+            tmp_flag = false;
+            if(fields[x][y]["color"] != ""){
+                color = fields[x][y]["color"];
+            }else if(fields[x][y]["mine_or_other"] == user){
+                color = mine_color;
+            }else {
+                color = other_color;
+            }
+                if(fields[x][y]["sentence"] != ""){
+                    sentence = "<br>"+fields[x][y]["sentence"]+"<br>";
+                }else{
+                    sentence = "";
+                }
+            if(fields[x][y]["det"] == null){
+                if($.inArray(x+"_"+y,global_ask_fields2)!= -1 || $.inArray(x+"_"+y,global_ask_fields)!= -1){
+                }else{
+                    if(global_field_whether_monster == 0 ){
+                        result="<input type=\"button\" style=\"background-color:"+color+";height:30px\" value=\""+global_field_sentence+"\" onclick=\"ask_det2('field',"+x+","+y+")\")>";
+                        tmp = x+"_"+y;
+                        global_ask_fields2.push(tmp);
+
+                        if(user == 1){
+                            $("#"+x+"_"+y).html(result);
+                        }else{
+                            $("#"+x+"_"+({{field_y}}-y-1)).html(result);
+                        }
+                    }else{
+                        if(user == 1){
+                            $("#"+x+"_"+y).html("");
+                        }else{
+                            $("#"+x+"_"+({{field_y}}-y-1)).html("");
+                        }
+                    }
+                }
+            }else{
+                if($.inArray(x+"_"+y,global_ask_fields2)== -1 && $.inArray(x+"_"+y,global_ask_fields)== -1){
+                    if(show_img ==false){
+                        result="<table class=\"field\"><tr><td style=\"background-color:"+color+"\"  colspan=\"2\">"+fields[x][y]["det"]["monster_name"]+"</td></tr>";
+                        for(i=0;i<fields[x][y]["det"]["variables"].length;i++){
+                            result += "<tr><td style=\"background-color:"+color+"\" >"+fields[x][y]["det"]["variables"][i]["name"]+"</td><td>"+fields[x][y]["det"]["variables"][i]["str"]+"</td></tr>";
+                        }
+                    }else{
+                        gray_flag = false;
+                        if(checkVal(fields[x][y]["det"],gray_out) >= 1){
+                            gray_flag = true;
+                        }else{
+                            gray_flag = false;
+                        }
+                        if(checkVal(fields[x][y]["det"],"arrow")>=1){
+                            if(fields[x][y]["mine_or_other"] == user){
+                                arrow_html_before = "<img class=\"arrow\" style=\"transform: rotate(180deg)\" src=\""+static_url+"/img/yajirusi.png\"><br>";
+                                arrow_html = "";
+                            }else{
+                                arrow_html_before = "";
+                                arrow_html = "<br><img class=\"arrow\" src=\""+static_url+"/img/yajirusi.png\">";
+                            }
+                        }else{
+                            arrow_html_before = "";
+                            arrow_html = "";
+                        }
+                    if(checkVal(fields[x][y]["det"],"rotate")>=1){
+                        rotate_css = "transform: rotate(90deg)"
+                    }else{
+                        rotate_css = ""
+                    }
+                         add_val_html = checkAddVal(fields[x][y]["det"]);
+                        pid.push(fields[x][y]["det"]["place_unique_id"]);
+                        {% if config.up_reverse is False %}
+                        var img_url = fields[x][y]["det"]["img"];
+                        var add_name_html = "";
+                            if(fields[x][y]["det"]["under"] != undefined){
+                                under = fields[x][y]["det"]["under"];
+                                for(var i=0;i<under.length;i++){
+                                    add_name_html += "<br>"+fields[x][y]["det"]["monster_name"];
+                                }
+                        {% else %}
+                            if(fields[x][y]["det"]["under"] != undefined){
+                                under = fields[x][y]["det"]["under"];
+                                var img_url = under[0]["img"];
+                                add_name_html = "<br>"+fields[x][y]["det"]["monster_name"];
+                            }else{
+                                var img_url = fields[x][y]["det"]["img"];
+                                add_name_html = "";
+                            }
+                       {% endif %}
+                        if(gray_flag == true){
+                            result_tmp="<table><tr><td style=\"background-color:"+color+"\" >"+arrow_html_before+"<a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\" onclick=\"MakeFieldsChoose2("+x+","+y+")\"  {% if Config.card_href %} href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\"  style=\"opacity:0.4;background:gray;"+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+add_val_html+add_name_html+"</td></tr>";
+                        }else{
+                            result_tmp="<table><tr><td style=\"background-color:"+color+"\" >"+arrow_html_before+"<a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\" onclick=\"MakeFieldsChoose2("+x+","+y+")\" {% if Config.card_href %} href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\" style=\""+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+add_val_html+add_name_html+"</td></tr>";
+                        }
+                    }
+
+                    if(global_field_whether_monster== 1 && (under_flag || $.inArray(fields[x][y]["det"]["place_unique_id"],field_ids) != -1)){
+                        if(Validate(fields[x][y]["det"])){
+                            tmp = x+"_"+y;
+                            global_all_fields.push(tmp);
+                            global_ask_fields2.push(tmp);
+                            if(under_flag == false){
+                                result="<table><tr><td style=\"background-color:"+color+"\" >"+arrow_html_before+"<a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" onclick=\"ask_det2('field',"+x+","+y+")\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\"   {% if Config.card_href %} href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\"  style=\""+rotate_css+"\" src=\""+static_url+"/img/"+fields[x][y]["det"]["img"]+"\"></a>"+sentence+arrow_html+add_val_html+"</td></tr>";
+                                result+="<tr><td style=\"height:30px;background-color:"+color+"\" ><input type=\"button\" value=\""+global_field_sentence+"\" onclick=\"ask_det2('field',"+x+","+y+")\"></td></tr>";
+                                tmp_flag = true;
+                            }else{
+                                if(fields[x][y]["det"]["under"] != undefined){
+                                    under = fields[x][y]["det"]["under"];
+                                    for(i=0;i<under.length;i++){
+                                        if($.inArray(under[i]["place_unique_id"],under_ids) != -1){
+                                            if($.inArray(tmp,global_ask_unders)== -1){
+                                                result += "<input type=\"button\" style=\"height:30px;background-color:"+color+"\"  onclick=\"ask_det2('under',"+x+","+y+",'"+under[i]["place_unique_id"]+"')\" value=\""+under[i]["monster_name"]+"\">";
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if(tmp_flag == false){
+                        result = result_tmp;
+                    }
+                    result+="</table>";
+                    if(user == 1){
+                        $("#"+x+"_"+y).html(result);
+                    }else{
+                        $("#"+x+"_"+({{field_y}}-y-1)).html(result);
+                    }
+                }
+            }
+        }
+    }
+        for(i =0;i<pid.length;i++){
+                $("#"+pid[i]).hover(
+                    function(){
+                    $("#card_img").html("<img class=\"explain_card\" src=\""+static_url+"/img/"+$(this).attr("card_id")+"\">");
+                },
+                    function(){
+                    //$("#card_img").html("");
+                }
+                );
+        }
+}
+function MakeFields(data,koka,success2){
+        var arrow_html = "";
+        var arrow_html_before = "";
+        var fields = data["field_info"];
+        global_field_fields = fields;
+        var user = data["user"];
+        var x,y;
+        var i,j,k;
+        var relation;
+        var color;
+        var sentence;
+        var rotate_css = "";
+        var relate_str;
+        var result;
+        var gray_flag;
+        var pid = [];
+	console.log(fields);				      
+        for(x = 0;x<fields.length;x++){
+            for(y = 0;y<fields[x].length;y++){
+                if(fields[x][y]["color"] != ""){
+                    color = fields[x][y]["color"];
+                }else if(fields[x][y]["mine_or_other"] == user){
+                    color = mine_color;
+                }else {
+                    color = other_color;
+                }
+                    if(fields[x][y]["sentence"] != ""){
+                        sentence = "<br>"+fields[x][y]["sentence"]+"<br>";
+                    }else{
+                        sentence = "";
+                    }
+                if(fields[x][y]["det"] == null){
+                    if(fields[x][y]["hide"] == true){
+                    if(user == 1){
+                        $("#"+x+"_"+y).html('<div style="width:150px;height:210px;background-color:black"></div>');
+                    }else{
+			$("#"+x+"_"+({{field_y}}-y-1)).html('<div style="width:150px;height:210px;background-color:black"></div>');
+                    }
+                    }else{
+                    if(user == 1){
+                        $("#"+x+"_"+y).html("");
+                    }else{
+                        $("#"+x+"_"+({{ field_y}}-y-1)).html("");
+                    }
+                    }
+                }else{
+                    if(show_img == false){
+                    result="<table><tr><td style=\"color:black;background-color:"+color+"\"  colspan=\"2\">"+fields[x][y]["det"]["monster_name"]+"</td></tr>";
+                    for(i=0;i<fields[x][y]["det"]["variables"].length;i++){
+                            result += "<tr><td style=\"background-color:"+color+"\" >"+fields[x][y]["det"]["variables"][i]["name"]+"</td><td>"+fields[x][y]["det"]["variables"][i]["str"]+"</td></tr>";
+                    }
+                    }else{
+                        gray_flag = false;
+                        if(checkVal(fields[x][y]["det"],"show") >= 1){
+                        	var style="opacity:0.8;background-color:gray;";
+			}else{
+				var style = "";
+			}
+                        if(checkVal(fields[x][y]["det"],gray_out) >= 1){
+                            gray_flag = true;
+                        }else{
+                            gray_flag = false;
+                        }
+                        relate_str = "";
+                        if(fields[x][y]["det"]["rel"] != undefined){
+                            for(relation in  fields[x][y]["det"]["rel"]){
+
+                                for(j=0;j<fields[x][y]["det"]["rel"][relation].length;j++){
+                                    relate_str+= fields[x][y]["det"]["rel"][relation][j]["monster"]["det"]["monster_name"]+"<br>";
+                                }
+                            }
+                        }
+                        for(j=0;j<koka.length;j++){
+                            if(koka[j]["koka"]){
+                                if(fields[x][y]["det"]["place_unique_id"] == koka[j]["koka"]["place_unique_id"]){
+                                    relate_str+= "効果対象 {{Config.chain_string}}"+koka[j]["chain"]+"<br>";
+                                }
+                            }else{
+                                // 効果を発動したカード`
+                                if(fields[x][y]["det"]["place_unique_id"] == koka[j]["trigger"]["place_unique_id"]){
+                                        relate_str+= "効果発動 {{Config.chain_string}}"+koka[j]["chain"]+"<br>";
+                                }
+                            }
+                        }
+                        if(checkVal(fields[x][y]["det"],"rotate")>=1){
+                            rotate_css = "transform: rotate(90deg)"
+                        }else{
+                            rotate_css = ""
+                        }
+                            if(checkVal(fields[x][y]["det"],"arrow")>=1){
+                                if(fields[x][y]["mine_or_other"] == user){
+                                    arrow_html_before = "<img class=\"arrow\" style=\"transform: rotate(180deg)\" src=\""+static_url+"/img/yajirusi.png\"><br>";
+                                    arrow_html = "";
+                                }else{
+                                    arrow_html_before = "";
+                                    arrow_html = "<br><img class=\"arrow\" src=\""+static_url+"/img/yajirusi.png\">";
+                                }
+                            }else{
+                                arrow_html_before = "";
+                                arrow_html = "";
+                            }
+                            add_val_html = checkAddVal(fields[x][y]["det"]);
+
+                        pid.push(fields[x][y]["det"]["place_unique_id"]);
+                        {% if config.up_reverse is False %}
+                        var img_url = fields[x][y]["det"]["img"];
+                        var add_name_html = "";
+                            if(fields[x][y]["det"]["under"] != undefined){
+                                under = fields[x][y]["det"]["under"];
+                                for(var i=0;i<under.length;i++){
+                                    add_name_html += "<br>"+fields[x][y]["det"]["monster_name"];
+                                }
+                        {% else %}
+                            if(fields[x][y]["det"]["under"] != undefined){
+                                under = fields[x][y]["det"]["under"];
+                                var img_url = under[0]["img"];
+                                add_name_html = "<br>"+fields[x][y]["det"]["monster_name"];
+                            }else{
+                                var img_url = fields[x][y]["det"]["img"];
+                                add_name_html = "";
+                            }
+                       {% endif %}
+                        if(gray_flag == true){
+                            result="<table><tr><td style=\""+style+"color:black;background-color:"+color+"\" >"+arrow_html_before+"<a target=\"_blank\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" {% if Config.card_href %}  href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img  class=\"img_card\" style=\"opacity:0.4;"+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+"<br>"+relate_str+add_val_html+add_name_html+"</td></tr>";
+                        }else{
+                            result="<table><tr><td style=\""+style+"color:black;background-color:"+color+"\" >"+arrow_html_before+"<a target=\"_blank\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\"   title=\""+fields[x][y]["det"]["monster_sentence"]+"\"  {% if Config.card_href %} href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\"  style=\""+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+"<br>"+relate_str+add_val_html+add_name_html+"</td></tr>";
+                        }
+                    }
+                    if(fields[x][y]["det"]["trigger"] != undefined && success2 == false){
+                        for(k=0;k<fields[x][y]["det"]["trigger"].length;k++){
+                            result += "<input style=\"height:30px\" type=\"button\" onclick=\"sendFieldTrigger('"+x+"','"+y+"','"+fields[x][y]["det"]["place_unique_id"]+"','"+fields[x][y]["det"]["trigger"][k]["id"]+"',1)\" value=\""+fields[x][y]["det"]["trigger"][k]["name"]+"\">";
+                        }
+                    }
+                    result+="</table>";
+                    if(user == 1){
+                        $("#"+x+"_"+y).html(result);
+                    }else{
+                        $("#"+x+"_"+({{ field_y}}-y-1)).html(result);
+                    }
+                }
+            }
+        }
+        for(i =0;i<pid.length;i++){
+                $("#"+pid[i]).hover(
+                    function(){
+                    $("#card_img").html("<img class=\"explain_card\" src=\""+static_url+"/img/"+$(this).attr("card_id")+"\">");
+                },
+                    function(){
+                    //$("#card_img").html("");
+                }
+                );
+        }
+    }
+    function MakeHandsGray(){
+        var data = stored_data;
+        var hands = data["hand_info"];
+        var i,j,k;
+        var img_url;
+                var result;
+        var pid = [];
+        result="<table style=\"display:inline;text-align:center;margin-right:20%\">";
+        for(i=0;i<hands.length;i++){
+            if(hands.length!= 1){
+                result+="<tr><td colspan=\""+hands[i]["myhandnum"]+"\">"+hands[i]["hand_name"]+"</td></tr>";
+            }
+            if(hands[i]["commonhandnum"] != undefined){
+                continue;
+            }
+                        if("{{Config.hand_name_show_flag}}" == "True"){
+                    result+=hands[i]["hand_name"];
+                        }
+            result+="<tr>";
+            for(j=0;j<hands[i]["myhandnum"];j++){
+
+                result+="<td >";
+                img_url = hands[i]["myhand"][j]["img"];
+                // 選択中は出さない
+                pid.push(hands[i]["myhand"][j]["place_unique_id"]);
+                result+="<div card_id="+img_url+"  id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a target=\"_blank\" title=\""+hands[i]["myhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain" %}?id="+hands[i]["myhand"][j]["id"]+"\" {% endif %}><img class=\"img_card\" style=\"opacity:0.4;background:gray;\" src=\""+static_url+"/img/"+img_url+"\"></a></div>";
+                result+="</td>";
+            }
+            result+="</tr>";
+
+
+        }
+        result+="</table>";
+        $("#hands").html(result);
+        for(i =0;i<pid.length;i++){
+                $("#"+pid[i]).hover(
+                    function(){
+                    $("#card_img").html("<img class=\"explain_card\" src=\""+static_url+"/img/"+$(this).attr("card_id")+"\">");
+                },
+                    function(){
+                    //$("#card_img").html("");
+                }
+                );
+        }
+    }
+    function MakeHands(data,mode){
+        var hands = data["hand_info"];
+        var i,j,k;
+        var img_url;
+        var result;
+        var pid = [];
+        var tmp_width;
+        result="<table style=\"table-layout: fixed;display:inline;text-align:center;width:80%;\">";
+        for(i=0;i<hands.length;i++){
+            if(hands.length!= 1){
+                result+="<tr><td style=\"width:"+tmp_width+";\" colspan=\""+hands[i]["myhandnum"]+"\">"+hands[i]["hand_name"]+"</td></tr>";
+            }
+            if(hands[i]["commonhandnum"] != undefined){
+                continue;
+            }
+                        if("{{Config.hand_name_show_flag}}" == "True"){
+                    result+=hands[i]["hand_name"];
+                        }
+            tmp_width = {{Config.card_width}} * parseInt(hands[i]["myhandnum"]);
+            result+="<tr style=\"width:"+tmp_width+"px;overflow-x:scroll\">";
+            for(j=0;j<hands[i]["myhandnum"];j++){
+
+                result+="<td style=\"width:{{Config.card_width}}px\"  >";
+                img_url = hands[i]["myhand"][j]["img"];
+                // 選択中は出さない
+                if(mode == 0){
+                    pid.push(hands[i]["myhand"][j]["place_unique_id"]);
+                    if(hands[i]["show"] == 4 && checkVal(hands[i]["myhand"][j],"show") == 0){
+                        var style="style='opacity:0.8;background-color:gray'";
+                    }else{
+                        var style="";
+                    }
+                    if(hands[i]["myhand"][j]["trigger"] != undefined && hands[i]["myhand"][j]["trigger"].length  ){
+                        for(k=0;k<hands[i]["myhand"][j]["trigger"].length;k++){
+                            if(k==0){
+                                result+="<div "+style+" card_id="+img_url+" id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a target=\"_blank\" onclick=\"sendHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+hands[i]["myhand"][j]["trigger"][k]["id"]+"',1)\"  title=\""+hands[i]["myhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain" %}?id="+hands[i]["myhand"][j]["id"]+"\" {% endif %} ><img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
+                                result+= "<br><input type=\"button\" onclick=\"sendHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+hands[i]["myhand"][j]["trigger"][k]["id"]+"',1)\" value=\""+hands[i]["myhand"][j]["trigger"][k]["name"]+"\">";
+                            }else{
+                                result+= "<br><input type=\"button\" onclick=\"sendHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+hands[i]["myhand"][j]["trigger"][k]["id"]+"',1)\" value=\""+hands[i]["myhand"][j]["trigger"][k]["name"]+"\">";
+                            }
+                        }
+                        result+="</div>";
+                    }else{
+                        result+="<div "+style+" card_id="+img_url+"  id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a target=\"_blank\" title=\""+hands[i]["myhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain" %}?id="+hands[i]["myhand"][j]["id"]+"\" {% endif %}><img class=\"img_card\"  style=\"\" src=\""+static_url+"/img/"+img_url+"\"></a></div>";
+                    }
+                }else{
+                    if(hands[i]["show"] == 4 && checkVal(hands[i]["myhand"][j],"show") == 0){
+                        var style="style='opacity:0.8;background-color:gray'";
+                    }else{
+                        var style="";
+                    }
+                    pid.push(hands[i]["myhand"][j]["place_unique_id"]);
+                    result+="<div "+style+" card_id="+img_url+"  id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a target=\"_blank\" title=\""+hands[i]["myhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain" %}?id="+hands[i]["myhand"][j]["id"]+"\" {% endif %}><img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a></div>";
+                }
+                result+="</td>";
+            }
+            result+="</tr>";
+
+
+        }
+        result+="</table>";
+        $("#hands").html(result);
+        for(i =0;i<pid.length;i++){
+                $("#"+pid[i]).hover(
+                    function(){
+                    $("#card_img").html("<img class=\"explain_card\" src=\""+static_url+"/img/"+$(this).attr("card_id")+"\">");
+                },
+                    function(){
+                    //$("#card_img").html("");
+                }
+                );
+        }
+    }
+
+    function MakeOpponentHands(data){
+    var img_url;
+        var hands = data["hand_info"];
+        var i,j,k;
+        var result="<table style=\"display:inline;text-align:center\">";
+        for(i=0;i<hands.length;i++){
+            result += "<tr>"
+            if(hands.length!= 1){
+                result+="<td>"+hands[i]["hand_name"]+"</td>";
+            }
+            if(hands[i]["commonhandnum"] != undefined){
+                continue;
+            }
+            if(hands[i]["otherhand"] == undefined){
+               if("{{Config.hand_name_show_flag}}" == "True"){
+                      result+=hands[i]["hand_name"];
+                }
+                result+="<td>";
+                for(j=0;j<hands[i]["otherhandnum"];j++){
+                    result += "■ ";
+                }
+                    result += hands[i]["otherhandnum"]+"枚";
+                result += "</td></tr>";
+            }else{
+                                if("{{Config.hand_name_show_flag}}" == "True"){
+                            result+=hands[i]["hand_name"];
+                                }
+            for(j=0;j<hands[i]["otherhandnum"];j++){
+                result+="<td>";
+                if( hands[i]["otherhand"][j]["card_unique_id"] == -1){
+                        result+="■</td>";
+                        continue;
+                }
+                img_url = hands[i]["otherhand"][j]["img"];
+                if(hands[i]["otherhand"][j]["trigger"] != undefined && hands[i]["otherhand"][j]["trigger"].length != 0  ){
+                    for(k=0;k<hands[i]["otherhand"][j]["trigger"].length;k++){
+                        if(k==0){
+                            result+="<a target=\"_blank\" onclick=\"sendHandTrigger('"+(i+1)+"','"+hands[i]["otherhand"][j]["place_unique_id"]+"','"+hands[i]["otherhand"][j]["trigger"][k]["id"]+"',1)\"  title=\""+hands[i]["otherhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain"%}?id="+hands[i]["otherhand"][j]["id"]+"\" {% endif %}><img class=\"img_card\" src=\""+static_url+"/img/"+img_url+"\"></a>";
+                        }
+                        result += "<br><input type=\"button\" onclick=\"sendHandTrigger('"+(i+1)+"','"+hands[i]["otherhand"][j]["place_unique_id"]+"','"+hands[i]["otherhand"][j]["trigger"][k]["id"]+"',1)\" value=\""+hands[i]["otherhand"][j]["trigger"][k]["name"]+"\">";
+                    }
+                }else{
+                    result+="<a target=\"_blank\" title=\""+hands[i]["otherhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain"%}?id="+hands[i]["otherhand"][j]["id"]+"\" {% endif %}><img class=\"img_card\" src=\""+static_url+"/img/"+img_url+"\"></a>";
+                }
+                result+="</td>";
+            }
+            result+="</tr>";
+            }
+
+
+        }
+        $("#opponent_hands").html(result);
+    }
+
+
+    function MakeRightColumn(data){
+        var decks = data["deck_info"];
+        var graves = data["grave_info"];
+        var html="";
+        var center_html="";
+        var center_opponent_html="";
+        var variable_html="";
+
+        if(data["turn"] != 0){
+            html += "<span class=\"turn\">{{Config.turn_name}} "+ data["user_name" + data["turn"]]+"</span><br>" ;
+            $("#turn_right").html("{{Config.turn_name}} "+ data["user_name"+ data["turn"]]) ;
+        }
+                html+="<span class=\"life\">";
+        {% for variable in Variable %}
+            {% if variable.center is False %}
+                html += '<span style="font-size={{variable.font_size}}">{{variable.variable_name}}<br>';
+                if({{variable.mine_or_other}} == 1){
+                    html += data["variable"]["{{variable.variable_name}}"]["value"];
+                }else{
+                    html+=data["user_name1"]+"<br>";
+                    html += data["variable"]["{{variable.variable_name}}"][data["user"]+"_value"]+"<br>";
+                    html+=data["user_name2"]+"<br>";
+                    html += data["variable"]["{{variable.variable_name}}"][data["other_user"]+"_value"]+"<br>";
+                }
+                html+="</span>";
+            {% else %}
+                center_html += '<span style="font-size:{{variable.font_size}}">{{variable.variable_name}} ';
+                center_opponent_html += '<span style="font-size:{{variable.font_size}}">{{variable.variable_name}} ';
+                center_html += data["variable"]["{{variable.variable_name}}"][data["user"]+"_value"]+"</span><br>";
+                center_opponent_html += data["variable"]["{{variable.variable_name}}"][data["other_user"]+"_value"]+"</span><br>";
+            {% endif %}
+
+        {% endfor %}
+        {% for variable in VirtualVariable %}
+            {% if variable.center is False %}
+                html += "{{variable.variable_name}}<br>";
+                if({{variable.mine_or_other}} == 1){
+                    html += data["variable"]["{{variable.variable_name}}"]["value"];
+                }else{
+                    html+=data["user_name1"]+"<br>";
+                    html += data["variable"]["{{variable.variable_name}}"][data["user"]+"_value"]+"<br>";
+                    html+=data["user_name2"]+"<br>";
+                    html += data["variable"]["{{variable.variable_name}}"][data["other_user"]+"_value"]+"<br>";
+                }
+            {% else %}
+                center_html += "{{variable.variable_name}} ";
+                center_opponent_html += "{{variable.variable_name}} ";
+                center_html += data["variable"]["{{variable.variable_name}}"][data["user"]+"_value"]+"<br>";
+                center_opponent_html += data["variable"]["{{variable.variable_name}}"][data["other_user"]+"_value"]+"<br>";
+            {% endif %}
+
+        {% endfor %}
+                html+="</span>";
+        {% for phase in Phases %}
+        if(data["phase"] == {{phase.id}} ){
+            color = "{{Config.phase_color}}";
+        }else{
+                color = "{{Config.font_color}}";
+        }
+        html += "<span class=\"phase\" style=\"color:"+ color+"\">{{phase.phase_name}}</span>";
+        html += "<br>";
+        {% endfor %}
+        {% if Config.deck_side is True %}
+            html+= getDeckSide(decks,graves,data["user_name1"],data["user_name2"],data["user"]);
+        {% else %}
+        var variables = data["variables"];
+        html+="<span class=\"decks\">";
+		    console.log(decks);
+        for(i=0;i<decks.length;i++){
+            html+=decks[i]["deck_name"]+"<br>";
+            if(decks[i]["commondecknum"] != undefined){
+                if(decks[i]["commondeck"] != undefined){
+                    html += decks[i]["deck_name"]+"<br>";
+                    html += "<a target=\"_blank\" href=\"{% url 'tcgcreator:explain_deck' %}?room_number={{room_number}}&deck="+decks[i]["id"]+"\">共通</a> "+decks[i]["commondecknum"]+"<br>";
+                }else{
+                    html+=decks[i]["commondecknum"]+"<br>";
+                }
+            }else{
+                if(decks[i]["mydeck"] != undefined){
+                    html += "<a target=\"_blank\" href=\"{% url 'tcgcreator:explain_deck' %}?room_number={{room_number}}&user_number="+data["user"]+"&deck="+decks[i]["id"]+"\">"+data["user_name1"]+" "+decks[i]["mydecknum"]+"</a><br>";
+                    for(j=0;j<decks[i]["mydecknum"];j++){
+                        if(decks[i]["mydeck"][j]["trigger"] != undefined){
+                            for(k=0;k<decks[i]["mydeck"][j]["trigger"].length;k++){
+				html += "<input type=\"button\" onclick=\"sendDeckTrigger('"+(i+1)+"','"+decks[i]["mydeck"][j]["place_unique_id"]+"','"+decks[i]["mydeck"][j]["trigger"][k]["id"]+"',1)\" value=\""+decks[i]["mydeck"][j]["monster_name"]+"-"+decks[i]["mydeck"][j]["trigger"][k]["name"]+"\"><br>";
+                            }
+                        }
+                    }
+                }else{
+                    html+=data["user_name1"]+" ";
+                    html+=decks[i]["mydecknum"]+"<br>";
+                }
+                if(decks[i]["otherdeck"] != undefined){
+                    html += "<a target=\"_blank\" href=\"{% url 'tcgcreator:explain_deck' %}?room_number={{room_number}}&user_number="+data["other_user"]+"&deck="+decks[i]["id"]+"\">"+data["user_name2"]+" "+decks[i]["otherdecknum"]+"</a><br>";
+                }else{
+                    html+=data["user_name2"]+" ";
+                    html+=decks[i]["otherdecknum"]+"<br>";
+                }
+            }
+        }
+        for(i=0;i<graves.length;i++){
+            html+=graves[i]["grave_name"]+"<br>";
+            if(graves[i]["commongravenum"] != undefined){
+                if(graves[i]["commongrave"] != undefined){
+                    html += graves[i]["grave_name"]+"<br>";
+                    html += "<a target=\"_blank\" href=\"{% url 'tcgcreator:explain_grave' %}?room_number={{room_number}}&grave="+graves[i]["id"]+"\">共通</a> "+graves[i]["commongravenum"]+"<br>";
+                }
+            }else{
+                if(graves[i]["mygrave"] != undefined){
+                    html += "<a target=\"_blank\" href=\"{% url 'tcgcreator:explain_grave' %}?room_number={{room_number}}&user_number="+data["user"]+"&grave="+graves[i]["id"]+"\">"+data["user_name1"]+" "+graves[i]["mygravenum"]+"</a><br>";
+                    for(j=0;j<graves[i]["mygravenum"];j++){
+                        if(graves[i]["mygrave"][j]["trigger"] != undefined){
+                            for(k=0;k<graves[i]["mygrave"][j]["trigger"].length;k++){
+				html += "<input type=\"button\" onclick=\"sendGraveTrigger('"+(i+1)+"','"+graves[i]["mygrave"][j]["place_unique_id"]+"','"+graves[i]["mygrave"][j]["trigger"][k]["id"]+"',1)\" value=\""+graves[i]["mygrave"][j]["monster_name"]+"-"+graves[i]["mygrave"][j]["trigger"][k]["name"]+"\"><br>";
+                            }
+                        }
+                    }
+                }else{
+                    html+=data["user_name1"]+" ";
+                    html+=graves[i]["mygravenum"]+"<br>";
+                }
+                if(graves[i]["othergrave"] != undefined){
+                    html += "<a target=\"_blank\" href=\"{% url 'tcgcreator:explain_grave' %}?room_number={{room_number}}&user_number="+data["other_user"]+"&grave="+graves[i]["id"]+"\">"+data["user_name2"]+" "+graves[i]["othergravenum"]+"</a><br>";
+                }else{
+                    html+=data["user_name2"]+" ";
+                    html+=graves[i]["othergravenum"]+"<br>";
+                }
+            }
+        }
+                html+="</span>";
+        {% endif %}
+                html+="<span class=\"time\">";
+        html+="{{Config.time_name}}<br>";
+        html+=data["user_name1"]+" ";
+        html+=String(parseInt(data["time_1"]))+"<br>";
+        html+=data["user_name2"]+" ";
+        html+=String(parseInt(data["time_2"]))+"<br>";
+                html+="</span>";
+        html+='<span style="text-align:center">';
+        {% if room_number == 1 %}
+        html+='<a style="width:50%" target="_blank" href="{% url 'tcgcreator:watch1'  %}">{{Config.log_name}}</a>';
+        {% elif room_number == 2 %}
+        html+='<a style="width:50%"  target="_blank" href="{% url 'tcgcreator:watch2'  %}">{{Config.log_name}}</a>';
+        {% elif room_number == 3 %}
+        html+='<a style="width:50%"  target="_blank" href="{% url 'tcgcreator:watch3'  %}">{{Config.log_name}}</a>';
+        {% endif %}
+        html+='<span id="back" style="width:50%;text-align:center;display:none;margin-left:30px"><a href="{{ Config.return_url }}">戻る</a></span>';
+        html+='</span>';
+        var tmp_message = $("#tomessage").val();
+        if(tmp_message == undefined){
+            tmp_message = "";
+            focus = false;
+        }else{
+            var focus = $("#tomessage:focus").length != 0 ? true : false;
+        }
+        html+='<br><span style="text-align:center"><input type="text" style="font-size:15px" value="'+tmp_message+'" id="tomessage"><input type="button" onclick="SendMessage();" value="{{Config.tomessage_name}}"></span>';
+    $("#right_column").html(html);
+        $('#tomessage').keypress( function ( e ) {
+	        if ( e.which == 13 ) {
+	            SendMessage();
+	        }
+        });
+        $("#center_opponent_global").html(center_opponent_html);
+        $("#center_global").html(center_html);
+        if(focus){
+            $("#tomessage").focus();
+            $("#tomessage").val("");
+            $("#tomessage").val(tmp_message);
+        }
+    $('#log').animate( {scrollTop: $("#log").get(0).scrollHeight }, '1');
+
+}
+
+        /*
+    function MakeRightColumn(data){
+        var html="";
+        var color = "{{Config.font_color}}";
+        var turn;
+        var user_number = parseInt(data["user"]);
+        if(user_number == 1){
+            if(data["turn"] == 1){
+                turn = 1;
+            }else{
+                turn = 2;
+            }
+        }else{
+
+            if(data["turn"] == 2){
+                turn = 1;
+            }else{
+                turn = 2;
+            }
+        }
+
+        {% for phase in Phases %}
+        if(data["phase"] == {{phase.id}} ){
+            color = "{{Config.phase_color}}";
+        }else{
+                color = "{{Config.font_color}}";
+        }
+        html += "<span style=\"color:"+ color+"\">{{phase.phase_name}}</span>";
+        html += "<br>";
+        {% endfor %}
+        var variable_id = [];
+        var i=0;
+
+                var tmp = $("#left_column").html();
+        $("#left_column").html(tmp+html);
+
+    }
+        */
+    function Exit(){
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:exit'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        clearTimeout(timer);
+        return;
+    }
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(Exit,1000);
+        return;
+    }
+    location.href='{{ Config.return_url }}';
+    return;
+   },
+   error:function(){
+        // alert("error");
+    }
+
+ });
+    }
+    function Surrender(){
+        if(confirm("本当にサレンダーしますか")){
+            SendLose();
+        }
+    }
+    function SendLose(){
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:send_lose'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:battle_det'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        clearTimeout(timer);
+        return;
+    }
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(SendLose,1000);
+        return;
+    }
+    Success(data);
+   },
+   error:function(){
+        //alert("error");
+    }
+
+ });
+   },
+   error:function(){
+        //alert("error");
+    }
+    });
+
+    }
+    function Validate(monster){
+        var name_kind = monster_name_kind;
+        var i,j;
+        for(i = 0;i<exclude.length;i++){
+            if(monster["place_unique_id"] == exclude[i]){
+                return false;
+            }
+        }
+        if (flag != false){
+                if(flag["operator"] == "="){
+                    if(monster["flag"] != parseInt(flag["flag_det"])){
+                       return false;
+                    }
+                }else if(flag["operator"] == "&"){
+                    if(monster["flag"] & parseInt(flag["flag_det"]) ==  0){
+                        return false;
+                    }
+                }else if(flag["operator"] == "^"){
+                    if(monster["flag"] & parseInt(flag["flag_det"]) != 0){
+                        return false;
+                    }
+                }
+        }
+        // 難しいので一時的の処置
+        return true;
+        if (name_kind != ""){
+            if(name_kind["operator"] == "="){
+                if(monster["monster_name"] != name_kind["monster_name"]){
+                    return false;
+                }
+            }else if(name_kind["operator"] == "like"){
+                if(monster["monster_name"].search(name_kind["monster_name"]) >-1){
+                    return false;
+                }
+            }
+        }
+        var current_and_or ;
+        var current_flag;
+        var variable_flag;
+        for(i =0;i<variables.length;i++){
+            current_flag = true;
+            current_and_or = "and";
+            for(j=0;j<variables[i].length;j++){
+                variable_flag = true;
+                if(variables[i][j]["operator"] == "=" || variables[i][j]["operator"] == "" ){
+                    if (variables[i][j]["init"] == 0){
+                        if( monster["variables"][variables[i][j]["name"]]["value"] != variables[i][j]["num"]){
+                            variable_flag =  false;
+                        }
+                    }else if (variables[i][j]["init"] == 1){
+                        if( monster["variables"][variables[i][j]["name"]]["init_value"] != variables[i][j]["num"]){
+                            variable_flag =  false;
+                        }
+                    }else{
+                        if( monster["variables"][variables[i][j]["name"]]["init_init_value"] != variables[i][j]["num"]){
+                            variable_flag =  false;
+                        }
+                    }
+                }else if(variables[i][j]["operator"] == "<=" ){
+                    if (variables[i][j]["init"] == 0){
+                        if( monster["variables"][variables[i][j]["name"]]["value"] > variables[i][j]["num"]){
+                            variable_flag =  false;
+                        }
+                    }else if (variables[i][j]["init"] == 1){
+                        if( monster["variables"][variables[i][j]["name"]]["init_value"] > variables[i][j]["num"]){
+                            variable_flag =  false;
+                        }
+                    }else{
+                        if( monster["variables"][variables[i][j]["name"]]["init_init_value"] > variables[i][j]["num"]){
+                            variable_flag =  false;
+                        }
+                    }
+                }else if(variables[i][j]["operator"] == ">=" ){
+                    if (variables[i][j]["init"] == 0){
+                        if( monster["variables"][variables[i][j]["name"]]["value"] < variables[i][j]["num"]){
+                            variable_flag =  false;
+                        }
+                    }else if (variables[i][j]["init"] == 1){
+                        if( monster["variables"][variables[i][j]["name"]]["init_value"] < variables[i][j]["num"]){
+                            variable_flag =  false;
+                        }
+                    }else{
+                        if( monster["variables"][variables[i][j]["name"]]["init_init_value"] < variables[i][j]["num"]){
+                            variable_flag =  false;
+                        }
+                    }
+                }else if(variables[i][j]["operator"] == "!=" ){
+                    if (variables[i][j]["init"] == 0){
+                        if( monster["variables"][variables[i][j]["name"]]["value"] == variables[i][j]["num"]){
+                            variable_flag =  false;
+                        }
+                    }else if (variables[i][j]["init"] == 1){
+                        if( monster["variables"][variables[i][j]["name"]]["init_value"] == variables[i][j]["num"]){
+                            variable_flag =  false;
+                        }
+                    }else{
+                        if( monster["variables"][variables[i][j]["name"]]["init_init_value"] == variables[i][j]["num"]){
+                            variable_flag =  false;
+                        }
+                    }
+                }
+                if(current_and_or == "and"){
+                    if(current_flag == true){
+                            current_flag = variable_flag;
+                    }else{
+                            current_flag = false;
+                    }
+                }else{
+                    if(current_flag == true){
+                            current_flag = true;
+                    }else{
+                            current_flag = variable_flag;
+                    }
+                }
+                current_and_or = variables[i][j]["and_or"];
+            }
+            if(current_flag == false){
+                return false;
+            }
+        }
+        return true;
+    }
+</script>
+</head>
+<body>
+{% if user_point2 %}
+<span style="font-size:25px;text-align:center;background-color:white">{{user_name2}} {{user_point2.win}}勝{{user_point2.lose}}敗 {{user_point2.point}}pt</span><br>
+{% endif %}
+
+        {% if Config.show_wait_chain is True %}
+<table style="color:black;background-color:white" id="show_chain">
+    <tr>
+        <td></td>
+        {% for phase in phase_my_show %}
+        <td>{{phase.phase_name}}</td>
+        {% endfor %}
+        {% for timing in timing_my_show %}
+        <td>{{timing.timing_name}}</td>
+        {% endfor %}
+        {% for kind in kind_my_show %}
+        <td>{{kind.monster_effect_name}}</td>
+        {% endfor %}
+    </tr>
+    <tr>
+        <td>相手</td>
+        {% for phase in phase_other_show %}
+        <td><input type="checkbox" onChange="changeWait()" id="phase_other_{{phase.id}}" {% if phase.checked == True %} checked {% endif%}></td>
+        {% endfor %}
+        {% for timing in timing_other_show %}
+        <td><input type="checkbox" onchange="changeWait()"  id="timing_other_{{timing.id}}" {% if timing.checked == True %} checked {% endif%}></td>
+        {% endfor %}
+        {% for kind in kind_other_show %}
+        <td><input type="checkbox" onchange="changeWait()"  id="kind_other_{{kind.id}}" {% if kind.checked == True %} checked {% endif %}></td>
+        {% endfor %}
+    </tr>
+    <tr>
+        <td>自分</td>
+        {% for phase in phase_my_show %}
+        <td><input type="checkbox" onChange="changeWait()" id="phase_my_{{phase.id}}" {% if phase.checked == True %} checked {% endif%}></td>
+        {% endfor %}
+        {% for timing in timing_my_show %}
+        <td><input type="checkbox" onchange="changeWait()"  id="timing_my_{{timing.id}}" {% if timing.checked == True %} checked {% endif%}></td>
+        {% endfor %}
+        {% for kind in kind_my_show %}
+        <td><input type="checkbox" onchange="changeWait()"  id="kind_my_{{kind.id}}" {% if kind.checked == True %} checked {% endif %}></td>
+        {% endfor %}
+    </tr>
+</table>
+{% endif %}
+        <div style="float:left">
+<table id="field" width="100%" style="table-layout:fixed">
+<tr >
+    
+<td rowspan="2" height="100%" align="center" valign="top">
+<span id="player" style="margin-top:0px"> </span>
+<br><span style="font-size:18px;overflow-x:auto" id="opponent_hands"></span><br>
+    <div id="center_opponent_global"style=";background-color:rgba(255,255,255,0.65)"></div>
+<hr id="upper_line">
+{% if field_free == False %}
+<table class="field" >
+{% for y in range_y %}
+<tr>
+{% for x in range_x %}
+<td id="{{x}}_{{y}}" class=" {% for tmp in y|get_field:x %} {{tmp}} {% endfor %}">
+</td>
+{% endfor %}
+</tr>
+{% endfor %}
+</table>
+{% else %}
+    <div style="width:100%;background-color:rgba(255,255,255,0.65)">
+{% for y in range_y %}
+{% for x in range_x %}
+    <div style="float:left" id="{{x}}_{{y}}" class="field {%if x == 0 and y|get_field_box:0 %} box {%endif%} {% for tmp in y|get_field:0 %} {{tmp}} {% endfor %}">
+
+    </div>
+{% endfor %}
+
+    {% if y|get_field_mine_or_other:0 != y|get_field_mine_or_other_plus_1:range_y %}
+        <div style="clear:both"></div>
+        <div class="turn" style="text-align:center" id="turn_right"></div>
+    {% if Config.show_message %}
+
+        <div style="text-align:center;" id="center_logs"></div>
+    {% endif %}
+        <div style="text-align:center;" id="center_message" ></div>
+    {% elif y|get_field_mine_or_other:0 == 2 %}
+        {% if y|get_field_no_clear:0 is False or y|get_field_no_clear_plus_1:range_y is False%}
+            <div style="clear:both"></div>
+        {% endif %}
+    {% elif y|get_field_mine_or_other:0 == 1 %}
+        {% if y|get_field_no_clear:0 is False or y|get_field_no_clear_plus_1:range_y is False%}
+            <div style="clear:both"></div>
+        {% endif %}
+
+    {% endif %}
+{% endfor %}
+{% endif%}
+    <div style="clear:both"></div>
+        </div>
+<hr>
+    <div style="text-align:center;" id="message" ></div>
+<div id="center_global" style=";background-color:rgba(255,255,255,0.65)"></div>
+
+    <div id="choices" style="height:30px;text-align:center"></div>
+    <div id="choice_deck" style="height:0px;text-align:center"></div>
+    <div id="choice_grave" style="height:0px;text-align:center"></div>
+<div style="float:left;text-align:center;margin:0 auto;z-index:100;overflow:auto;width:100%;background-color:rgba(255,255,255,0.65)" id="hands">
+
+</div>
+<div class = "control">
+<table style="margin-left:0px"><tr><td style="vertical-align:top">
+    <div style="text-align:center">
+        <span  style="text-align:center" id="player2"></span>
+    </div>
+
+    <!--<div id="message" style="text-align:center;border:1px solid"></div> -->
+<div id="timer"></div>
+    </td></tr></table>
+</div>
+    <div style="clear:both"></div>
+    <div style="text-align:right;margin-bottom:10px" id="control"><input type="button" onclick="Wait();" style="width:100px"  value="{{Config.reload_name}}"><input type="button" style="width:100px" value="{{Config.cancel_name}}" onclick="javascript:Cancel()">{% if Duel.is_ai is False %}<input type="button" style="width:100px"  id="surrender" value="{{Config.surrender_name}}" onclick="javascript:Surrender()"><input type="button" id="return" value="戻る" style="display:none" onclick="location.href='{{ Config.return_url }}'">{%else%}<input type="button" style="width:100px"  value="やり直し" onclick="javascript:ChooseAi()"><input type="button" value="戻る" onclick="Exit()">{%endif%}</div>
+</td>
+    <td rowspan="2" style="width:20%;background-color:rgba(255,255,255,0.65)">
+        <span id="card_img" style="z-index:100;height:{{Config.card_height|multiple:2.1}}px;display:inline-block;overflow:visible"></span><br>
+        <div id="log" style="overflow-y:scroll;height:300px;text-align:center;color:black"></div>
+        <div id="right_column" style="z-index:0;vertical-align:top">
+
+        </div>
+    </td>
+</tr>
+
+</table>
+        </div>
+
+{% if cheat == True %}
+<span id="cheat" style="font-size:50px;text-align:center"><input style="" name="cheat" type="button" value="cheat" onclick="javascript:Cheat()"/></span><br/>
+<span id="cheat2" style="font-size:15px;text-align:center"><a style="" onclick="javascript:Cheat2(1)"/>cheat2</a></span><br/>
+<span id="cheat3" style="font-size:15px;text-align:center"><a style="" onclick="javascript:Cheat2(2)"/>cheat3</a></span><br/>
+{% endif %}
+ {% if user_point1 %}
+<span style="font-size:25px;text-align:center;background-color:white">{{user_name1}} {{user_point1.win}}勝{{user_point1.lose}}敗 {{user_point1.point}}pt</span><br>
+{% endif %}
+        <div id="ai_choosing" style="z-index:1000;offset-position:auto;width:600px;position:absolute;height:100px;background-color:white;display:none;border:1px solid #000000;"></div>
+        <div id="own_choosing" style="z-index:1000;offset-position:auto;width:600px;position:absolute;height:100px;background-color:white;display:none;border:1px solid #000000;"></div>
+        <div id="guest_name_choosing" style="z-index:1000;offset-position:auto;width:600px;position:absolute;height:100px;background-color:white;display:none;border:1px solid #000000;">名前を入力してください。<input type="text" id="choose_guest_name"><input type="button" onclick="SendGuestName()" value="送信"></div>
+        <div id="choosing_area" style="z-index:1000;offset-position:auto;text-align:center;position:absolute;width:600px;background-color:white;display:none;border:1px solid #000000;"></div>
+    </body>
+    </html>
+
