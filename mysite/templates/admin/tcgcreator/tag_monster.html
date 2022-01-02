@@ -1,0 +1,33 @@
+{% extends "admin/base_site.html" %}
+{% load tcgcreatorlookup %}
+{% load static %}
+{% block extrastyle %}
+	{{ block.super}}
+	<link rel="stylesheet" href="{% static "css/field_kind.css" %}" type="text/css" ">
+{% if cl.formset %}
+<link rel="stylesheet" type="text/css" href="{% static "admin/css/forms.css" %}" />
+{% endif %}
+{% if cl.formset or action_form %}
+<script type="text/javascript" src="{% url 'admin:jsi18n' %}"></script>
+{% endif %}
+{% endblock extrastyle %}
+{% block content %}
+    <form method="post" action >
+        {% csrf_token %}
+    {% for monster_variable in monster_variables %}
+        {% if monster_variable|lookup:"type" == "number" %}
+            {{monster_variable|lookup:"name"}}<input type="text" name="{{monster_variable|lookup:"id"}}_low">~<input type="text" name="{{monster_variable|lookup:"id"}}_high"><br>
+        {%else%}
+            {{monster_variable|lookup:"name"}}
+            {% for kind_name in monster_variable|lookup:"kind" %}
+                <input type="radio" value="{{forloop.counter}}" name="{{monster_variable|lookup:"name"}}">{{kind_name}}
+            {%endfor%}
+        <br>
+        {%endif%}
+    {%endfor%}
+        <input type="hidden" name="trigger" value="{{trigger}}">
+        <input type="submit" value="submit">
+    </form>
+    {%endblock%}
+
+
