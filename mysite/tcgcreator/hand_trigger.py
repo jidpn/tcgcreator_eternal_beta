@@ -15,6 +15,7 @@ from time import time
 
 
 def hand_trigger(request):
+    pprint("HAND_TRIGGER")
     room_number = int(request.POST["room_number"])
     place_unique_id = request.POST["place_unique_id"]
     place = "hand"
@@ -50,13 +51,16 @@ def hand_trigger(request):
         duelobj.user = 2
         user = 2
         other_user = 1
+    pprint("1")
     duelobj.init_all(user, other_user, room_number)
+    pprint("2")
     decks = Deck.objects.all()
     graves = Grave.objects.all()
     hands = Hand.objects.all()
     duelobj.check_eternal_effect(
         decks, graves, hands, duel.phase, duel.user_turn, user, other_user
     )
+    pprint("3")
     if duel.user_1 != request.user and duel.user_2 != request.user:
         if (ID1 == ID and duel.guest_flag) or (ID2 == ID and duel.guest_flag2):
             pass
@@ -78,6 +82,7 @@ def hand_trigger(request):
             is True
         ):
             free_lock(room_number, lock)
+            pprint("HAND_TRIGGER2")
             return battle_det(request, duelobj)
         else:
             free_lock(room_number, lock)
@@ -96,6 +101,7 @@ def hand_trigger(request):
             is True
         ):
             free_lock(room_number, lock)
+            pprint("HAND_TRIGGER3")
             return battle_det(request, duelobj)
         else:
             free_lock(room_number, lock)
@@ -153,11 +159,15 @@ def hand_trigger_det(
                 "hand",
                 place_unique_id,
                 hand_id,
+                fusion = 1
             ):
+                pprint("444")
                 duelobj.invoke_trigger(
                     result_trigger, "hand", hand, mine_or_other2, duelobj.user, hand_id
                 )
+                pprint("555")
                 duelobj.save_all(user, other_user, room_number)
+                pprint("666")
                 return True
     return False
 

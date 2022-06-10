@@ -13,6 +13,7 @@ from .models import (
     DefaultDeckChoice,
     DefaultDeck,
     Constraint,
+    SpecialCard
 )
 from django.http import HttpResponse, HttpResponseRedirect
 import json
@@ -245,14 +246,18 @@ def copy_to_deck_text(user_id, post, deck_group):
 
     all_decks = sorted(all_decks)
     tmp = 0
-    constraint = Constraint.objects.get()
-    constraint_variable = constraint.monster_variable.id
+    if Constraint.objects.exists():
+        constraint = Constraint.objects.get()
+        constraint_variable = constraint.monster_variable.id
+    else:
+        constraint_variable = -1
     constraint_variety = []
     for all_deck in all_decks:
         if all_deck != tmp:
             tmp = all_deck
             monster = Monster.objects.filter(id=int(all_deck)).first()
-            monsteritem = (
+            if constraint_variable != -1:
+                monsteritem = (
                 MonsterItem.objects
                     .filter(monster_id__id=int(all_deck) , monster_variables_id__id = constraint_variable)
             ).get()
@@ -260,11 +265,11 @@ def copy_to_deck_text(user_id, post, deck_group):
                 return monster.monster_name + "の制限を違反しています"
             if not constraint_variable:
                 continue
-            if monsteritem.monster_item_text == constraint.except_val:
+            if constraint_variable == -1 or monsteritem.monster_item_text == constraint.except_val:
                 continue
             elif monsteritem.monster_item_text not in constraint_variety and int(monsteritem.monster_item_text) != int(constraint.except_val):
                 constraint_variety.append(monsteritem.monster_item_text)
-    if(len(constraint_variety) > constraint.limit):
+    if constraint_variable != -1 and (len(constraint_variety) > constraint.limit):
         return "制約に違反しています。"
 
     i = 0
@@ -305,6 +310,13 @@ def copy_to_deck(user_id, post, deck_group):
         if len(add_deck) != 0:
             all_decks.extend(add_deck)
             result_deck.extend(add_deck)
+        special_cards = check_special_cards(all_decks)
+        max_deck_size = deck.max_deck_size 
+        for special_card in special_cards:
+            if deck in special_card.deck.all():
+               special_first = special_card.first()
+               min_deck_size = special_first.min_deck_size
+               max_deck_size = special_first.max_deck_size
         result_deck = sorted(result_deck)
         if user_deck.deck == "":
 
@@ -318,27 +330,34 @@ def copy_to_deck(user_id, post, deck_group):
 
     all_decks = sorted(all_decks)
     tmp = 0
-    constraint = Constraint.objects.get()
-    constraint_variable = constraint.monster_variable.id
+    if Constraint.objects.exists() :
+        constraint = Constraint.objects.get()
+        if special_first.constraint == constraint:
+            constraint_variable = -1
+        else:
+            constraint_variable = constraint.monster_variable.id
+    else:
+        constraint_variable = -1
     constraint_variety = []
     for all_deck in all_decks:
         if all_deck != tmp:
             tmp = all_deck
             monster = Monster.objects.filter(id=int(all_deck)).first()
-            monsteritem = (
-            MonsterItem.objects
+            if constraint_variable != -1:
+                monsteritem = (
+                MonsterItem.objects
                 .filter(monster_id__id=int(all_deck) , monster_variables_id__id = constraint_variable)
-            ).get()
+                ).get()
 
             if all_decks.count(all_deck) > monster.monster_limit:
                 return monster.monster_name + "の制限を違反しています"
             if not constraint_variable:
                 continue
-            if monsteritem.monster_item_text == constraint.except_val:
+            if constraint_variable == -1 or monsteritem.monster_item_text == constraint.except_val:
                 continue
             elif monsteritem.monster_item_text not in constraint_variety and int(monsteritem.monster_item_text) != int(constraint.except_val):
                 constraint_variety.append(monsteritem.monster_item_text)
-    if(len(constraint_variety) > constraint.limit):
+    if constraint_variable != -1 and (len(constraint_variety) > constraint.limit):
         return "制約に違反しています。"
     i = 0
     for deck in decks:
@@ -475,3 +494,11 @@ def get_field_y_range(fields,field_size):
             ary[y] = ary2[-1]
             del ary2[-1]
     return ary
+def check_special_cards(user_decks):
+    special_cards = SpecialCard.objects.all()
+    result_special_card = []
+    for user_deck in user_decks:
+        if user_deck == "":
+            return []
+        result_special_card.extend(special_cards.filter(special_card__id = int(user_deck)))
+    return result_special_card

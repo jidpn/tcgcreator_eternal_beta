@@ -135,6 +135,21 @@
 		}
 		showEquationDet();
 	}
+	function deleteMonsterVariable(id){
+		ids = id.split("_");
+		if($("#get_monster_variable_equal_"+ids[3]+"_"+ids[4]+"_"+ids[5]+"_"+ids[6]).val() == "" ){
+			$("#"+id).val("");
+			
+		}
+	}
+	function changeToEqual(id){
+		ids = id.split("_");
+			if($("#get_monster_variable_equal_"+ids[3]+"_"+ids[4]+"_"+ids[5]+"_"+ids[6]).val() == "" ){
+
+			$("#get_monster_variable_equal_"+ids[3]+"_"+ids[4]+"_"+ids[5]+"_"+ids[6]).val('='); 
+			
+		}
+	}
 	function showMonsterEquation(id){
 		monster_or_global = id;
 		ids = id.split("_");
@@ -162,7 +177,7 @@
 	function addMonsterVariableChange(i){
 		i++;
 		$(".add_button_monster_variable_change").hide();
-		var result = '<table><tr><td>変数変更名</td><td><input type="text" id="monster_variable_change_name_'+i+'"></td></tr><tr><td>寿命</td><td><select id="monster_variable_change_life_'+i+'"></select><input type="text" id="monster_variable_change_life_length_'+i+'"></td></tr><tr><td>種別</td><td><select id="monster_variable_change_effect_kind_'+i+'"></select></td></tr><tr><td>元々の値</td><td><select id="monster_variable_change_initial_'+i+'"><option value="1">元々の値</option><option value="0">値</option></select>persist<input type="checkbox" id="persist_'+i+'"><input type="text" id="monster_variable_change_val_'+i+'" onfocus="showMonsterVariableEquation('+i+')"></td></tr><tr><td>minus<input type="checkbox" id="monster_variable_change_minus_'+i+'"</td></tr><tr><input type="button" onclick="addMonsterVariableChange('+i+')" class="add_button_monster_variable_change" value="追加" id="add_button_monster_variable_change_'+i+'"></td></tr>';
+		var result = '<table><tr><td>変数変更名</td><td><input type="text" id="monster_variable_change_name_'+i+'"></td></tr><tr><td>寿命</td><td><select id="monster_variable_change_life_'+i+'"></select><input type="text" id="monster_variable_change_life_length_'+i+'"></td></tr><tr><td>種別</td><td><select id="monster_variable_change_effect_kind_'+i+'"></select></td></tr><tr><td>元々の値</td><td><select id="monster_variable_change_initial_'+i+'"><option value="1">元々の値</option><option value="0">値</option></select><select id="monster_variable_change_add_'+i+'"><option value="0">加える</option><option value="1">にする</option></select>persist<input type="checkbox" id="persist_'+i+'"><input type="text" id="monster_variable_change_val_'+i+'" onfocus="showMonsterVariableEquation('+i+')"></td></tr><tr><td>minus<input type="checkbox" id="monster_variable_change_minus_'+i+'"</td></tr><tr><input type="button" onclick="addMonsterVariableChange('+i+')" class="add_button_monster_variable_change" value="追加" id="add_button_monster_variable_change_'+i+'"></td></tr>';
 		$("#monster_variable_change").append(result);
 		$.ajax({
 		   'type': "POST",
@@ -215,7 +230,7 @@
         tmp+=$("#equation_under").prop("checked")?"1"+":":"0"+":";
         tmp+=$("#monster_editor").val()+":";
         tmp+=$("#monster_effect_kind_get_val").val()+":";
-            if($("#i_val").prop("checked") == true){
+            if($("#i_val2").prop("checked") == true){
                 tmp+="1";
             }else{
                 tmp+="0";
@@ -318,6 +333,7 @@
 	function showEach(){
 		$("#monster_effect_each").show();
 		$("#monster_effect_each").draggable();
+    		$("#monster_effect_each").offset({top:mouse_y,left:mouse_x});
 	}
 
 	function showCheckForce(){
@@ -467,8 +483,8 @@
 		result="カスタム変数名<input type=\"text\" id=\"custom_monster_variable_"+id[0]+"_"+id[1]+"_"+id[2]+"_"+id[3]+"\">";
 		}
 		result+="値<input type=\"text\" onfocus=\"showMonsterEquation('custom_get_monster_variable_"+id[0]+"_"+id[1]+"_"+id[2]+"_"+id[3]+"')\" id=\"custom_get_monster_variable_"+id[0]+"_"+id[1]+"_"+id[2]+"_"+id[3]+"\">";
-		result+='<select id="custom_get_monster_variable_equal_'+id[0]+'_'+id[1]+'_'+id[2]+'_'+id[3]+'"><option value="">全て</option><option value="=">=</option><option value="!=">!=</option><option value=">=">&gt;=</option><option value="<=">&lt;=</option></select>';
-		result+='<select id="custom_monster_variable_and_or_'+id[0]+"_"+id[1]+"_"+id[2]+'_'+id[3]+'" > <option value=""></option> <option value="and">かつ</option> <option value="or">または</option> </select><input id="custom_monster_variable_add_'+id[0]+"_"+id[1]+'_'+id[2]+'_'+id[3]+'" type="button" value="追加" onclick="addCustomMonsterCondition(\''+id[0]+'_'+id[1]+'_'+id[2]+'_'+String(parseInt(id[3])+1)+'\')">';
+		result+='<select id="custom_get_monster_variable_equal_'+id[0]+'_'+id[1]+'_'+id[2]+'_'+id[3]+'"><option value="">全て</option><option value="=" selected>=</option><option value="!=">!=</option><option value=">=">&gt;=</option><option value="<=">&lt;=</option></select>';
+		result+='<select id="custom_monster_variable_and_or_'+id[0]+"_"+id[1]+"_"+id[2]+'_'+id[3]+'" > <option value=""></option> <option value="and">かつ</option> <option value="or">または</option> </select>';
 		if(org == 0){
 			result+='<input type="button" value="カスタム追加" id="custom_add_'+id[0]+"_"+id[1]+'_'+String(parseInt(id[2])+1)+'_0" class="custom_add" onclick="addCustomMonsterCondition(\''+id[0]+"_"+id[1]+'_'+String(parseInt(id[2])+1)+'_0\')">';
 			$("#custom_add_"+id[0]+"_"+id[1]+"_"+id[2]+"_0").after(result);
@@ -716,19 +732,19 @@
 		var result="";
 		if(id.length==3){
 	result+="<input type=\"text\" onfocus=\"showMonsterNameEqual('"+id[0]+"_"+id[1]+"_"+id[2]+"')\" id=\"monster_name_"+id[0]+'_'+id[1]+"_"+id[2]+"\">";
-	result+='<select id="get_monster_name_equal_'+id[0]+'_'+id[1]+'_'+id[2]+'"><option value="">全て</option><option value="=">=</option><option value="like">含む</option></select><select id="monster_name_and_or_'+id[0]+'_'+id[1]+'_'+id[2]+'" > <option value=""></option> <option value="and">かつ</option> <option value="or">または</option> </select><input id="monster_name_add_'+id[0]+'_'+id[1]+'_'+id[2]+'" type="button" value="追加"  onclick="addMonsterName(\''+id[0]+"_"+id[1]+'_'+id[2]+'\')"><br>';
+	result+='<select id="get_monster_name_equal_'+id[0]+'_'+id[1]+'_'+id[2]+'"><option value="">全て</option><option value="=">=</option><option value="!=">!=</option><option value="like">含む</option>></select><select id="monster_name_and_or_'+id[0]+'_'+id[1]+'_'+id[2]+'" > <option value=""></option> <option value="and">かつ</option> <option value="or">または</option> </select><input id="monster_name_add_'+id[0]+'_'+id[1]+'_'+id[2]+'" type="button" value="追加"  onclick="addMonsterName(\''+id[0]+"_"+id[1]+'_'+id[2]+'\')"><br>';
 		
 		$("#monster_name_add_"+id[0]+"_"+id[1]+"_"+org).after(result);
 		$("#monster_name_add_"+id[0]+"_"+id[1]+"_"+org).hide();
 		}else if(id.length==2){
 	result+="<input type=\"text\" onfocus=\"showMonsterNameEqual('"+id[0]+"_"+id[1]+"')\" id=\"monster_name_"+id[0]+'_'+id[1]+"\">";
-	result+='<select id="get_monster_name_equal_'+id[0]+'_'+id[1]+'"><option value="">全て</option><option value="=">=</option><option value="like">含む</option></select><select id="monster_name_and_or_'+id[0]+'_'+id[1]+'" > <option value=""></option> <option value="and">かつ</option> <option value="or">または</option> </select><input id="monster_name_add_'+id[0]+'_'+id[1]+'" type="button" value="追加"  onclick="addMonsterName(\''+id[0]+"_"+id[1]+'\')"><br>';
+	result+='<select id="get_monster_name_equal_'+id[0]+'_'+id[1]+'"><option value="">全て</option><option value="=">=</option><option value="!=">!=</option><option value="like">含む</option></select><select id="monster_name_and_or_'+id[0]+'_'+id[1]+'" > <option value=""></option> <option value="and">かつ</option> <option value="or">または</option> </select><input id="monster_name_add_'+id[0]+'_'+id[1]+'" type="button" value="追加"  onclick="addMonsterName(\''+id[0]+"_"+id[1]+'\')"><br>';
 		
 		$("#monster_name_add_"+id[0]+"_"+org).after(result);
 		$("#monster_name_add_"+id[0]+"_"+org).hide();
 		}else if(id.length==1){
 	result+="<input type=\"text\" onfocus=\"showMonsterNameEqual('"+id[0]+"')\" id=\"monster_name_"+id[0]+"\">";
-	result+='<select id="get_monster_name_equal_'+id[0]+'"><option value="">全て</option><option value="=">=</option><option value="like">含む</option></select><select id="monster_name_and_or_'+id[0]+'" > <option value=""></option> <option value="and">かつ</option> <option value="or">または</option> </select><input id="monster_name_add_'+id[0]+'" type="button" value="追加"  onclick="addMonsterName(\''+id[0]+'\')"><br>';
+	result+='<select id="get_monster_name_equal_'+id[0]+'"><option value="">全て</option><option value="=">=</option><option value="!=">!=</option><option value="like">含む</option></select><select id="monster_name_and_or_'+id[0]+'" > <option value=""></option> <option value="and">かつ</option> <option value="or">または</option> </select><input id="monster_name_add_'+id[0]+'" type="button" value="追加"  onclick="addMonsterName(\''+id[0]+'\')"><br>';
 		
 		$("#monster_name_add_"+org).after(result);
 		$("#monster_name_add_"+org).hide();
@@ -1009,6 +1025,7 @@
 		json["each"] = $("#each").val();
 		json["val"] = $("#each_val").val();
 		json["max"] = $("#each_max").val();
+		json["del"] = $("#each_del").val();
 		val = JSON.stringify(json);
 		$("#id_"+id).val(val);
 	}

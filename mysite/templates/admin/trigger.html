@@ -1,4 +1,5 @@
 {% extends "admin/change_form.html" %}
+{% csrf_token %}
 {% block footer %}
 <div id="multiple_choice" style="width:600px;background-color:white;display:none;border:1px solid #000000;">
     <div id="multiple_choice_div_1"><select id="multiple_choice_1"></select><br>sentence<input type="text" id="multiple_choice_text_1"><br><input type="button" value="絞り込み" onclick="narrowDown('1')"><input id="multiple_choice_narrow_down_1" type="text" value="">
@@ -117,7 +118,7 @@
                     変数変更名</td><td><input type="text" id="monster_variable_change_name_0"></td></tr>
                     <tr><td>寿命</td><td><select type="text" id="monster_variable_change_life_0"></select><input type="text" id="monster_variable_change_life_length_0"></td></tr>
                     <tr><td>種別</td><td><select id="monster_variable_change_effect_kind_0"></select></td></tr>
-                    <tr><td>値</td><td><select id="monster_variable_change_initial_0"><option value="0">値</option><option value="1">元々の値</option></select>persist<input type="checkbox" id="persist_0"><input type="text" id="monster_variable_change_val_0" onfocus="showMonsterVariableEquation(0)"></td></tr>
+                    <tr><td>値</td><td><select id="monster_variable_change_initial_0"><option value="0">値</option><option value="1">元々の値</option></select><select id="monster_variable_change_add_0"><option value="0">加える</option><option value="1">にする</option><persist<input type="checkbox" id="persist_0"><input type="text" id="monster_variable_change_val_0" onfocus="showMonsterVariableEquation(0)"></td></tr>
                     <tr><td>マイナス</td><td><input type="checkbox" id="monster_variable_change_minus_0"></td></tr>
                     <tr><td></td><td><input type="button" onclick="addMonsterVariableChange(0)" class="add_button_monster_variable_change" value="追加" id="add_button_monster_variable_change_0"></td></tr>
                 </table>
@@ -213,6 +214,7 @@
     as<input type="text" id="each">
     each<input type="text" id="each_val">
     max<input type="number" id="each_max">
+    del<input type="text" id="each_del">
     <input type="button" value="追加" onclick="putEach('monster_effect')">
 </div>
 <div id="monster_effect_check_timing_and_phase" style="width:50%;min-height:200px;background-color:white;border:1px solid #000000;display:none">

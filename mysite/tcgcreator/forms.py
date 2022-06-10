@@ -77,6 +77,31 @@ class PacWrapperForm(forms.ModelForm):
         if re.search('[!-/:-@[-`{-~]',val):
             raise forms.ValidationError("名前に記号は入れないでください")
             return
+class CostWrapperForm(forms.ModelForm):
+    def clean(self):
+        cleaned_data = super().clean()
+        val = cleaned_data.get("cost_name")
+
+
+        #if re.search(r'[()%!"#\$&\'=-^~|{}\[\@:;+*<>]',val):
+        if re.search('[!-/:-@[-`{-~]',val):
+            raise forms.ValidationError("名前に記号は入れないでください")
+            return
+class MonsterEffectForm(forms.ModelForm):
+    '''
+    def clean_monster_effect(self):
+        value = self.cleaned_data["monster_effect"]
+        return value
+        '''
+    def clean(self):
+        cleaned_data = super().clean()
+        val = cleaned_data.get("monster_effect_val")
+        if val != 21 and val != 56 and val != 58 and val != 60:
+            value = cleaned_data.get("monster_effect")
+        return cleaned_data
+    def clean_monster_condition(self):
+        value = self.cleaned_data["monster_condition"]
+        return value
 class MonsterEffectWrapperForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()

@@ -236,6 +236,7 @@
             $("#as_"+id+"_"+0).val();
         deleteConditionPlace(id);
         deleteConditionPlaceAll(id);
+        displayConditionAll(id,0);
         if(kind == 3 || kind == 57 || kind == 4 || kind == 1 || kind== 36 || kind == 50 || kind == 51 || kind == 70){
             $("#monster_effect_place_to").show();
             $.ajax({
@@ -353,7 +354,7 @@
         getConditionVariablesWithData(id_det,val["variable"]);
         $("#"+id).show();
         $("#"+id).draggable();
-        $("#"+id).offset({top:x,left:y});
+        $("#"+id).offset({top:mouse_y,left:mouse_x});
         $("#"+id+"_0_1").show();
     $.ajax({
    'type': "POST",
@@ -424,7 +425,7 @@
         if(val["monster_variable_change_name"] != undefined){
             $("#monster_variable_change_name_"+0).val(val["monster_variable_change_name"][0]) ;
             $("#monster_variable_change_life_"+0).val(val["monster_variable_change_life"][0]);
-            if(val["persist"] != undefined){
+            if(val["persist"][0] ){
                 $("#persist_"+0).prop("checked",true);
             }
             $("#monster_variable_change_life_length_"+0).val(val["monster_variable_change_life_length"][0]);
@@ -433,6 +434,9 @@
                 $("#monster_variable_change_minus_"+0).prop("checked",true);
             }
             $("#monster_variable_change_initial_"+0).val(val["monster_variable_change_initial"][0]);
+		if(val["monster_variable_change_add"] != undefined){
+            $("#monster_variable_change_add_"+0).val(val["monster_variable_change_add"][0]);
+		}
             $("#monster_variable_change_effect_kind_"+0).val(val["monster_variable_change_effect_kind"][0]);
             for(k=1;val["monster_variable_change_name"][k]!= undefined;k++){
 	            addMonsterVariableChange(k-1);
@@ -446,6 +450,7 @@
                     $("#monster_variable_change_minus_"+k).prop("checked",true);
                 }
                 $("#monster_variable_change_initial_"+k).val(val["monster_variable_change_initial"][k]);
+                $("#monster_variable_change_add_"+k).val(val["monster_variable_change_add"][k]);
                 $("#monster_variable_change_effect_kind_"+k).val(val["monster_variable_change_effect_kind"][k]);
                 $("#monster_variable_change_val_"+k).val(val["monster_variable_change_val"][k]);
             }
@@ -661,9 +666,14 @@
         for(l=0;json["place"][l]!= undefined;l++){
         }
         addPlaceAll("trigger_condition_place",m,l-1,json,-1,0);
-        if(json["monster_turn_count"]!= undefined){
+        if(json["turn_count"]!= undefined){
             $("#monster_turn_count_"+m+"_1").val(json["turn_count"]);
         }
+	if(val["whether_monster"] == true){
+		$("#monster_exist").prop("checked",true);
+	}else{
+		$("#monster_exist").prop("checked",false);
+	}
         if(json["place_from"] != undefined){
             for(var place_from_i=0;place_from_i<json["place_from"].length;place_from_i++){
                 if(place_from_i!= 0){
@@ -676,6 +686,12 @@
         $("#monster_place_id_"+m+"_1").val(json["place_id"]);
         $("#monster_unique_id_"+m+"_1").val(json["unique_id"]);
         for(var j=0;json["monster_name_kind"][j] != undefined;j++){
+		if( j!=0){
+			var tmp="<input type=\"text\" onfocus=\"showMonsterNameEqual('"+m+"_1_"+j+"')\" id=\"monster_name_"+m+"_1_"+j+"\">";
+	tmp+='<select id="get_monster_name_equal_'+m+'_1_'+j+'"><option value="">全て</option><option value="=">=</option><option value="!=">!=</option><<option value="like">含む</option></select><select id="monster_name_and_or_'+m+'_1_'+j+'" > <option value=""></option> <option value="and">かつ</option> <option value="or">または</option> </select><input id="monster_name_add_'+m+'_1_'+j+'" type="button" value="追加"  onclick="addMonsterName(\''+m+'_1_'+j+'\')"><br>';
+			$("#monster_name_add_"+String(m)+"_1_"+String(j-1)).after(tmp);
+			$("#monster_name_add_"+String(m)+"_1_"+String(j-1)).hide();
+		}
                 $("#get_monster_name_equal_"+m+"_1_"+j).val(json["monster_name_kind"][j]["operator"]) ;
                 $("#monster_name_"+m+"_1_"+j).val(json["monster_name_kind"][j]["monster_name"]);
                 $("#monster_name_and_or_"+m+"_1_"+j).val(json["monster_name_kind"][j]["and_or"]);
@@ -760,7 +776,9 @@
         $("#get_equation_det_"+m).val(val["monster"][m]["equation"]["equation"]);
         $("#get_equation_kind_"+m).val(val["monster"][m]["equation"]["equation_kind"]);
         //$("#get_equation_number_"+m).val(val["monster"][m]["equation"]["equation_number"]);
-        $("#"+id+"_and_or_"+m).val(val["monster"][m]["and_or"]);
+	if(m > 0){
+        $("#"+id+"_and_or_"+m).val(val["monster"][m-1]["and_or"]);
+	}
         $("#exclude_"+0).val(val["exclude"]);
         for(var field_x =0;val["field_x"][field_x] != undefined;field_x++){
             $("#"+id+"_field_x_"+m+"_"+field_x).val(val["field_x"][field_x]);
@@ -799,14 +817,17 @@
             val["from_left"]= false;
         }
         val["different_flag"] = $("#different_flag").prop("checked");
-		for(var i=1;$("#"+id+"variable_condition_add_"+(i-1)).val();i++){
+		for(var i=1;$("#"+id+"_variable_condition_"+(i)).val();i++){
 			tmp_json={}
-			var tmp = $("#"+id+"variable_condition_"+i).val();
-			var operator = $("#"+id+"variable_condition_equation_"+(i-1)).val();
-			var variable_val = $("#"+id+"variable_equation_val_"+(i-1)).val();;
+			var tmp = $("#"+id+"_variable_condition_"+i).val();
+			var operator = $("#"+id+"_variable_condition_equation_"+(i)).val();
+			var variable_val = $("#"+id+"_variable_equation_val_"+i).val();;
+			var and_or = $("#"+id+"_variable_condition_add_"+i).val();;
 			if(tmp != "0"){
 				tmp_json["variable"] =  tmp;
-				tmp_json["varaiable_equation"] =  operator;
+				tmp_json["and_or"] =  and_or;
+				tmp_json["variable_val"] =  variable_val;
+				tmp_json["variable_equation"] =  operator;
 				val["variable"].push(tmp_json)
 			}
 		}
@@ -823,6 +844,7 @@
         val["monster_variable_change_life"]=[];
         val["persist"]=[];
         val["monster_variable_change_initial"]=[];
+        val["monster_variable_change_add"]=[];
         val["monster_variable_change_effect_kind"]=[];
         val["monster_variable_change_life_length"]=[];
         val["relation_name"]=[];
@@ -845,6 +867,8 @@
             val["monster_variable_change_life_length"][k] = 1;
         }
         val["monster_variable_change_initial"][k] = parseInt($("#monster_variable_change_initial_"+k).val());
+        val["monster_variable_change_add"][k] = parseInt($("#monster_variable_change_add_"+k).val());
+        val["monster_variable_change_add"][k] = parseInt($("#monster_variable_change_add_"+k).val());
         val["monster_variable_change_effect_kind"][k] = $("#monster_variable_change_effect_kind_"+k).val();
         }
         for(k=0;$("#relation_name_"+k).val();k++){
@@ -914,9 +938,14 @@
                 json["monster_name_kind"][j]["operator"] = "=";
                 json["monster_name_kind"][j]["monster_name"] =$("#monster_name_"+m+"_"+i+"_"+j).val();
                 json["monster_name_kind"][j]["and_or"] =$("#monster_name_and_or_"+m+"_"+i+"_"+j).val();
-            }else{
+            }else if($("#get_monster_name_equal_"+m+"_"+i+"_"+j).val() == "like"){
                 json["monster_name_kind"][j] = {};
                 json["monster_name_kind"][j]["operator"] = "like";
+                json["monster_name_kind"][j]["and_or"] =$("#monster_name_and_or_"+m+"_"+i+"_"+j).val();
+                json["monster_name_kind"][j]["monster_name"] =$("#monster_name_"+m+"_"+i+"_"+j).val();
+            }else if($("#get_monster_name_equal_"+m+"_"+i+"_"+j).val() == "!="){
+                json["monster_name_kind"][j] = {};
+                json["monster_name_kind"][j]["operator"] = "!=";
                 json["monster_name_kind"][j]["and_or"] =$("#monster_name_and_or_"+m+"_"+i+"_"+j).val();
                 json["monster_name_kind"][j]["monster_name"] =$("#monster_name_"+m+"_"+i+"_"+j).val();
             }
@@ -1130,7 +1159,7 @@
         tmp["equation"]["equation"] = $("#get_equation_det_"+m).val();
         tmp["equation"]["equation_kind"] = $("#get_equation_kind_"+m).val();
        // tmp["equation"]["equation_number"] = $("#get_equation_number_"+m).val();
-        var and_or = $("#"+id+"_and_or_"+m).val();
+        var and_or = $("#"+id+"_and_or_"+(m+1)).val();
         if( and_or ==  undefined){
             and_or = "and"
         }
@@ -1245,6 +1274,10 @@
             $("#"+id+"_add_button_"+0+"_"+i).remove();
             $('#'+id+'_button_'+0+'_'+i).remove();
             $("#"+id+"_"+0+"_"+i).remove();
+        }
+        for(i = 1;$("#"+id+"_place_"+0+"_"+i).length != 0;i++){
+            $("#"+id+"_place_"+0+"_"+i).remove();
+            $('#'+id+'_place_add_'+0+'_'+i).remove();
         }
         $("#"+id+"_add_button_"+0+"_"+1).show();
         $('#'+id+'_button_'+0+'_'+1).show();

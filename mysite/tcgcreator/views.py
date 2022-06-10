@@ -11,6 +11,7 @@ import html
 import os
 import uuid
 from tcgcreator.models import (
+    Background,
     UserPoint,
     MonsterVariables,
     MonsterVariablesKind,
@@ -1574,7 +1575,7 @@ def get_monster_trigger_condition(req):
         + str(i)
         + "_0')\" >"
     )
-    result += '<select id="get_monster_name_equal_0"><option value="">全て</option><option value="=">=</option><option value="!=">!=</option><option value="like">含む</option></select>'
+    result += '<select id="get_monster_name_equal_0"><option value="">全て</option><option value="=">=</option><option value="!=">!=</option><option value="like">含む</option><option value="notlike">含まない</option><</select>'
     result += (
         '<select id="monster_name_and_or_0" > <option value=""></option> <option value="and">かつ</option> <option value="or">または</option> </select><input id="monster_name_add_0" type="button" value="追加"  onclick="addMonsterName(\''
         + str(i)
@@ -1608,12 +1609,12 @@ def get_monster_trigger_condition(req):
             monster_variable.monster_variable_kind_id.monster_variable_name == "数値"
         ):
             result += (
-                '<input type="text" onfocus="showMonsterEquation(\'get_monster_variable_'
+                '<input type="text" onchange="changeToEqual("'+str(monster_variable.id)+'_0")" onfocus="showMonsterEquation(\'get_monster_variable_'
                 + str(monster_variable.id)
                 + '_0\')" id="get_monster_variable_'
                 + str(monster_variable.id)
                 + '_0">'
-            )
+                )
             result += (
                 '<input type="hidden" id="get_monster_variable_name_'
                 + str(monster_variable.id)
@@ -1745,7 +1746,7 @@ def get_monster_move(req):
     result += (
         '<select id="get_monster_name_equal'
         + add_i
-        + '_0"><option value="">全て</option><option value="=">=</option><option value="!=">!=</option><option value="like">含む</option></select>'
+        + '_0"><option value="">全て</option><option value="=">=</option><option value="!=">!=</option><option value="like">含む</option><option value="notlike">含まない</option><</select>'
     )
     result += (
         '<select id="monster_name_and_or'
@@ -1794,7 +1795,12 @@ def get_monster_move(req):
             )
             result += (
                 monster_variable.monster_variable_name
-                + '<input type="text" onfocus="showMonsterEquation(\'get_monster_variable'
+                + '<input type="text" onchange="chagneToEqual(\'get_monster_variable'
+                + add_i
+                + "_"
+                + str(monster_variable.id)
+                + '_0\')"' 
+                + ' onfocus="showMonsterEquation(\'get_monster_variable'
                 + add_i
                 + "_"
                 + str(monster_variable.id)
@@ -1946,7 +1952,7 @@ def get_monster_condition(req):
         '<select id="get_monster_name_equal'
         + add_j
         + add_i
-        + '_0"><option value="">全て</option><option value="=">=</option><option value="!=">!=</option><option value="like">含む</option></select>'
+        + '_0"><option value="">全て</option><option value="=">=</option><option value="!=">!=</option><option value="like">含む</option><option value="notlike">含まない</option><</select>'
     )
     result += (
         '<select id="monster_name_and_or'
@@ -2052,7 +2058,13 @@ def get_monster_condition(req):
             )
             result += (
                 monster_variable.monster_variable_name
-                + '<input type="text" onfocus="showMonsterEquation(\'get_monster_variable'
+                + '<input type="text" onfocus="changeToEqual(\'get_monster_variable'
+                + add_j
+                + add_i
+                + "_"
+                + str(monster_variable.id)
+                + '_0\') '
+                + ' ;showMonsterEquation(\'get_monster_variable'
                 + add_j
                 + add_i
                 + "_"
@@ -2065,7 +2077,9 @@ def get_monster_condition(req):
                 + '_0">'
             )
             result += (
-                '<select id="get_monster_variable_equal'
+               '<select onchange="deleteMonsterVariable(\'get_monster_variable'
+                + add_j + add_i + "_" + str(monster_variable.id) + '_0\')"' 
+                + ' id="get_monster_variable_equal'
                 + add_j
                 + add_i
                 + "_"
@@ -2209,7 +2223,7 @@ def get_monster_condition(req):
         '<select id="get_under_name_equal'
         + add_j
         + add_i
-        + '_0"><option value="">全て</option><option value="=">=</option><option value="!=">!=</option><option value="like">含む</option></select>'
+        + '_0"><option value="">全て</option><option value="=">=</option><option value="!=">!=</option><option value="like">含む</option><option value="notlike">含まない</option><</select>'
     )
     result += (
         '<select id="under_name_and_or_0" > <option value=""></option> <option value="and">かつ</option> <option value="or">または</option> </select><input id="under_name_add_0" type="button" value="追加"  onclick="addUnderName(\''
@@ -2536,7 +2550,7 @@ def get_monster_to(req):
     monster_variables = MonsterVariables.objects.all()
 
     result += 'モンスター名 <input type="text" id="monster_name_to">'
-    result += '<select id="get_monster_name_equal_to"><option value="">全て</option><option value="=">=</option><option value="!=">!=</option><option value="like">含む</option></select><br>'
+    result += '<select id="get_monster_name_equal_to"><option value="">全て</option><option value="=">=</option><option value="!=">!=</option><option value="like">含む</option><option value="notlike">含まない</option><</select><br>'
     for monster_variable in monster_variables:
         if (
             monster_variable.monster_variable_kind_id.monster_variable_name == "数値"
@@ -2612,6 +2626,7 @@ def get_phase_and_turn(req):
     phases = Phase.objects.all()
     timings = Timing.objects.all()
     result = ""
+    result += '<option value="chain_1">チェーン終了時</option>'
     result += '<option value="turn_1">自分ターン開始時</option>'
     result += '<option value="turn_2">相手ターン開始時</option>'
     result += '<option value="turn_3">両方ターン開始時</option>'
@@ -3180,7 +3195,6 @@ def init_battle(request, room_number):
     guest_name_flag = False
     default_deck_id_flag = False
     id_flag = False
-    pprint(request.GET)
     if not request.user.is_authenticated:
         if not "ID" in request.COOKIES:
             return HttpResponse("error")
@@ -3241,7 +3255,6 @@ def init_battle(request, room_number):
         else:
             tr= HttpResponseRedirect(reverse("tcgcreator:wait_battle"+str(room_number)))
         if redirect_flag is True:
-            pprint("AAA")
             if id_flag is True:
                 tr.set_cookie('ID', ID,max_age=3600*24*3)
             if guest_name_flag is True:
@@ -3265,7 +3278,6 @@ def init_battle(request, room_number):
         if check_in_other_room(request.user, room_number,ID):
             tr = HttpResponse("他の部屋に入室しています")
             if redirect_flag is True:
-                pprint("BBB")
                 if id_flag is True:
                     tr.set_cookie('ID', ID,max_age=3600*24*3)
                 if guest_name_flag is True:
@@ -3278,7 +3290,6 @@ def init_battle(request, room_number):
             if tmp:
                 tr = HttpResponse(tmp)
                 if redirect_flag is True:
-                    pprint("CCC")
                     if id_flag is True:
                         tr.set_cookie('ID', ID,max_age=3600*24*3)
                     if guest_name_flag is True:
@@ -3291,7 +3302,6 @@ def init_battle(request, room_number):
             if tmp2:
                 tr =  HttpResponse(tmp2)
                 if redirect_flag is True:
-                    pprint("DDD")
                     if id_flag is True:
                         tr.set_cookie('ID', ID,max_age=3600*24*3)
                     if guest_name_flag is True:
@@ -3329,7 +3339,7 @@ def init_battle(request, room_number):
                     duel.user_deck1 = tmp2
                     duel.save()
             if ai_choosing is False and ai_id:
-                tmp3 = EnemyDeckChoice.objects.filter().first()
+                tmp3 = EnemyDeckChoice.objects.filter(id=ai_id).first()
 
                 tmp3.enemy_deck = EnemyDeckGroup.objects.get(enemy_deck_id=ai_id)
                 tmp3.save()
@@ -3341,7 +3351,6 @@ def init_battle(request, room_number):
                 else:
                     tr = HttpResponseRedirect(reverse("tcgcreator:battle" + str(room_number)))
                 if redirect_flag is True:
-                    pprint("EEE")
                     if id_flag is True:
                         tr.set_cookie('ID', ID,max_age=3600*24*3)
                     if guest_name_flag is True:
@@ -3372,7 +3381,6 @@ def init_battle(request, room_number):
                 duel.save()
                 tr = HttpResponseRedirect(reverse("tcgcreator:battle" + str(room_number)))
                 if redirect_flag is True:
-                    pprint("FFF")
                     if id_flag is True:
                         tr.set_cookie('ID', ID,max_age=3600*24*3)
                     if guest_name_flag is True:
@@ -3661,11 +3669,13 @@ def enemy_deck(req):
         enemy_deck_group_max = EnemyDeckGroup.objects.all().aggregate(
             Max("enemy_deck_id")
         )
-        deck_group = enemy_deck_group_max["enemy_deck_id__max"] + 1
-        create_enemy_deck_group(deck_group, req.GET["deck_name"])
+        deck_group_num = enemy_deck_group_max["enemy_deck_id__max"] + 1
+        create_enemy_deck_group(deck_group_num, req.GET["deck_name"])
         enemy_deck_group = (
-            EnemyDeckGroup.objects.all().filter(enemy_deck_id=deck_group).first()
+            EnemyDeckGroup.objects.all().filter(enemy_deck_id=deck_group_num).first()
         )
+        deck_group.enemy_deck = enemy_deck_group
+        deck_group.save()
     elif "deck_group" in req.GET:
         if "deck_group" in req.GET and req.GET["deck_group"] != "":
             deck_group_id = req.GET["deck_group"]
@@ -4797,6 +4807,8 @@ def choose(request):
         user_deck_groups = []
         guest_flag = True
     config  = Config.objects.first()
+    background = Background.objects.order_by("?")[0]
+    background_file_name = background.file_name
     enemy_deck_groups = EnemyDeckGroup.objects.filter()
     enemy_deck_group = EnemyDeckChoice.objects.filter().first()
 
@@ -4804,6 +4816,7 @@ def choose(request):
         request,
         "tcgcreator/choose.html",
         {
+            "Background": background_file_name,
             "room_text1": room_text1,
             "room_text2": room_text2,
             "room_text3": room_text3,

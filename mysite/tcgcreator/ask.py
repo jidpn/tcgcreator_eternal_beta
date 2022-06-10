@@ -1,6 +1,7 @@
 from django.http import HttpResponse, HttpResponseRedirect
 from django.urls import reverse
 from .models import (
+    Trigger,
     FieldSize,
     Deck,
     Grave,
@@ -62,6 +63,7 @@ def ask_place(request):
 
 def show(duel, user, room_number, ask, decks, graves, hands):
     ask_fields = []
+    ask_whether_0 = []
     ask_under = []
     field_size = FieldSize.objects.get(id=1)
     current_and_or = "and"
@@ -131,7 +133,7 @@ def show(duel, user, room_number, ask, decks, graves, hands):
             return_value["max"] = duelobj.calculate_boland(
                 monster_effect_text_org["max_equation_number"],None,True
             )
-            return_value["prompt"] = prompt
+            return_value["prompt"] = duelobj.write_prompt(prompt,user)
             return_value["sentence"] = sentence
             return HttpResponse(json.dumps(return_value))
         if cost_det.cost_val == 26:
@@ -143,7 +145,7 @@ def show(duel, user, room_number, ask, decks, graves, hands):
             return_value["max"] = duelobj.calculate_boland(
                 monster_effect_text_org["max_equation_number"]
             )
-            return_value["prompt"] = prompt
+            return_value["prompt"] = duelobj.write_prompt(prompt,user)
             return_value["sentence"] = sentence
             return HttpResponse(json.dumps(return_value))
         elif cost_det.cost_val == 27 or cost_det.cost_val == 63:
@@ -155,7 +157,7 @@ def show(duel, user, room_number, ask, decks, graves, hands):
             return_value["max"] = duelobj.calculate_boland(
                 monster_effect_text_org["max_equation_number"]
             )
-            return_value["prompt"] = prompt
+            return_value["prompt"] = duelobj.write_prompt(prompt,user)
             return_value["sentence"] = sentence
             return HttpResponse(json.dumps(return_value))
         elif cost_det.cost_val == 3:
@@ -182,7 +184,7 @@ def show(duel, user, room_number, ask, decks, graves, hands):
                     monster_name = cost["~trigger"][0]["det"]["monster_name"]
                     prompt = prompt.replace("(@)", monster_name)
             return_value["sentence"] = sentence
-            return_value["prompt"] = prompt
+            return_value["prompt"] = duelobj.write_prompt(prompt,user)
             return HttpResponse(json.dumps(return_value))
         elif cost_det.cost_val == 48:
             return_value = {}
@@ -197,13 +199,13 @@ def show(duel, user, room_number, ask, decks, graves, hands):
                     monster_name = cost["~trigger"][0]["det"]["monster_name"]
                     prompt = prompt.replace("(@)", monster_name)
             return_value["sentence"] = sentence
-            return_value["prompt"] = prompt
+            return_value["prompt"] = duelobj.write_prompt(prompt,user)
             return HttpResponse(json.dumps(return_value))
         elif cost_det.cost_val == 26:
             return_value = {}
             return_value["yes_or_no"] = True
             return_value["sentence"] = sentence
-            return_value["prompt"] = prompt
+            return_value["prompt"] = duelobj.write_prompt(prompt,user)
             return HttpResponse(json.dumps(return_value))
         elif cost_det.cost_val == 5:
             if duelobj.user != effect_user:
@@ -211,7 +213,7 @@ def show(duel, user, room_number, ask, decks, graves, hands):
             ask_org = 3
         else:
             ask_org = 0
-    elif duel.in_trigger_waiting is True and duel.force == 0:
+    elif duel.in_trigger_waiting is True and (duel.force == 0):
 
         return_value = {}
         return_value["yes_or_no"] = True
@@ -246,8 +248,29 @@ def show(duel, user, room_number, ask, decks, graves, hands):
                 acc_val_tmp["change_val"] = tmp["change_val"]
                 acc_val.append(acc_val_tmp)
             return_value["variables"] = acc_val
-            return_value["prompt"] = prompt
+            return_value["prompt"] = duelobj.write_prompt(prompt,user)
             return HttpResponse(json.dumps(return_value))
+        elif monster_effect_det2.monster_effect_val == 76:
+            return_value = {}
+            chain_det_ary = json.loads(duelobj.duel.chain_det_trigger)
+            chain_det = chain_det_ary[str(duelobj.duel.chain - 1)]
+            trigger = Trigger.objects.get(id=chain_det)
+            return_value["fusion"] = True
+            return_value["user"] = user
+            return_value["monster"] = duelobj.get_fusion_monster(trigger.fusion_monster, user, trigger,0,1)
+            return_value["field_info"] = field
+            return HttpResponse(json.dumps(return_value))
+        elif monster_effect_det2.monster_effect_val == 77:
+            return_value = {}
+            chain_det_ary = json.loads(duelobj.duel.chain_det_trigger)
+            chain_det = chain_det_ary[str(duelobj.duel.chain - 1)]
+            trigger = Trigger.objects.get(id=chain_det)
+            return_value["fusion_material"] = True
+            return_value["user"] = user
+            return_value["monster"] = duelobj.get_fusion_material(monster_effect_det2,user, trigger,1,1)
+            return_value["field_info"] = field
+            return HttpResponse(json.dumps(return_value))
+
         elif monster_effect_det2.monster_effect_val == 55:
             return_value = {}
             acc_global = duelobj.acc_global
@@ -259,7 +282,7 @@ def show(duel, user, room_number, ask, decks, graves, hands):
                 acc_val.append(acc_val_tmp)
             return_value["variables"] = acc_val
             return_value["val_order"] = True
-            return_value["prompt"] = prompt
+            return_value["prompt"] = duelobj.write_prompt(prompt,user)
             return HttpResponse(json.dumps(return_value))
         elif monster_effect_det2.monster_effect_val == 16:
             return_value = {}
@@ -274,7 +297,7 @@ def show(duel, user, room_number, ask, decks, graves, hands):
                     monster_name = mess["trigger"][0]["det"]["monster_name"]
                     prompt = prompt.replace("(@)", monster_name)
 
-            return_value["prompt"] = prompt
+            return_value["prompt"] = duelobj.write_prompt(prompt,user)
             return_value["sentence"] = sentence
             return HttpResponse(json.dumps(return_value))
         elif monster_effect_det2.monster_effect_val == 66:
@@ -290,7 +313,7 @@ def show(duel, user, room_number, ask, decks, graves, hands):
                     monster_name = mess["trigger"][0]["det"]["monster_name"]
                     prompt = prompt.replace("(@)", monster_name)
             return_value["multiple_det"] = json.loads(monster_effect_det2.monster_effect)
-            return_value["prompt"] = prompt
+            return_value["prompt"] = duelobj.write_prompt(prompt,user)
             return_value["sentence"] = sentence
             return HttpResponse(json.dumps(return_value))
         elif monster_effect_det2.monster_effect_val == 26:
@@ -306,7 +329,7 @@ def show(duel, user, room_number, ask, decks, graves, hands):
                     monster_name = mess["trigger"][0]["det"]["monster_name"]
                     prompt = prompt.replace("(@)", monster_name)
             return_value["sentence"] = sentence
-            return_value["prompt"] = prompt
+            return_value["prompt"] = duelobj.write_prompt(prompt,user)
             return HttpResponse(json.dumps(return_value))
         elif monster_effect_det2.monster_effect_val == 67:
             return_value = {}
@@ -321,7 +344,7 @@ def show(duel, user, room_number, ask, decks, graves, hands):
                     monster_name = mess["trigger"][0]["det"]["monster_name"]
                     prompt = prompt.replace("(@)", monster_name)
             return_value["multiple_det"] = json.loads(monster_effect_det2.monster_effect)
-            return_value["prompt"] = prompt
+            return_value["prompt"] = duelobj.write_prompt(prompt,user)
             return_value["sentence"] = sentence
             return HttpResponse(json.dumps(return_value))
         monster_effect_text_org = json.loads(monster_effect_det2.monster_effect)
@@ -334,7 +357,7 @@ def show(duel, user, room_number, ask, decks, graves, hands):
             return_value["max"] = duelobj.calculate_boland(
                 monster_effect_text_org["max_equation_number"],None,True
             )
-            return_value["prompt"] = prompt
+            return_value["prompt"] = duelobj.write_prompt(prompt,user)
             return_value["sentence"] = sentence
             return HttpResponse(json.dumps(return_value))
         elif monster_effect_det2.monster_effect_val == 27 or monster_effect_det2.monster_effect_val == 63:
@@ -346,7 +369,7 @@ def show(duel, user, room_number, ask, decks, graves, hands):
             return_value["max"] = duelobj.calculate_boland(
                 monster_effect_text_org["max_equation_number"]
             )
-            return_value["prompt"] = prompt
+            return_value["prompt"] = duelobj.write_prompt(prompt,user)
             return_value["sentence"] = sentence
             return HttpResponse(json.dumps(return_value))
         elif (
@@ -566,7 +589,53 @@ def show(duel, user, room_number, ask, decks, graves, hands):
                             field_x = field_size.field_x
                         for x in range(field_x):
                             for y in range(field_size.field_y):
-                                if field[x][y]["det"] is not None and user != field[x][y]["mine_or_other"] and int(duelobj.check_change_val(
+                                if whether_monster == 0 and field[x][y]["det"] is None:
+                                    flag_field_place = False
+                                    if duelobj.field_free is False:
+                                        kind = field[x][y]["kind"]
+                                    else:
+                                        kind = field[0][y]["kind"]
+                                    if kind != "":
+                                        tmp = kind.split("_")
+                                    else:
+                                        tmp = []
+                                    if current_and_or == "and":
+                                        if place_tmp[1] in tmp:
+                                            if flag_field_place is True:
+                                                flag_field_place = True
+                                        else:
+                                            flag_field_place = False
+                                    elif current_and_or == "or":
+                                        if place_tmp[1] in tmp:
+                                            flag_field_place = True
+                                        else:
+                                            if flag_field_place is False:
+                                                flag_field_place = False
+                                    mine_or_other = int(place_tmp[2])
+                                    if (
+                                            (mine_or_other == 1
+                                            and user == 1)
+                                            or (mine_or_other == 2
+                                            and user == 2)
+                                    ):
+                                        mine_or_other = 1
+                                    elif (
+                                            (mine_or_other == 1
+                                            and user == 2)
+                                            or (mine_or_other == 2
+                                            and user == 1)
+                                    ):
+                                        mine_or_other = 2
+                                    else:
+                                        mine_or_other = 3
+
+                                    if flag_field_place is False:
+                                        continue
+                                    if field[x][y]["mine_or_other"] != mine_or_other:
+                                        continue
+                                    tmp = str(x)+"_"+str(y)
+                                    ask_whether_0.append(tmp)
+                                if whether_monster == 1 and field[x][y]["det"] is not None and user != field[x][y]["mine_or_other"] and int(duelobj.check_change_val(
                                         field[x][y]["det"],
                                         field[x][y]["mine_or_other"],
                                         "field",
@@ -625,7 +694,7 @@ def show(duel, user, room_number, ask, decks, graves, hands):
                                 if field[x][y]["mine_or_other"] != mine_or_other:
                                     continue
                                 if field[x][y]["det"] is not None:
-                                    if duelobj.check_not_effected(
+                                    if duelobj.check_no_choose(
                                             field[x][y]["det"],
                                             user,
                                             effect_kind,
@@ -649,7 +718,7 @@ def show(duel, user, room_number, ask, decks, graves, hands):
                                         "place_unique_id"
                                     ]
                                     if not duelobj.check_monster_condition_det(
-                                        monster_effect_det, field[x][y]["det"], user, effect_kind, 1, "field", x, y, 0
+                                        monster_effect_det, field[x][y]["det"], user, effect_kind, 1, "field", 0,x, y
                                     ):
                                         continue
                                     ask_fields.append(tmp3)
@@ -817,7 +886,6 @@ def show(duel, user, room_number, ask, decks, graves, hands):
                                     monster_effect_det,
                                 )
                             )
-                        break
                     elif place_tmp[0] == "grave":
                         grave = Grave.objects.get(id=place_tmp[1])
                         if grave.mine_or_other == 1:
@@ -886,6 +954,52 @@ def show(duel, user, room_number, ask, decks, graves, hands):
                             field_x = field_size.field_x
                         for x in range(field_x):
                             for y in range(field_size.field_y):
+                                if whether_monster == 0 and field[x][y]["det"] is None:
+                                    flag_field_place = False
+                                    if duelobj.field_free is False:
+                                        kind = field[x][y]["kind"]
+                                    else:
+                                        kind = field[0][y]["kind"]
+                                    if kind != "":
+                                        tmp = kind.split("_")
+                                    else:
+                                        tmp = []
+                                    if current_and_or == "and":
+                                        if place_tmp[1] in tmp:
+                                            if flag_field_place is True:
+                                                flag_field_place = True
+                                        else:
+                                            flag_field_place = False
+                                    elif current_and_or == "or":
+                                        if place_tmp[1] in tmp:
+                                            flag_field_place = True
+                                        else:
+                                            if flag_field_place is False:
+                                                flag_field_place = False
+                                    mine_or_other = int(place_tmp[2])
+                                    if (
+                                            (mine_or_other == 1
+                                            and user == 1)
+                                            or (mine_or_other == 2
+                                            and user == 2)
+                                    ):
+                                        mine_or_other = 1
+                                    elif (
+                                            (mine_or_other == 1
+                                            and user == 2)
+                                            or (mine_or_other == 2
+                                            and user == 1)
+                                    ):
+                                        mine_or_other = 2
+                                    else:
+                                        mine_or_other = 3
+
+                                    if flag_field_place is False:
+                                        continue
+                                    if field[x][y]["mine_or_other"] != mine_or_other:
+                                        continue
+                                    tmp = str(x)+"_"+str(y)
+                                    ask_whether_0.append(tmp)
                                 if  field[x][y]["det"] is not None and user != field[x][y]["mine_or_other"] and int(duelobj.check_change_val(
                                         field[x][y]["det"],
                                         field[x][y]["mine_or_other"],
@@ -1056,9 +1170,11 @@ def show(duel, user, room_number, ask, decks, graves, hands):
                                             "place_unique_id"
                                         ]
                                         ask_under.append(tmp3)
-
     if ask_fields:
         tmp_val["ask_field"] = ask_fields
+        tmp_val["field_info"] = field
+    if ask_whether_0:
+        tmp_val["ask_whether_0"] = ask_whether_0
         tmp_val["field_info"] = field
     if ask_under:
         tmp_val["ask_under"] = under
@@ -1075,7 +1191,7 @@ def show(duel, user, room_number, ask, decks, graves, hands):
     )
     tmp_val["whether_monster"] = whether_monster
     tmp_val["sentence"] = sentence
-    tmp_val["prompt"] = prompt
+    tmp_val["prompt"] = duelobj.write_prompt(prompt,user)
     tmp_val["monster_name_kind"] = monster_effect_det_monster["monster_name_kind"]
     if "flag" in monster_effect_det_monster:
         tmp_val["flag"] = monster_effect_det_monster["flag"]
@@ -1099,7 +1215,7 @@ def show(duel, user, room_number, ask, decks, graves, hands):
                 for mess_det in mess[exclude_det]:
                     val_exclude.append(mess_det["place_unique_id"])
     tmp_val["exclude"] = val_exclude
-    tmp_val["own_player"] = own_player
+    tmp_val["player"] = own_player
     tmp_val["other_player"] = other_player
     tmp_val["user"] = duelobj.user
     tmp_val["all_flag"] = all_flag
@@ -1415,7 +1531,7 @@ def show_force(
     tmp_val["force_effect"] = 1
     tmp_val["user"] = duelobj.user
     tmp_val["sentence"] = sentence
-    tmp_val["prompt"] = prompt
+    tmp_val["prompt"] = duelobj.write_prompt(prompt,user)
     return HttpResponse(json.dumps(tmp_val))
 
 def show_as(
@@ -1543,7 +1659,7 @@ def show_as(
     tmp_val["whether_monster"] = 1
     tmp_val["exclude"] = []
     tmp_val["sentence"] = sentence
-    tmp_val["prompt"] = prompt
+    tmp_val["prompt"] = duelobj.write_prompt(prompt,user)
     return HttpResponse(json.dumps(tmp_val))
 
 
@@ -1649,7 +1765,7 @@ def show_as_under(
     tmp_val["whether_monster"] = 1
     tmp_val["exclude"] = []
     tmp_val["sentence"] = sentence
-    tmp_val["prompt"] = prompt
+    tmp_val["prompt"] = duelobj.write_prompt(prompt,user)
     return HttpResponse(json.dumps(tmp_val))
 
 def show_multiple(
@@ -1963,5 +2079,5 @@ def show_multiple(
     )
     tmp_val["user"] = duelobj.user
     tmp_val["sentence"] = sentence
-    tmp_val["prompt"] = prompt
+    tmp_val["prompt"] = duelobj.write_prompt(prompt,user)
     return HttpResponse(json.dumps(tmp_val))

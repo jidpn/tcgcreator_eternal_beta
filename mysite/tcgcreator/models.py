@@ -2,6 +2,11 @@ from django.db import models
 from django.contrib.auth.models import (
     User,
 )
+WIN_OR_LOSE = (
+        (0,"なし"),
+        (1,"勝利"),
+        (2,"敗北")
+        )
 
 UP_OR_DOWN = ((0,"大きい"),(1,"小さい"))
 WHO = ((0, "trigger"), (1, "trigger_exist"), (2, "trigger_relate"))
@@ -166,6 +171,87 @@ class TriggerTimingRelation(models.Model):
         db_table = "tcgcreator_triggertimingrelation"
 
 
+class TriggerTimingNotEffected(models.Model):
+    def __str__(self):
+        return self.trigger_timing_name
+
+    trigger = models.ForeignKey(
+        "Trigger", default=None, null=True, blank=True, on_delete=models.SET_NULL
+    )
+    kinds = models.CharField(max_length=32, blank=True)
+    monster = models.ManyToManyField("Monster", blank=True)
+    monster_specify_flag = models.BooleanField(blank=True, default=True)
+    monster_relate = models.ManyToManyField(
+        "Monster", related_name="monster_relate_not_effected_exist", blank=True
+    )
+    monster_relate_specify_flag = models.BooleanField(blank=True, default=False)
+    who = models.IntegerField(choices=TRIGGER_WHO3, default=0)
+    chain_user = models.IntegerField(choices=MINE_OR_OTHER3, default=0)
+    cost_or_effect = models.IntegerField(choices=COST_OR_EFFECT, blank=True)
+    trigger_timing_name = models.CharField(max_length=32)
+    change_val = models.IntegerField(default=0)
+    change_val_operator = models.CharField(max_length=32, blank=True)
+    org = models.BooleanField(default=True)
+    relation = models.BooleanField(default=False)
+    relation_kind = models.CharField(max_length=32, blank=True)
+    relation_name = models.CharField(max_length=32, blank=True)
+    relation_to = models.BooleanField(default=False, blank=True)
+    relation2 = models.BooleanField(default=False)
+    relation_kind2 = models.CharField(max_length=32, blank=True)
+    relation_name2 = models.CharField(max_length=32, blank=True)
+    relation_to2 = models.BooleanField(default=False, blank=True)
+    org_flag = models.BooleanField(default=False, blank=True)
+    monster_exist = models.ManyToManyField(
+        "Monster", related_name="monster_exist_trigger_not_effected_timing_change_val", blank=True
+    )
+    monster_exist_specify_flag = models.BooleanField(blank=True, default=False)
+    exist_place_kind = models.IntegerField(choices=PLACE_KIND, default=0)
+    exist_deck = models.ForeignKey(
+        "Deck",
+        default=None,
+        null=True,
+        related_name="exist_deck_not_effected",
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
+    exist_grave = models.ForeignKey(
+        "Grave",
+        default=None,
+        null=True,
+        related_name="exist_grave_not_effected",
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
+    exist_hand = models.ForeignKey(
+        "Hand",
+        default=None,
+        null=True,
+        related_name="exist_hand_not_effected",
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
+    exist_field = models.ForeignKey(
+        "FieldKind",
+        default=None,
+        null=True,
+        related_name="exist_field_kind_not_effected",
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
+    exist_kinds = models.CharField(max_length=32, blank=True)
+    exist_mine_or_other = models.IntegerField(choices=MINE_OR_OTHER3, default=0)
+    which_monster_effect = models.IntegerField(choices = WHO,default = 0)
+    variable_name = models.CharField(max_length=32, blank=True)
+    once_per_turn_relate = models.BooleanField(default=False,blank=True)
+    once_per_turn_exist = models.BooleanField(default=False,blank=True)
+    enemy = models.IntegerField(choices = ENEMY,default =1)
+    enemy_own = models.IntegerField(choices = ENEMY,default =1)
+    chain = models.IntegerField(default=0, blank=True)
+    chain_kind = models.IntegerField(default=0, blank=True, choices=CHAIN)
+
+    class Meta:
+        db_table = "tcgcreator_triggertimingnoteffected"
+
 class TriggerTimingMonsterChangeVal(models.Model):
     def __str__(self):
         return self.trigger_timing_name
@@ -327,6 +413,7 @@ class TriggerTiming(models.Model):
     trigger = models.ForeignKey(
         "Trigger", default=None, null=True, blank=True, on_delete=models.SET_NULL
     )
+    win_or_lose = models.IntegerField(default=0, choices=WIN_OR_LOSE)
     kinds = models.CharField(max_length=32, blank=True)
     from_place_kind = models.IntegerField(choices=PLACE_KIND, default=0)
     from_deck = models.ForeignKey(
@@ -596,6 +683,7 @@ class Trigger(models.Model):
     canbechained = models.BooleanField(default=True)
     none_exist = models.BooleanField(default=False,blank=True)
     once_per_turn = models.BooleanField(default=False,blank=True)
+    once_per_duel = models.BooleanField(default=False,blank=True)
     once_per_turn_monster = models.BooleanField(default=False,blank=True)
     once_per_turn_group = models.IntegerField(default=0,blank=True)
     once_per_turn_monster_group = models.IntegerField(default=0,blank=True)
@@ -605,6 +693,15 @@ class Trigger(models.Model):
     strategy_up_or_down = models.IntegerField(choices = UP_OR_DOWN,default=0)
     immidiate_flag = models.BooleanField(default=False, blank=True)
     chain_flag = models.BooleanField(default=True, blank=True)
+    fusion_monster = models.TextField(blank=True,default="")
+    instead_condition = models.TextField(blank=True,default="")
+    fusion_flag = models.BooleanField(default=False, null=True)
+    fusion1 = models.TextField(blank=True,default="")
+    instead1 = models.TextField(blank=True,default="")
+    fusion2 = models.TextField(blank=True,default="")
+    instead2 = models.TextField(blank=True,default="")
+    fusion3 = models.TextField(blank=True,default="")
+    instead3 = models.TextField(blank=True,default="")
     def __str__(self):
         return self.trigger_name
 
@@ -635,6 +732,8 @@ ETERNAL_EFFECT_VAL = (
     (8, "逆転元々"),
     (6, "条件無視"),
     (7, "代わりに受ける"),
+    (8, "名前変更"),
+    (9, "名前追加"),
 )
 ETERNAL_EFFECT_VAL2 = (
     (0, "永続無効化"),
@@ -650,6 +749,9 @@ MONSTER_EFFECT_VAL = (
     (41, "タイミングフェイズ条件"),
     (39, "無効"),
     (1, "移動"),
+    (76, "融合選択"),
+    (77, "融合素材"),
+    (78, "融合固有効果"),
     (51, "移動under"),
     # リレーション先を移動させる
     (40, "移動リレーション"),
@@ -665,6 +767,7 @@ MONSTER_EFFECT_VAL = (
     (52, "変数変動flush"),
     (34, "変数変動byモンスター"),
     (29, "変数変動複数"),
+    (80, "変数表示変更"),
     (9, "モンスター変数変動"),
     (32, "モンスター変数変動リレーション"),
     (25, "モンスターリレーション"),
@@ -695,6 +798,7 @@ MONSTER_EFFECT_VAL = (
     (19, "タイミング次に移行"),
     (24, "永続レイズ"),
     (45, "コイントス"),
+    (79, "ランダム分岐"),
     (16, "Yes Or No"),
     (26, "Yes Or No相手"),
     (66, "分岐複数"),
@@ -718,7 +822,7 @@ MONSTER_EFFECT_VAL = (
     (62, "each"),
     (68, "コスト実行"),
     (74, "永続リセット"),
-    (6, "その他"),
+    (6, "コメント"),
 )
 ASK = ((0, "なし"), (1, "ターンプレイヤー"), (2, "非ターンプレイヤー"), (3, "両者"))
 
@@ -737,10 +841,20 @@ class Phase(models.Model):
         db_table = "tcgcreator_phase"
 
 
+class Background(models.Model):
+
+    background_name = models.CharField(max_length=32, default="")
+    file_name = models.CharField(max_length=32, default="")
+    font_color=models.CharField(max_length=32,default="black",blank=True);
+    def __str__(self):
+        return self.background_name
+    class Meta:
+        db_table = "tcgcreator_background"
 class DuelDeck(models.Model):
     room_number = models.IntegerField()
     mine_or_other = models.IntegerField(choices=MINE_OR_OTHER)
     deck_id = models.IntegerField()
+    deck_name = models.CharField(max_length=32, default="")
     deck_content = models.TextField(blank=True)
 
     class Meta:
@@ -751,6 +865,8 @@ class DuelGrave(models.Model):
     room_number = models.IntegerField()
     mine_or_other = models.IntegerField(choices=MINE_OR_OTHER)
     grave_id = models.IntegerField()
+    grave_name = models.CharField(max_length=32, default="")
+    deck_content = models.TextField(blank=True)
     grave_content = models.TextField(blank=True)
 
     class Meta:
@@ -761,6 +877,7 @@ class DuelHand(models.Model):
     room_number = models.IntegerField()
     mine_or_other = models.IntegerField(choices=MINE_OR_OTHER)
     hand_id = models.IntegerField()
+    hand_name = models.CharField(max_length=32, default="")
     hand_content = models.TextField(blank=True)
 
     class Meta:
@@ -1031,6 +1148,20 @@ class VirtualVariable(models.Model):
         db_table = "tcgcreator_virtualvariable"
 
 
+class SpecialCard(models.Model):
+    special_card_name = models.CharField(max_length=32)
+    special_card = models.ManyToManyField(Monster,blank=True)
+    constraint = models.ManyToManyField("Constraint",blank = True)
+    deck = models.ManyToManyField(Deck,blank=True,related_name="special_deck")
+    min_deck_size = models.IntegerField(blank=True)
+    max_deck_size = models.IntegerField(blank=True)
+    
+
+    def __str__(self):
+        return self.special_card_name
+
+    class Meta:
+        db_table = "tcgcreator_specialcard"
 class MonsterEffectKind(models.Model):
     monster_effect_name = models.CharField(max_length=32)
     monster_effect_show=models.BooleanField(default=False,blank=True);
@@ -1278,6 +1409,7 @@ class MonsterEffectWrapper(models.Model):
     if_not_to_2 = models.BooleanField(blank=True,default=False)
     strategy = models.CharField(max_length=32,blank=True,default="")
     strategy_up_or_down = models.IntegerField(choices = UP_OR_DOWN,default=0)
+    effect = models.TextField(blank=True,default="")
 
     def __str__(self):
         return self.monster_effect_name
@@ -1584,12 +1716,14 @@ class Duel(models.Model):
     canbechained = models.BooleanField(default=True)
     mute = models.IntegerField(default=0)
     force = models.IntegerField(default=0)
-    trigger_name = models.CharField(max_length=32, blank=True)
+    trigger_name = models.CharField(max_length=256, blank=True)
     in_execute = models.BooleanField(default=False)
     # 広域変数を軽減する変数
     alt_global = models.TextField(blank=True, default="")
     accumulate_global = models.TextField(blank=True, default="")
     wait_time = models.FloatField(default=0.0)
+    once_per_duel1 = models.TextField(blank=True, default="")
+    once_per_duel2 = models.TextField(blank=True, default="")
     once_per_turn1 = models.TextField(blank=True, default="")
     once_per_turn_monster1 = models.TextField(blank=True, default="")
     once_per_turn2 = models.TextField(blank=True, default="")
@@ -1626,6 +1760,10 @@ class Duel(models.Model):
     ai_choosing = models.BooleanField(default=False)
     current_trigger = models.IntegerField(default=0)
 
+    effect = models.TextField(default="", blank=True)
+    effect2 = models.TextField(default="", blank=True)
+    effect_flag = models.IntegerField(default=False,blank = True)
+    background_image=models.CharField(max_length=32,default="",blank=True);
     class Meta:
         db_table = "tcgcreator_duel"
 
@@ -1708,7 +1846,27 @@ class Lock(models.Model):
     time_2 = models.FloatField(default=0.0)
     lock_3 = models.BooleanField(default=False)
     time_3 = models.FloatField(default=0.0)
+    db_table = "tcgcreator_lock"
 class Constraint(models.Model):
     monster_variable = models.ForeignKey(MonsterVariables,blank=True,on_delete=models.SET_NULL,null=True)
     except_val = models.TextField(default = "")
     limit = models.IntegerField(default=100)
+    db_table = "tcgcreator_constraint"
+class Fusion(models.Model):
+    def __str__(self):
+        return self.fusion_name
+    fusion_name = models.CharField(max_length=32,default="", blank=True)
+    fusion_sentence = models.CharField(default="", blank=True,max_length=32)
+    fusion1 = models.TextField(default="", blank=True)
+    fusion2 = models.TextField(default="", blank=True)
+    fusion3 = models.TextField(default="", blank=True)
+    monster = models.ManyToManyField("Monster", blank=True)
+    unique_effect = models.ForeignKey(
+        "MonsterEffectWrapper",
+        default=None,
+        blank=True,
+        null=True,
+        on_delete=models.SET_NULL,
+    )
+    class Meta:
+        db_table = "tcgcreator_fusion"

@@ -180,6 +180,7 @@ def field_trigger_det(
             0,
             x,
             y,
+            fusion=1
         ):
             duelobj.invoke_trigger(
                 result_trigger,

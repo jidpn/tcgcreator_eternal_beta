@@ -165,10 +165,12 @@ def grave_trigger_det(
                 "grave",
                 place_unique_id,
                 grave_id,
+                fusion = 1
             ):
                 duelobj.invoke_trigger(
                     result_trigger, "grave", grave, mine_or_other, duelobj.user, grave_id
                 )
+                duelobj.save_all(user, other_user, room_number)
                 return True
     return False
 

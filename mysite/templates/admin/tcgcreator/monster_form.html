@@ -1,7 +1,8 @@
 {% extends "admin/change_form.html" %} 
 {% block admin_change_form_document_ready %}
 {{ block.super}}
-<script type="text/javascript" src="/static/tcgcreator/js/jquery.min.js "></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+<script src=//code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
 <script type="text/javascript" src="/static/tcgcreator/js/ajax.js"></script>
 <script type="text/javascript">
 	var monster_item_number = {% if monster_item_number %}{{monster_item_number}}{% else %} 0 {% endif %};

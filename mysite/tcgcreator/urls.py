@@ -18,7 +18,7 @@ from . import choices
 from . import get_monster_variable
 from . import api
 
-app_name = "cell"
+app_name = "tcgcreator"
 urlpatterns = [
     # 	url(r'^$', views.index, name='index'),
     re_path(r"^monster_variables/$", views.monster_variables, name="monster_variables"),
@@ -118,6 +118,9 @@ urlpatterns = [
     re_path(r"^explain_grave/$", explain_grave.explain_grave, name="explain_grave"),
     re_path(r"^ask_place/$", ask.ask_place, name="ask_place"),
     re_path(r"^answer/$", answer.answer, name="answer"),
+    re_path(r"^send_fusion_monster/$", answer.send_fusion_monster, name="send_fusion_monster"),
+    re_path(r"^send_fusion_monster_field/$", answer.send_fusion_monster_field, name="send_fusion_monster_field"),
+    re_path(r"^send_fusion_material/$", answer.send_fusion_material, name="send_fusion_material"),
     re_path(r"^force_trigger/$", answer.force_trigger, name="force_trigger"),
     re_path(r"^answerorder/$", answer.answerorder, name="answerorder"),
     re_path(r"^yes_or_no/$", answer.yes_or_no, name="yes_or_no"),

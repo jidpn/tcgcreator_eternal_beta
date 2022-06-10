@@ -17,6 +17,7 @@ from .models import (
     Config,
     MonsterEffectWrapper,
     CostWrapper,
+    Fusion,
     Trigger,
     PacWrapper,
     Lock,
@@ -484,6 +485,8 @@ def cancel(request):
             del cost[str(duel.chain)]
         duelobj.cost = cost
         duelobj.cost_result = {}
+        duelobj.mess[str(duel.chain)] = []
+
         '''
         if duel.chain > 0:
             chain_det_trigger_json = json.loads(duel.chain_det_trigger)
@@ -1362,6 +1365,7 @@ def multiple_answer_det(
     duel.field = field
     duel.ask -= del_ask
     choices = None
+    pprint("DEF")
     if duel.ask == 0:
         chain_det = json.loads(duel.chain_det)
         current_chain = chain_det[str(duel.chain - 1)]
@@ -1983,13 +1987,24 @@ def yes_or_no_cost(request, duelobj, user, other_user, room_number, lock):
         # 効果コピー
         if(cost_effect_val == 48):
             next_effect = duelobj.copy_special_effect(effect.cost,effect.cost_kind,True)
-        tmp = False
-        if next_effect is not None and isinstance(next_effect,int) is False and next_effect[0] is not None:
-            duel.cost_det = next_effect[0].id
-            trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
-            tmp = duelobj.pay_cost(next_effect[0], user,duel.chain,trigger)
+            if next_effect is not None and isinstance(next_effect,int) is False and next_effect[0] is not None:
+                duel.cost_det = next_effect[0].id
+                trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                tmp = duelobj.pay_cost(next_effect[0], user,duel.chain,trigger)
+            else:
+                duel.cost_det = 0
         else:
-            duel.cost_det = 0
+            if effect.pac:
+                next_effect = duelobj._pac_cost(effect.pac)
+            elif effect.cost_next:
+                next_effect = effect.cost_next
+            else:
+                next_effect = duelobj.pop_pac_cost(user)
+            duel.cost_det = next_effect.id
+            trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+            tmp = duelobj.pay_cost(next_effect, user,duel.chain,trigger)
+
+        tmp = False
         if duel.cost_det == 0 and tmp is False:
             if duel.in_copying is False:
                 duelobj.end_cost(duel.cost_user,duel.chain,trigger)
@@ -2004,12 +2019,12 @@ def yes_or_no_cost(request, duelobj, user, other_user, room_number, lock):
         duel.ask = 0
         effect = CostWrapper.objects.get(id=cost_det)
         if cost_effect_val == 48:
-            if effect.pac:
-                next_effect = duelobj._pac_cost(effect.pac)
-            elif effect.cost_next:
-                next_effect = effect.cost_next
+            if effect.pac2:
+                next_effect2 = duelobj._pac_cost(effect.pac2)
+            elif effect.cost_next2:
+                next_effect = effect.cost_next2
             else:
-                next_effect = duelobj.pop_pac_cost(user)
+                next_effect = duelobj.pop_pac_cost2(user)
             tmp = False
             if next_effect is not None and next_effect != -2:
                 duel.cost_det = next_effect.id
@@ -2181,13 +2196,14 @@ def yes_or_no(request):
             return HttpResponse("error")
     if duel.in_cost is True:
         return yes_or_no_cost(request, duelobj, user, other_user, room_number, lock)
-    if duel.in_trigger_waiting is True and duel.force == 0:
+    if duel.in_trigger_waiting is True and ((duel.force == 0) or (duel.force == 2 and user == 1)):
         answer = request.POST["answer"]
         if answer == "yes":
             duel.force = 2
         else:
             duel.force = 1
         duel.ask = 0
+        pprint("AAA")
         duelobj.save_all(user, other_user, room_number)
         free_lock(room_number, lock)
         return battle_det(request, duelobj, None)
@@ -2228,7 +2244,7 @@ def yes_or_no(request):
                 else:
                     chain_det[str(duel.chain - 1)] = next_effect.id
             else:
-                Trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                trigger = Trigger.objects.get(id=duel.current_trigger)
                 if trigger.chain_flag is True:
                     duel.virtual_chain -= 1
                 duel.chain -= 1
@@ -2856,7 +2872,7 @@ def answer_under_det(
         cost_det = duel.cost_det
         effect = CostWrapper.objects.get(id=cost_det)
         if effect.pac:
-            next_effect = duelobj._pac_cost(cost.pac)
+            next_effect = duelobj._pac_cost(effect.pac)
         elif effect.cost_next:
             next_effect = effect.cost_next
         else:
@@ -3208,8 +3224,15 @@ def answer_field_det(
     timing_mess = duelobj.timing_mess
     cost = duelobj.cost
     return_value = []
-    answer = sorted(answer_org,key=lambda x:x["x"])
+    for answer_val in range(len(answer_org)):
+        if "x" not in answer_org[answer_val]:
+            answer_org[answer_val]["x"] = 0
+    answer = sorted(answer_org,key=lambda x:int(x["x"]))
+    not_field_val = False
     for answer_val in answer:
+        if "deck_id" in answer_val and int(answer_val["deck_id"]) != 0:
+            not_field_val = True
+            continue
         x = int(answer_val["x"])
         y = int(answer_val["y"])
         tmp_count = 0
@@ -3240,180 +3263,70 @@ def answer_field_det(
                         place_tmp = place["det"].split("_")
                         if place_tmp[2] == "1":
                             mine_or_other = user
+                            
                         elif place_tmp[2] == "2":
                             mine_or_other = other_user
                         else:
                             mine_or_other = 0
-
                         if place_tmp[0] == "field":
                             fields = duelobj.field
-                        field = fields[x][y]
-                        if field["kind"].find(place_tmp[1]) == -1:
-                            continue
-                        if field["mine_or_other"] != mine_or_other:
-                            continue
+                            field = fields[x][y]
+                            if field["kind"].find(place_tmp[1]) == -1:
+                                continue
+                            if field["mine_or_other"] != mine_or_other:
+                                continue
 
-                        if whether_monster == 0:
-                            if field["det"] is not None:
-                                return HttpResponse("error")
-                            else:
-                                if cost_flag == 0:
-                                    if monster_effect_val != 44:
-                                        if not str(duel.chain - 1) in mess:
-                                            mess[str(duel.chain - 1)] = {}
-                                        if "choose" in mess[str(duel.chain - 1)]:
-                                            mess[str(duel.chain - 1)]["choose"] = []
-                                    tmp2 = {}
-                                    tmp2["det"] = field["det"]
-                                    tmp2["hide"] = (
-                                        field["hide"] if ("hide" in field) else False
-                                    )
-                                    tmp2["x"] = x
-                                    tmp2["y"] = y
-                                    tmp2["deck_id"] = 0
-                                    tmp2["user"] = user
-                                    tmp2["place"] = "field"
-                                    tmp2["mine_or_other"] = field["mine_or_other"]
-                                    return_value.append(tmp2)
-                                    if monster_effect_val == 44:
-                                        if effect_cost_flag == 1:
-                                            if (
-                                                as_monster_effect
-                                                not in cost[str(duel.chain - 2)]
-                                            ):
-                                                cost[str(duel.chain - 2)][
-                                                    as_monster_effect
-                                                ] = []
-                                            cost[str(duel.chain - 2)][
-                                                as_monster_effect
-                                            ].append(tmp2)
-                                        else:
-                                            if as_monster_effect[0] == "%":
-                                                if as_monster_effect not in timing_mess:
-                                                    timing_mess[as_monster_effect]=[]
-                                                timing_mess[as_monster_effect].append(tmp2)
-                                            else:
+                            if whether_monster == 0:
+                                if field["det"] is not None:
+                                    return HttpResponse("error")
+                                else:
+                                    if cost_flag == 0:
+                                        if monster_effect_val != 44:
+                                            if not str(duel.chain - 1) in mess:
+                                                mess[str(duel.chain - 1)] = {}
+                                            if "choose" in mess[str(duel.chain - 1)]:
+                                                mess[str(duel.chain - 1)]["choose"] = []
+                                        tmp2 = {}
+                                        tmp2["det"] = field["det"]
+                                        tmp2["hide"] = (
+                                            field["hide"] if ("hide" in field) else False
+                                        )
+                                        tmp2["x"] = x
+                                        tmp2["y"] = y
+                                        tmp2["deck_id"] = 0
+                                        tmp2["user"] = user
+                                        tmp2["place"] = "field"
+                                        tmp2["mine_or_other"] = field["mine_or_other"]
+                                        return_value.append(tmp2)
+                                        if monster_effect_val == 44:
+                                            if effect_cost_flag == 1:
                                                 if (
                                                     as_monster_effect
-                                                    not in mess[str(duel.chain - 2)]
+                                                    not in cost[str(duel.chain - 2)]
                                                 ):
-                                                    mess[str(duel.chain - 2)][
+                                                    cost[str(duel.chain - 2)][
                                                         as_monster_effect
                                                     ] = []
-                                                mess[str(duel.chain - 2)][
+                                                cost[str(duel.chain - 2)][
                                                     as_monster_effect
                                                 ].append(tmp2)
-                                    else:
-                                        if as_monster_effect[0] == "%":
-                                            if as_monster_effect not in timing_mess:
-                                                timing_mess[as_monster_effect]=[]
-                                            timing_mess[as_monster_effect].append(tmp2)
+                                            else:
+                                                if as_monster_effect[0] == "%":
+                                                    if as_monster_effect not in timing_mess:
+                                                        timing_mess[as_monster_effect]=[]
+                                                    timing_mess[as_monster_effect].append(tmp2)
+                                                else:
+                                                    if (
+                                                        as_monster_effect
+                                                        not in mess[str(duel.chain - 2)]
+                                                    ):
+                                                        mess[str(duel.chain - 2)][
+                                                            as_monster_effect
+                                                        ] = []
+                                                    mess[str(duel.chain - 2)][
+                                                        as_monster_effect
+                                                    ].append(tmp2)
                                         else:
-                                           if (
-                                               as_monster_effect
-                                               not in mess[str(duel.chain - 1)]
-                                           ):
-                                               mess[str(duel.chain - 1)][
-                                                   as_monster_effect
-                                               ] = []
-                                           mess[str(duel.chain - 1)][
-                                               as_monster_effect
-                                           ].append(tmp2)
-                                else:
-                                    if str(duelobj.tmp_chain) not in cost:
-                                        cost[str(duelobj.tmp_chain)] = {}
-                                    if "choose" not in cost[str(duelobj.tmp_chain)]:
-                                        cost[str(duelobj.tmp_chain)]["choose"] = []
-                                    tmp2 = {}
-                                    tmp2["det"] = field["det"]
-                                    tmp2["mine_or_other"] = field["mine_or_other"]
-                                    tmp2["hide"] = (
-                                        field["hide"] if ("hide" in field) else False
-                                    )
-                                    tmp2["x"] = x
-                                    tmp2["y"] = y
-                                    tmp2["deck_id"] = 0
-                                    tmp2["user"] = user
-                                    tmp2["place"] = "field"
-                                    return_value.append(tmp2)
-                                    if (
-                                        as_monster_effect
-                                        not in cost[str(duelobj.tmp_chain)]
-                                    ):
-                                        cost[str(duelobj.tmp_chain)][
-                                            as_monster_effect
-                                        ] = []
-                                    cost[str(duelobj.tmp_chain)][
-                                        as_monster_effect
-                                    ].append(tmp2)
-                        else:
-                            if field["det"] is None:
-                                return HttpResponse("error")
-                            else:
-                                tmp2 = {}
-                                tmp2["det"] = field["det"]
-                                tmp2["mine_or_other"] = field["mine_or_other"]
-                                tmp2["user"] = chain_user
-                                tmp2["place"] = "field"
-                                tmp2["deck_id"] = 0
-                                tmp2["x"] = x
-                                tmp2["y"] = y
-                                tmp2["place_unique_id"] = field["det"][
-                                    "place_unique_id"
-                                ]
-                                return_value.append(tmp2)
-                                if not duelobj.validate_answer(
-                                    tmp2,
-                                    monster_effect_det_monster,
-                                    exclude,
-                                    duel,
-                                    1,
-                                    cost_flag,
-                                    effect_kind,
-                                    user,
-                                ):
-                                    return HttpResponse("error")
-                                check_array.append(field["det"])
-                                if cost_flag == 0:
-                                    if monster_effect_val == 44:
-                                        if effect_cost_flag == 0:
-                                            if str(duel.chain - 2) not in mess:
-                                                mess[str(duel.chain - 2)] = {}
-                                            if (
-                                                "choose"
-                                                not in mess[str(duel.chain - 1)]
-                                            ):
-                                                mess[str(duel.chain - 2)]["choose"] = []
-                                        else:
-                                            if str(duel.chain - 2) not in cost:
-                                                cost[str(duel.chain - 2)] = {}
-                                            if (
-                                                "choose"
-                                                not in cost[str(duel.chain - 1)]
-                                            ):
-                                                cost[str(duel.chain - 2)]["choose"] = []
-                                    else:
-                                        if str(duel.chain - 1) not in mess:
-                                            mess[str(duel.chain - 1)] = {}
-                                        if "choose" not in mess[str(duel.chain - 1)]:
-                                            mess[str(duel.chain - 1)]["choose"] = []
-                                    tmp2 = {}
-                                    tmp2["det"] = field["det"]
-                                    tmp2["hide"] = (
-                                        field["hide"] if ("hide" in field) else False
-                                    )
-                                    tmp2["mine_or_other"] = field["mine_or_other"]
-                                    tmp2["x"] = x
-                                    tmp2["y"] = y
-                                    tmp2["deck_id"] = 0
-                                    tmp2["place_unique_id"] = field["det"][
-                                        "place_unique_id"
-                                    ]
-                                    tmp2["user"] = user
-                                    tmp2["place"] = "field"
-                                    return_value.append(tmp2)
-                                    if monster_effect_val == 44:
-                                        if effect_cost_flag == 0:
                                             if as_monster_effect[0] == "%":
                                                 if as_monster_effect not in timing_mess:
                                                     timing_mess[as_monster_effect]=[]
@@ -3421,71 +3334,181 @@ def answer_field_det(
                                             else:
                                                if (
                                                    as_monster_effect
-                                                   not in mess[str(duel.chain - 2)]
+                                                   not in mess[str(duel.chain - 1)]
                                                ):
-                                                   mess[str(duel.chain - 2)][
+                                                   mess[str(duel.chain - 1)][
                                                        as_monster_effect
                                                    ] = []
-                                               mess[str(duel.chain - 2)][
-                                                   as_monster_effect
-                                               ].append(tmp2)
-                                        else:
-                                            if (
-                                                as_monster_effect
-                                                not in cost[str(duel.chain - 2)]
-                                            ):
-                                                cost[str(duel.chain - 2)][
-                                                    as_monster_effect
-                                                ] = []
-                                            cost[str(duel.chain - 2)][
-                                                as_monster_effect
-                                            ].append(tmp2)
-                                    else:
-                                        if as_monster_effect[0] == "%":
-                                            if as_monster_effect not in timing_mess:
-                                                timing_mess[as_monster_effect]=[]
-                                            timing_mess[as_monster_effect].append(tmp2)
-                                        else:
-                                           if (
-                                               as_monster_effect
-                                               not in mess[str(duel.chain - 1)]
-                                           ):
                                                mess[str(duel.chain - 1)][
                                                    as_monster_effect
-                                               ] = []
-                                           mess[str(duel.chain - 1)][
-                                               as_monster_effect
-                                           ].append(tmp2)
+                                               ].append(tmp2)
+                                    else:
+                                        if str(duelobj.tmp_chain) not in cost:
+                                            cost[str(duelobj.tmp_chain)] = {}
+                                        if "choose" not in cost[str(duelobj.tmp_chain)]:
+                                            cost[str(duelobj.tmp_chain)]["choose"] = []
+                                        tmp2 = {}
+                                        tmp2["det"] = field["det"]
+                                        tmp2["mine_or_other"] = field["mine_or_other"]
+                                        tmp2["hide"] = (
+                                            field["hide"] if ("hide" in field) else False
+                                        )
+                                        tmp2["x"] = x
+                                        tmp2["y"] = y
+                                        tmp2["deck_id"] = 0
+                                        tmp2["user"] = user
+                                        tmp2["place"] = "field"
+                                        return_value.append(tmp2)
+                                        if (
+                                            as_monster_effect
+                                            not in cost[str(duelobj.tmp_chain)]
+                                        ):
+                                            cost[str(duelobj.tmp_chain)][
+                                                as_monster_effect
+                                            ] = []
+                                        cost[str(duelobj.tmp_chain)][
+                                            as_monster_effect
+                                        ].append(tmp2)
+                            else:
+                                if field["det"] is None:
+                                    return HttpResponse("error")
                                 else:
-                                    if str(duelobj.tmp_chain) not in cost:
-                                        cost[str(duelobj.tmp_chain)] = {}
-                                    if "choose" not in cost[str(duelobj.tmp_chain)]:
-                                        cost[str(duelobj.tmp_chain)]["choose"] = []
                                     tmp2 = {}
                                     tmp2["det"] = field["det"]
-                                    tmp2["hide"] = (
-                                        field["hide"] if ("hide" in field) else False
-                                    )
+                                    tmp2["mine_or_other"] = field["mine_or_other"]
+                                    tmp2["user"] = chain_user
+                                    tmp2["place"] = "field"
+                                    tmp2["deck_id"] = 0
                                     tmp2["x"] = x
                                     tmp2["y"] = y
-                                    tmp2["deck_id"] = 0
                                     tmp2["place_unique_id"] = field["det"][
                                         "place_unique_id"
                                     ]
-                                    tmp2["user"] = user
-                                    tmp2["place"] = "field"
-                                    tmp2["mine_or_other"] = field["mine_or_other"]
                                     return_value.append(tmp2)
-                                    if (
-                                        as_monster_effect
-                                        not in cost[str(duelobj.tmp_chain)]
+                                    if not duelobj.validate_answer(
+                                        tmp2,
+                                        monster_effect_det_monster,
+                                        exclude,
+                                        duel,
+                                        1,
+                                        cost_flag,
+                                        effect_kind,
+                                        user,
                                     ):
+                                        return HttpResponse("error")
+                                    check_array.append(field["det"])
+                                    if cost_flag == 0:
+                                        if monster_effect_val == 44:
+                                            if effect_cost_flag == 0:
+                                                if str(duel.chain - 2) not in mess:
+                                                    mess[str(duel.chain - 2)] = {}
+                                                if (
+                                                    "choose"
+                                                    not in mess[str(duel.chain - 1)]
+                                                ):
+                                                    mess[str(duel.chain - 2)]["choose"] = []
+                                            else:
+                                                if str(duel.chain - 2) not in cost:
+                                                    cost[str(duel.chain - 2)] = {}
+                                                if (
+                                                    "choose"
+                                                    not in cost[str(duel.chain - 1)]
+                                                ):
+                                                    cost[str(duel.chain - 2)]["choose"] = []
+                                        else:
+                                            if str(duel.chain - 1) not in mess:
+                                                mess[str(duel.chain - 1)] = {}
+                                            if "choose" not in mess[str(duel.chain - 1)]:
+                                                mess[str(duel.chain - 1)]["choose"] = []
+                                        tmp2 = {}
+                                        tmp2["det"] = field["det"]
+                                        tmp2["hide"] = (
+                                            field["hide"] if ("hide" in field) else False
+                                        )
+                                        tmp2["mine_or_other"] = field["mine_or_other"]
+                                        tmp2["x"] = x
+                                        tmp2["y"] = y
+                                        tmp2["deck_id"] = 0
+                                        tmp2["place_unique_id"] = field["det"][
+                                            "place_unique_id"
+                                        ]
+                                        tmp2["user"] = user
+                                        tmp2["place"] = "field"
+                                        return_value.append(tmp2)
+                                        if monster_effect_val == 44:
+                                            if effect_cost_flag == 0:
+                                                if as_monster_effect[0] == "%":
+                                                    if as_monster_effect not in timing_mess:
+                                                        timing_mess[as_monster_effect]=[]
+                                                    timing_mess[as_monster_effect].append(tmp2)
+                                                else:
+                                                   if (
+                                                       as_monster_effect
+                                                       not in mess[str(duel.chain - 2)]
+                                                   ):
+                                                       mess[str(duel.chain - 2)][
+                                                           as_monster_effect
+                                                       ] = []
+                                                   mess[str(duel.chain - 2)][
+                                                       as_monster_effect
+                                                   ].append(tmp2)
+                                            else:
+                                                if (
+                                                    as_monster_effect
+                                                    not in cost[str(duel.chain - 2)]
+                                                ):
+                                                    cost[str(duel.chain - 2)][
+                                                        as_monster_effect
+                                                    ] = []
+                                                cost[str(duel.chain - 2)][
+                                                    as_monster_effect
+                                                ].append(tmp2)
+                                        else:
+                                            if as_monster_effect[0] == "%":
+                                                if as_monster_effect not in timing_mess:
+                                                    timing_mess[as_monster_effect]=[]
+                                                timing_mess[as_monster_effect].append(tmp2)
+                                            else:
+                                               if (
+                                                   as_monster_effect
+                                                   not in mess[str(duel.chain - 1)]
+                                               ):
+                                                   mess[str(duel.chain - 1)][
+                                                       as_monster_effect
+                                                   ] = []
+                                               mess[str(duel.chain - 1)][
+                                                   as_monster_effect
+                                               ].append(tmp2)
+                                    else:
+                                        if str(duelobj.tmp_chain) not in cost:
+                                            cost[str(duelobj.tmp_chain)] = {}
+                                        if "choose" not in cost[str(duelobj.tmp_chain)]:
+                                            cost[str(duelobj.tmp_chain)]["choose"] = []
+                                        tmp2 = {}
+                                        tmp2["det"] = field["det"]
+                                        tmp2["hide"] = (
+                                            field["hide"] if ("hide" in field) else False
+                                        )
+                                        tmp2["x"] = x
+                                        tmp2["y"] = y
+                                        tmp2["deck_id"] = 0
+                                        tmp2["place_unique_id"] = field["det"][
+                                            "place_unique_id"
+                                        ]
+                                        tmp2["user"] = user
+                                        tmp2["place"] = "field"
+                                        tmp2["mine_or_other"] = field["mine_or_other"]
+                                        return_value.append(tmp2)
+                                        if (
+                                            as_monster_effect
+                                            not in cost[str(duelobj.tmp_chain)]
+                                        ):
+                                            cost[str(duelobj.tmp_chain)][
+                                                as_monster_effect
+                                            ] = []
                                         cost[str(duelobj.tmp_chain)][
                                             as_monster_effect
-                                        ] = []
-                                    cost[str(duelobj.tmp_chain)][
-                                        as_monster_effect
-                                    ].append(tmp2)
+                                        ].append(tmp2)
 
             elif (user == 2 and chain_user == 1) or (user == 1 and chain_user == 2):
                 if (monster_effect_val == 4) or (
@@ -3983,6 +4006,8 @@ def answer_field_det(
     duelobj.mess = mess
     duelobj.timing_mess = timing_mess
     duelobj.cost = cost
+    if not_field_val == True:
+        return "NOT_FIELD_VAL"
     choices = None
     if duel.user_1 == request.user or (ID1 == ID and duel.guest_flag is True):
         if duel.user_turn == 1:
@@ -3998,6 +4023,7 @@ def answer_field_det(
         else:
             if duel.ask == 2 or duel.ask == 3:
                 duel.ask -= 2
+    pprint("ABC")
     if duel.ask == 0 and duel.in_cost is False:
         chain_det = json.loads(duel.chain_det)
         current_chain = chain_det[str(duel.chain - 1)]
@@ -4062,7 +4088,7 @@ def answer_field_det(
         cost_det = duel.cost_det
         effect = CostWrapper.objects.get(id=cost_det)
         if effect.pac:
-            next_effect = duelobj._pac_cost(cost.pac)
+            next_effect = duelobj._pac_cost(effect.pac)
         elif effect.cost_next:
             next_effect = effect.cost_next
         else:
@@ -4109,6 +4135,12 @@ def answer_det(duelobj, duel, user, answer_json, request, del_ask, lock,ID1,ID2)
         ID = ""
     room_number = int(request.POST["room_number"])
     answer = json.loads(answer_json)
+    answer_tmp_ary = []
+    for answer_tmp in answer:
+        if answer_tmp in  answer_tmp_ary:
+            return HttpResponse("error")
+        answer_tmp_ary.append(answer_tmp)
+
     chain_det = json.loads(duel.chain_det)
     chain_user = json.loads(duel.chain_user)
     chain_user = int(chain_user[str(duel.chain - 1)])
@@ -4186,6 +4218,7 @@ def answer_det(duelobj, duel, user, answer_json, request, del_ask, lock,ID1,ID2)
             lock,
             room_number,
         )
+    return_field = None
     for answer_val in answer:
         place_for_answer = answer_val["place"]
         if place_for_answer == "player":
@@ -4274,8 +4307,8 @@ def answer_det(duelobj, duel, user, answer_json, request, del_ask, lock,ID1,ID2)
         elif place_for_answer == "field":
             if duel.user_1 == request.user or (ID1 == ID and duel.guest_flag is True):
                 if duel.user_turn == 1:
-                    if duel.ask == 1 or duel.ask == 3:
-                        return answer_field_det(
+                    if (duel.ask == 1 or duel.ask == 3) and return_field != "NOT_FIELD_VAL":
+                        return_field =  answer_field_det(
                             duelobj,
                             duel,
                             1,
@@ -4290,9 +4323,12 @@ def answer_det(duelobj, duel, user, answer_json, request, del_ask, lock,ID1,ID2)
                             lock,
                             effect_kind,
                         )
+                        if return_field != "NOT_FIELD_VAL": 
+                            free_lock(room_number, lock)
+                            return return_field
                 else:
-                    if duel.ask == 2 or duel.ask == 3:
-                        return answer_field_det(
+                    if (duel.ask == 2 or duel.ask == 3) and return_field != "NOT_FIELD_VAL":
+                        return_field = answer_field_det(
                             duelobj,
                             duel,
                             1,
@@ -4307,10 +4343,13 @@ def answer_det(duelobj, duel, user, answer_json, request, del_ask, lock,ID1,ID2)
                             lock,
                             effect_kind,
                         )
+                        if return_field != "NOT_FIELD_VAL": 
+                            free_lock(room_number, lock)
+                            return return_field
             elif duel.user_2 == request.user or (ID2 == ID and duel.guest_flag2 is True):
                 if duel.user_turn == 2:
-                    if duel.ask == 1 or duel.ask == 3:
-                        return answer_field_det(
+                    if duel.ask == 1 or duel.ask == 3 and return_field != "NOT_FIELD_VAL":
+                        return_field = answer_field_det(
                             duelobj,
                             duel,
                             2,
@@ -4325,9 +4364,12 @@ def answer_det(duelobj, duel, user, answer_json, request, del_ask, lock,ID1,ID2)
                             lock,
                             effect_kind,
                         )
+                        if return_field != "NOT_FIELD_VAL": 
+                            free_lock(room_number, lock)
+                            return return_field
                 else:
-                    if duel.ask == 2 or duel.ask == 3:
-                        return answer_field_det(
+                    if duel.ask == 2 or duel.ask == 3 and return_field != "NOT_FIELD_VAL":
+                        return_field = answer_field_det(
                             duelobj,
                             duel,
                             2,
@@ -4342,6 +4384,9 @@ def answer_det(duelobj, duel, user, answer_json, request, del_ask, lock,ID1,ID2)
                             lock,
                             effect_kind,
                         )
+                        if return_field != "NOT_FIELD_VAL": 
+                            free_lock(room_number, lock)
+                            return return_field
         else:
             tmp_count = 0
             place_unique_id = answer_val["place_unique_id"]
@@ -5131,34 +5176,35 @@ def answer_det_cost(duelobj, duel, user, answer, request, del_ask, room_number, 
     for answer_val in answer:
         place_for_answer = answer_val["place"]
         if place_for_answer == "player":
-            cost_det_monster = cost_det["monster"]
-            as_cost = cost_det["as_monster_condition"]
-            for place in cost_det_monster["place"]:
-                place_tmp = place["det"].split("_")
-                mine_or_other = int(answer_val["mine_or_other"])
-                if(place_tmp[0] == "player" and place_tmp[1] == mine_or_other):
-                    if place_tmp[1] == "1":
-                        if own_player_flag == True:
-                            free_lock(room_number, lock)
-                            return HttpResponse("error")
-                        else:
-                            own_player_flag = True
-                    if place_tmp[1] == "2":
-                        if other_player_flag == True:
-                            free_lock(room_number, lock)
-                            return HttpResponse("error")
-                        else:
-                            other_player_flag = True
-                    tmp2 = {}
-                    tmp2["place"] =  "player"
-                    tmp2["mine_or_other"] =  mine_or_other
-                    tmp[as_cost].append(tmp2)
+            for cost_det in cost_text:
+                cost_det_monster = cost_det["monster"]
+                as_cost = cost_det["as_monster_condition"]
+                for place in cost_det_monster["place"]:
+                    place_tmp = place["det"].split("_")
+                    mine_or_other = int(answer_val["mine_or_other"])
+                    if(place_tmp[0] == "player" and place_tmp[1] == mine_or_other):
+                        if place_tmp[1] == "1":
+                            if own_player_flag == True:
+                                free_lock(room_number, lock)
+                                return HttpResponse("error")
+                            else:
+                                own_player_flag = True
+                        if place_tmp[1] == "2":
+                            if other_player_flag == True:
+                                free_lock(room_number, lock)
+                                return HttpResponse("error")
+                            else:
+                                other_player_flag = True
+                        tmp2 = {}
+                        tmp2["place"] =  "player"
+                        tmp2["mine_or_other"] =  mine_or_other
+                        tmp[as_cost].append(tmp2)
 
         elif place_for_answer == "field":
             if duel.user_1 == request.user or (ID1 == ID and duel.guest_flag is True):
                 if duel.user_turn == 1:
                     if duel.ask == 1 or duel.ask == 3:
-                        return_value = answer_field_det_cost(
+                        return_field = answer_field_det_cost(
                             duelobj,
                             duel,
                             1,
@@ -5172,12 +5218,13 @@ def answer_det_cost(duelobj, duel, user, answer, request, del_ask, room_number, 
                             lock,
                             effect_kind,
                         )
-                        free_lock(room_number, lock)
-                        return return_value
+                        if return_field != "NOT_FIELD_VAL": 
+                            free_lock(room_number, lock)
+                            return return_field
 
                 else:
                     if duel.ask == 2 or duel.ask == 3:
-                        return_value = answer_field_det_cost(
+                        return_field = answer_field_det_cost(
                             duelobj,
                             duel,
                             1,
@@ -5191,12 +5238,13 @@ def answer_det_cost(duelobj, duel, user, answer, request, del_ask, room_number, 
                             lock,
                             effect_kind,
                         )
-                        free_lock(room_number, lock)
-                        return return_value
+                        if return_field != "NOT_FIELD_VAL": 
+                            free_lock(room_number, lock)
+                            return return_field
             elif duel.user_2 == request.user or (ID2 == ID and duel.guest_flag2 is True):
                 if duel.user_turn == 2:
                     if duel.ask == 1 or duel.ask == 3:
-                        return_value = answer_field_det_cost(
+                        return_field = answer_field_det_cost(
                             duelobj,
                             duel,
                             2,
@@ -5210,11 +5258,12 @@ def answer_det_cost(duelobj, duel, user, answer, request, del_ask, room_number, 
                             lock,
                             effect_kind,
                         )
-                        free_lock(room_number, lock)
-                        return return_value
+                        if return_field != "NOT_FIELD_VAL": 
+                            free_lock(room_number, lock)
+                            return return_field
                 else:
                     if duel.ask == 2 or duel.ask == 3:
-                        return_value = answer_field_det_cost(
+                        return_field = answer_field_det_cost(
                             duelobj,
                             duel,
                             2,
@@ -5228,8 +5277,9 @@ def answer_det_cost(duelobj, duel, user, answer, request, del_ask, room_number, 
                             lock,
                             effect_kind,
                         )
-                        free_lock(room_number, lock)
-                        return return_value
+                        if return_field != "NOT_FIELD_VAL": 
+                            free_lock(room_number, lock)
+                            return return_field
         else:
             place_unique_id = answer_val["place_unique_id"]
             mine_or_other = int(answer_val["mine_or_other"])
@@ -5599,7 +5649,7 @@ def answer_det_cost(duelobj, duel, user, answer, request, del_ask, room_number, 
         cost_det = duel.cost_det
         effect = CostWrapper.objects.get(id=cost_det)
         if effect.pac:
-            next_effect = duelobj._pac_cost(cost.pac)
+            next_effect = duelobj._pac_cost(effect.pac)
         elif effect.cost_next:
             next_effect = effect.cost_next
         else:
@@ -5833,6 +5883,648 @@ def free_lock(room_number, lock):
         lock.lock_3 = False
         lock.save()
 
+def send_fusion_monster_field(request):
+    room_number = int(request.POST["room_number"])
+    lock = Lock.objects.get()
+    lock_flag = lock_lock(room_number, lock,request)
+    if lock_flag != "OK":
+        return HttpResponse("waiting")
+    duelobj = DuelObj(room_number)
+    duel = Duel.objects.filter(id=room_number).get()
+    x = request.POST["x"]
+    y = request.POST["y"]
+    if "ID" in request.COOKIES :
+        ID = request.COOKIES["ID"]
+    else:
+        ID = ""
+    ID1 = duel.guest_id
+    ID2 = duel.guest_id2
+    if duel.user_1 != request.user and duel.user_2 != request.user:
+        if (ID1 == ID and duel.guest_flag) or (ID2 == ID and duel.guest_flag2):
+            pass
+        else:
+            free_lock(room_number, lock)
+            return HttpResponseRedirect(reverse("tcgcreator:watch_battle"))
+    duelobj.duel = duel
+    duelobj.room_number = room_number
+    if duel.user_1 == request.user or (ID1 == ID and duel.guest_flag):
+        user = 1
+        other_user = 2
+        duelobj.user = 1
+    else:
+        duelobj.user = 2
+        user = 2
+        other_user = 1
+    duelobj.init_all(user, other_user, room_number)
+    duelobj.in_execute = False
+    decks = Deck.objects.all()
+    graves = Grave.objects.all()
+    hands = Hand.objects.all()
+    duelobj.check_eternal_effect(
+        decks, graves, hands, duel.phase, duel.user_turn, user, other_user
+    )
+    if duel.user_turn == 1:
+        if duel.ask == 1:
+            if user == 2:
+                free_lock(room_number, lock)
+                return HttpResponse("error")
+        elif duel.ask == 2:
+            if user == 1:
+                free_lock(room_number, lock)
+                return HttpResponse("error")
+    elif duel.user_turn == 2:
+        if duel.ask == 2:
+            if user == 2:
+                free_lock(room_number, lock)
+                return HttpResponse("error")
+        elif duel.ask == 1:
+            if user == 1:
+                free_lock(room_number, lock)
+                return HttpResponse("error")
+    monster_effect_wrapper = MonsterEffectWrapper.objects.get(
+        id=int(chain_det[str(duel.chain - 1)])
+    )
+    monster_effect = monsterz_effect_wrapper.monster_effect
+    monster_effect_det = json.loads(monster_effect.monster_effect)
+    as_monster_effect = monster_effect_det["as_monster_condition"]
+    if monster_effect.monster_effect_val != 76:
+        free_lock(room_number, lock)
+        return HttpResponse("error")
+    trigger = Trigger.get(id=duel.current_trigger)
+    field = duel.field
+    fusion_monster_condition = json.loads(trigger.fusion_monster)
+    fusion_monster = {}
+    fusion_monster["det"] = field[x][y]["det"]
+    fusion_monster["mine_or_other"] = field[x][y]["mine_or_other"]
+    fusion_monster["user"] = user
+    fusion_monster["place"] = "field"
+    fusion_monster["deck_id"] = 0
+    fusion_monster["deck_name"] = ""
+    fusion_monster["x"] = x
+    fusion_monster["y"] = y
+    fusion_monster["place_unique_id"] = field[x][y]["det"]["place_unique_id"]
+    if duelobj.validate_answer(
+        fusion_monster, fusion_monster_condition["monster"], exclude, duel
+        ):
+        if(duelobj.check_fusion_monster(fusion_monster,trigger,user,1)):
+            mess[str(duel.chain - 1)][
+                as_monster_effect
+            ].append(fusion_monster)
+            duelobj.mess = mess
+            duel.ask = 0
+    choices = None
+    if duel.ask == 0:
+        chain_det = json.loads(duel.chain_det)
+        current_chain = chain_det[str(duel.chain - 1)]
+        effect = MonsterEffectWrapper.objects.get(id=current_chain)
+        if effect.pac:
+            next_effect = duelobj._pac(effect.pac)
+        else:
+            next_effect = effect.monster_effect_next
+        if next_effect != 0:
+            chain_det[str(duel.chain - 1)] = next_effect.id
+        else:
+            pac = json.loads(duel.in_pac)
+            if str(duel.chain - 1) in pac and pac[str(duel.chain - 1)] != []:
+                pac_id = pac[str(duel.chain - 1)].pop()
+                pac = PacWrapper.objects.get(id=pac_id)
+                next_effect = pac.monster_effect_next
+                if next_effect is None:
+                    trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                    if trigger.chain_flag is True:
+                        duel.virtual_chain -= 1
+                    duel.chain -= 1
+                else:
+                    chain_det[str(duel.chain - 1)] = next_effect.id
+            else:
+                trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                if trigger.chain_flag is True:
+                   duel.virtual_chain -= 1
+                duel.chain -= 1
+        duelobj.duel.chain_det = json.dumps(chain_det)
+        decks = Deck.objects.all()
+        graves = Grave.objects.all()
+        hands = Hand.objects.all()
+        duelobj.check_eternal_effect(
+            decks, graves, hands, duel.phase, duel.user_turn, user, other_user
+        )
+        if duel.in_trigger_waiting is False :
+            duelobj.retrieve_chain(
+                decks, graves, hands, duel.phase, duel.user_turn, user, other_user
+            )
+        if duel.chain == 0:
+            duelobj.invoke_after_chain_effect(
+                decks, graves, hands, duel.phase, duel.user_turn, user, other_user
+            )
+            #duelobj.nvoke_trigger_waiting(duel.trigger_waiting)
+            #duelobj.retrieve_chain(
+            #    decks, graves, hands, duel.phase, duel.user_turn, user, other_user
+            #)
+            duel.appoint = duel.user_turn
+            tmp = {}
+            duel.mess = json.dumps(tmp)
+            duel.cost_result = json.dumps(tmp)
+            duel.cost = json.dumps(tmp)
+            duelobj.invoke_trigger_waiting(duel.trigger_waiting)
+            duel.current_priority = 10000
+            choices = duelobj.check_trigger(
+                decks, graves, hands, duel.phase, duel.user_turn, user, other_user
+            )
+        if duel.in_cost is False:
+            data = {}
+            data["monsters"] = return_val
+            if log is None:
+                log = ""
+            duel.log_turn += duelobj.write_log(log, user, data)
+            duel.log += duelobj.write_log(log, user, data)
+    duelobj.save_all(user, other_user, room_number)
+    free_lock(room_number, lock)
+    return battle_det(request, duelobj, choices)
+
+def send_fusion_material(request):
+    room_number = int(request.POST["room_number"])
+    lock = Lock.objects.get()
+    lock_flag = lock_lock(room_number, lock,request)
+    if lock_flag != "OK":
+        return HttpResponse("waiting")
+    result_monster = json.loads(request.POST["result_monster"])
+    answer_tmp_ary = []
+    for result_tmp in result_monster:
+        for answer_tmp in result_tmp:
+            if answer_tmp in  answer_tmp_ary:
+                free_lock(room_number, lock)
+                return HttpResponse("error")
+                answer_tmp_ary.append(answer_tmp)
+    duelobj = DuelObj(room_number)
+    duel = Duel.objects.filter(id=room_number).get()
+    chain_det = json.loads(duel.chain_det)
+    if "ID" in request.COOKIES :
+        ID = request.COOKIES["ID"]
+    else:
+        ID = ""
+    ID1 = duel.guest_id
+    ID2 = duel.guest_id2
+    if duel.user_1 != request.user and duel.user_2 != request.user:
+        if (ID1 == ID and duel.guest_flag) or (ID2 == ID and duel.guest_flag2):
+            pass
+        else:
+            free_lock(room_number, lock)
+            return HttpResponseRedirect(reverse("tcgcreator:watch_battle"))
+    duelobj.duel = duel
+    duelobj.room_number = room_number
+    if duel.user_1 == request.user or (ID1 == ID and duel.guest_flag):
+        user = 1
+        other_user = 2
+        duelobj.user = 1
+    else:
+        duelobj.user = 2
+        user = 2
+        other_user = 1
+    duelobj.init_all(user, other_user, room_number)
+    duelobj.in_execute = False
+    decks = Deck.objects.all()
+    graves = Grave.objects.all()
+    hands = Hand.objects.all()
+    mess = duelobj.mess
+    duelobj.check_eternal_effect(
+        decks, graves, hands, duel.phase, duel.user_turn, user, other_user
+    )
+    if duel.user_turn == 1:
+        if duel.ask == 1:
+            if user == 2:
+                free_lock(room_number, lock)
+                return HttpResponse("error")
+        elif duel.ask == 2:
+            if user == 1:
+                free_lock(room_number, lock)
+                return HttpResponse("error")
+    elif duel.user_turn == 2:
+        if duel.ask == 2:
+            if user == 2:
+                free_lock(room_number, lock)
+                return HttpResponse("error")
+        elif duel.ask == 1:
+            if user == 1:
+                free_lock(room_number, lock)
+                return HttpResponse("error")
+    monster_effect_wrapper = MonsterEffectWrapper.objects.get(
+        id=int(chain_det[str(duel.chain - 1)])
+    )
+    monster_effect = monster_effect_wrapper.monster_effect
+    as_monster_effect = "fusion"
+    if monster_effect.monster_effect_val != 77:
+        return HttpResponse("error")
+    place = mess[str(duel.chain - 1)][
+        as_monster_effect
+    ][0]
+    monster_id = duelobj.get_monster_id(
+            place["det"], place["place"], place["det"]["owner"],place["deck_id"],place["x"], place["y"], place["mine_or_other"])
+    fusion = Fusion.objects.get(id=place["fusion"])
+    fusion1 = json.loads(fusion.fusion1)
+    if(fusion.fusion2):
+        fusion2 = json.loads(fusion.fusion2)
+    else:
+        fusion2 = None
+    if(fusion.fusion3):
+        fusion3 = json.loads(fusion.fusion3)
+    else:
+        fusion3 = None
+    chain_det_ary = json.loads(duelobj.duel.chain_det_trigger)
+    chain_det2 = chain_det_ary[str(duelobj.duel.chain - 1)]
+    trigger = Trigger.objects.get(id=chain_det2)
+    if trigger.instead_condition:
+        instead_condition = json.loads(trigger.instead_condition)
+        if duelobj.check_monster_effect_condition(
+                instead_condition, 0, 2):
+            instead = True
+        else:
+            instead = False
+    else:
+        instead = True
+    if(trigger.instead1 and instead is True):
+        instead1 = json.loads(trigger.instead1)
+        min_equation_number1_instead = instead2["monster"][0]["min_equation_number"]
+        max_equation_number1_instead = instead2["monster"][0]["max_equation_number"]
+    else:
+        instead1 = None
+        min_equation_number1_instead = 0
+        max_equation_number1_instead = 1000
+        max_equation_number1_instead = 1000
+    if(trigger.instead2 and instead is True):
+        instead2 = json.loads(trigger.instead2)
+        min_equation_number2_instead = instead2["monster"][0]["min_equation_number"]
+        max_equation_number2_instead = instead2["monster"][0]["max_equation_number"]
+    else:
+        instead2 = None
+        min_equation_number2_instead = 0
+        max_equation_number2_instead = 1000
+    if(trigger.instead3 and instead is True):
+        instead3 = json.loads(trigger.instead3)
+        min_equation_number3_instead = instead3["monster"][0]["min_equation_number"]
+        max_equation_number3_instead = instead3["monster"][0]["max_equation_number"]
+    else:
+        instead3 = None
+        min_equation_number3_instead = 0
+        max_equation_number3_instead = 1000
+    if(trigger.fusion1):
+        fusion_monster1 = json.loads(trigger.fusion1)
+    else:
+        fusion_monster1 = None 
+    if(trigger.fusion2):
+        fusion_monster2 = json.loads(trigger.fusion2)
+    else:
+        fusion_monster2 = None
+    if(trigger.fusion3):
+        fusion_monster3 = json.loads(trigger.fusion3)
+    else:
+        fusion_monster3 = None
+    if(fusion1 is not None):
+        if not duelobj.check_fusion_material(result_monster[0],fusion_monster1,fusion1,instead1):
+            free_lock(room_number, lock)
+            return HttpResponse("error")
+    if(fusion2 is not None):
+        if not duelobj.check_fusion_material(result_monster[1],fusion_monster2,fusion2,instead2):
+            free_lock(room_number, lock)
+            return HttpResponse("error")
+    if(fusion3 is not None):
+        if not duelobj.check_fusion_material(result_monster[2],fusion_monster3,fusion3,instead3):
+            free_lock(room_number, lock)
+            return HttpResponse("error")
+    if result_monster[0]:
+        for monster in result_monster[0]:
+            if not "material1" in mess[str(duel.chain-1)]:
+                mess[str(duel.chain-1)]["material1"] = []
+            mess[str(duel.chain - 1)][
+             "material1"
+         ].append(monster)
+    if result_monster[1]:
+        for monster in result_monster[1]:
+            if not "material2" in mess[str(duel.chain-1)]:
+                mess[str(duel.chain-1)]["material2"] = []
+            mess[str(duel.chain - 1)][
+               "material2"
+            ].append(monster)
+    if result_monster[2]:
+        for monster in result_monster[2]:
+            if not "material3" in mess[str(duel.chain-1)]:
+                mess[str(duel.chain-1)]["material3"] = []
+            mess[str(duel.chain - 1)][
+               "material3"
+            ].append(monster)
+    duel.ask = 0
+    current_chain = chain_det[str(duel.chain - 1)]
+    effect = MonsterEffectWrapper.objects.get(id=current_chain)
+    if effect.pac:
+        next_effect = duelobj._pac(effect.pac)
+    else:
+        next_effect = effect.monster_effect_next
+    if next_effect != 0:
+        chain_det[str(duel.chain - 1)] = next_effect.id
+    else:
+        pac = json.loads(duel.in_pac)
+        if str(duel.chain - 1) in pac and pac[str(duel.chain - 1)] != []:
+            pac_id = pac[str(duel.chain - 1)].pop()
+            pac = PacWrapper.objects.get(id=pac_id)
+            next_effect = pac.monster_effect_next
+            if next_effect is None:
+                trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                if trigger.chain_flag is True:
+                    duel.virtual_chain -= 1
+                duel.chain -= 1
+            else:
+                chain_det[str(duel.chain - 1)] = next_effect.id
+        else:
+            trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+            if trigger.chain_flag is True:
+               duel.virtual_chain -= 1
+            duel.chain -= 1
+    duelobj.duel.chain_det = json.dumps(chain_det)
+    decks = Deck.objects.all()
+    graves = Grave.objects.all()
+    hands = Hand.objects.all()
+    duelobj.check_eternal_effect(
+        decks, graves, hands, duel.phase, duel.user_turn, user, other_user
+    )
+    if duel.in_trigger_waiting is False :
+        duelobj.retrieve_chain(
+            decks, graves, hands, duel.phase, duel.user_turn, user, other_user
+        )
+    choices = None
+    if duel.chain == 0:
+        duelobj.invoke_after_chain_effect(
+            decks, graves, hands, duel.phase, duel.user_turn, user, other_user
+        )
+        #duelobj.nvoke_trigger_waiting(duel.trigger_waiting)
+        #duelobj.retrieve_chain(
+        #    decks, graves, hands, duel.phase, duel.user_turn, user, other_user
+        #)
+        duel.appoint = duel.user_turn
+        tmp = {}
+        duel.mess = json.dumps(tmp)
+        duel.cost_result = json.dumps(tmp)
+        duel.cost = json.dumps(tmp)
+        duelobj.invoke_trigger_waiting(duel.trigger_waiting)
+        duel.current_priority = 10000
+        choices = duelobj.check_trigger(
+            decks, graves, hands, duel.phase, duel.user_turn, user, other_user
+        )
+    duelobj.save_all(user, other_user, room_number)
+    free_lock(room_number, lock)
+    return battle_det(request, duelobj, choices)
+
+def send_fusion_monster(request):
+    room_number = int(request.POST["room_number"])
+    lock = Lock.objects.get()
+    lock_flag = lock_lock(room_number, lock,request)
+    if lock_flag != "OK":
+        return HttpResponse("waiting")
+    duelobj = DuelObj(room_number)
+    duel = Duel.objects.filter(id=room_number).get()
+    chain_det = json.loads(duel.chain_det)
+    place = request.POST["place"]
+    deck_id = int(request.POST["deck_id"])
+    mine_or_other = int(request.POST["mine_or_other"])
+    place_unique_id = request.POST["place_unique_id"]
+    fusion = request.POST["fusion"]
+    if "ID" in request.COOKIES :
+        ID = request.COOKIES["ID"]
+    else:
+        ID = ""
+    ID1 = duel.guest_id
+    ID2 = duel.guest_id2
+    if duel.user_1 != request.user and duel.user_2 != request.user:
+        if (ID1 == ID and duel.guest_flag) or (ID2 == ID and duel.guest_flag2):
+            pass
+        else:
+            free_lock(room_number, lock)
+            return HttpResponseRedirect(reverse("tcgcreator:watch_battle"))
+    duelobj.duel = duel
+    duelobj.room_number = room_number
+    if duel.user_1 == request.user or (ID1 == ID and duel.guest_flag):
+        user = 1
+        other_user = 2
+        duelobj.user = 1
+    else:
+        duelobj.user = 2
+        user = 2
+        other_user = 1
+    duelobj.init_all(user, other_user, room_number)
+    duelobj.in_execute = False
+    decks = Deck.objects.all()
+    graves = Grave.objects.all()
+    hands = Hand.objects.all()
+    duelobj.check_eternal_effect(
+        decks, graves, hands, duel.phase, duel.user_turn, user, other_user
+    )
+    mess = duelobj.mess 
+    if duel.user_turn == 1:
+        if duel.ask == 1:
+            if user == 2:
+                return HttpResponse("error")
+        elif duel.ask == 2:
+            if user == 1:
+                return HttpResponse("error")
+    elif duel.user_turn == 2:
+        if duel.ask == 2:
+            if user == 2:
+                return HttpResponse("error")
+        elif duel.ask == 1:
+            if user == 1:
+                return HttpResponse("error")
+    monster_effect_wrapper = MonsterEffectWrapper.objects.get(
+        id=int(chain_det[str(duel.chain - 1)])
+    )
+    monster_effect = monster_effect_wrapper.monster_effect
+    as_monster_effect = "fusion"
+    if monster_effect.monster_effect_val != 76:
+        return HttpResponse("error")
+    if not as_monster_effect in mess[str(duel.chain - 1)]:
+        mess[str(duel.chain-1)][as_monster_effect] = []
+    chain_det_ary = json.loads(duelobj.duel.chain_det_trigger)
+    chain_det = chain_det_ary[str(duelobj.duel.chain - 1)]
+    trigger = Trigger.objects.get(id=chain_det)
+    fusion_monster_condition = json.loads(trigger.fusion_monster)
+    if place == "deck":
+        if (mine_or_other == user ):
+            deck = duelobj.decks[deck_id]["mydeck"]
+        elif (mine_or_other == other_user ):
+            deck = duelobj.decks[deck_id]["otherdeck"]
+        else:
+            deck = duelobj.decks[deck_id]["commondeck"]
+        deck_name = duelobj.decks[deck_id]["deck_name"]
+        user_decks = deck
+        for user_deck in user_decks:
+            if(place_unique_id == user_deck["place_unique_id"]):
+                monster_id = duelobj.get_monster_id(
+                user_deck, "deck", user_deck["owner"],deck_id,0,0, user_deck["mine_or_other"])
+                fusions = Fusion.objects.filter(monster__id = monster_id ,id = fusion).first()
+                if fusions is None:
+                    continue
+                fusion_monster = {}
+                fusion_monster["det"] = user_deck
+                fusion_monster["mine_or_other"] = mine_or_other
+                fusion_monster["user"] = user
+                fusion_monster["place"] = "deck"
+                fusion_monster["deck_id"] = deck_id
+                fusion_monster["deck_name"] = deck_name
+                fusion_monster["x"] = 0
+                fusion_monster["y"] = 0
+                fusion_monster["fusion"] = fusion
+                fusion_monster["place_unique_id"] = user_deck[
+                    "place_unique_id"
+                ]
+                exclude = fusion_monster_condition["exclude"]
+                if duelobj.validate_answer(
+                    fusion_monster, fusion_monster_condition["monster"][0]["monster"], exclude, duel
+                    ):
+                    if(duelobj.check_fusion_monster(fusion_monster,trigger,user,1)):
+                        mess[str(duel.chain - 1)][
+                            as_monster_effect
+                        ].append(fusion_monster)
+                        duelobj.mess = mess
+                        duel.ask = 0
+                        break
+    elif place == "grave":
+        if (mine_or_other == user) :
+            grave = duelobj.graves[deck_id]["mygrave"]
+        elif (mine_or_other == other_user) or (mine_or_other == other_user):
+            grave = duelobj.graves[deck_id]["othergrave"]
+        else:
+            grave = duelobj.graves[deck_id]["commongrave"]
+        deck_name = duelobj.graves[deck_id]["grave_name"]
+        user_graves = grave
+        for user_grave in user_graves:
+            if(place_unique_id == user_grave["place_unique_id"]):
+                monster_id = duelobj.get_monster_id(
+                user_grave, "grave", user_grave["owner"],deck_id,0,0, user_grave["mine_or_other"])
+                fusions = Fusion.objects.filter(monster__id = monster_id ,id = fusion).first()
+                if fusions is None:
+                    continue
+                fusion_monster = {}
+                fusion_monster["det"] = user_grave
+                fusion_monster["mine_or_other"] = mine_or_other
+                fusion_monster["user"] = user
+                fusion_monster["place"] = "grave"
+                fusion_monster["deck_id"] = deck_id
+                fusion_monster["grave_name"] = deck_name
+                fusion_monster["x"] = 0
+                fusion_monster["y"] = 0
+                fusion_monster["fusion"] = fusion
+                fusion_monster["place_unique_id"] = user_grave[
+                    "place_unique_id"
+                ]
+                if duelobj.validate_answer(
+                    fusion_monster, fusion_monster_condition["monster"], exclude, duel
+                    ):
+                    if(duelobj.check_fusion_monster(fusion_monster,trigger,user,1)):
+                        mess[str(duel.chain - 1)][
+                            as_monster_effect
+                        ].append(fusion_monster)
+                        duelobj.mess = mess
+                        duel.ask = 0
+                        break
+    elif place == "hand":
+        if (mine_or_other == user ):
+            hand = duelobj.hands[deck_id]["myhand"]
+        elif (mine_or_other == other_user) :
+            hand = duelobj.hands[deck_id]["otherhand"]
+        else:
+            hand = duelobj.hands[deck_id]["commonhand"]
+        deck_name = duelobj.hands[deck_id]["hand_name"]
+        user_hands = hand
+        for user_hand in user_hands:
+            if(place_unique_id == user_hand["place_unique_id"]):
+                monster_id = duelobj.get_monster_id(
+                user_hand, "hand", user_hand["owner"],deck_id,0,0, user_hand["mine_or_other"])
+                fusions = Fusion.objects.filter(monster__id = monster_id ,id = fusion).first()
+                if fusions is None:
+                    continue
+                fusion_monster = {}
+                fusion_monster["det"] = user_hand
+                fusion_monster["mine_or_other"] = mine_or_other
+                fusion_monster["user"] = user
+                fusion_monster["place"] = "hand"
+                fusion_monster["deck_id"] = deck_id
+                fusion_monster["hand_name"] = deck_name
+                fusion_monster["x"] = 0
+                fusion_monster["y"] = 0
+                fusion_monster["fusion"] = fusion
+                fusion_monster["place_unique_id"] = user_hand[
+                    "place_unique_id"
+                ]
+                if duelobj.validate_answer(
+                    fusion_monster, fusion_monster_condition["monster"], exclude, duel
+                    ):
+                    if(duelobj.check_fusion_monster(fusion_monster,trigger,user,1)):
+                        mess[str(duel.chain - 1)][
+                            as_monster_effect
+                        ].append(fusion_monster)
+                        duelobj.mess = mess
+                        duel.ask = 0
+                        break
+    choices = None
+    if duel.ask == 0:
+        chain_det = json.loads(duel.chain_det)
+        current_chain = chain_det[str(duel.chain - 1)]
+        effect = MonsterEffectWrapper.objects.get(id=current_chain)
+        if effect.pac:
+            next_effect = duelobj._pac(effect.pac)
+        else:
+            next_effect = effect.monster_effect_next
+        if next_effect != 0:
+            chain_det[str(duel.chain - 1)] = next_effect.id
+        else:
+            pac = json.loads(duel.in_pac)
+            if str(duel.chain - 1) in pac and pac[str(duel.chain - 1)] != []:
+                pac_id = pac[str(duel.chain - 1)].pop()
+                pac = PacWrapper.objects.get(id=pac_id)
+                next_effect = pac.monster_effect_next
+                if next_effect is None:
+                    trigger = Trigger.objects.get(id=duel.current_trigger)
+                    if trigger.chain_flag is True:
+                        duel.virtual_chain -= 1
+                    duel.chain -= 1
+                else:
+                    chain_det[str(duel.chain - 1)] = next_effect.id
+            else:
+                trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                if trigger.chain_flag is True:
+                   duel.virtual_chain -= 1
+                duel.chain -= 1
+        duelobj.duel.chain_det = json.dumps(chain_det)
+        decks = Deck.objects.all()
+        graves = Grave.objects.all()
+        hands = Hand.objects.all()
+        duelobj.check_eternal_effect(
+            decks, graves, hands, duel.phase, duel.user_turn, user, other_user
+        )
+        if duel.in_trigger_waiting is False :
+            duelobj.retrieve_chain(
+                decks, graves, hands, duel.phase, duel.user_turn, user, other_user
+            )
+        if duel.chain == 0:
+            duelobj.invoke_after_chain_effect(
+                decks, graves, hands, duel.phase, duel.user_turn, user, other_user
+            )
+            #duelobj.nvoke_trigger_waiting(duel.trigger_waiting)
+            #duelobj.retrieve_chain(
+            #    decks, graves, hands, duel.phase, duel.user_turn, user, other_user
+            #)
+            duel.appoint = duel.user_turn
+            tmp = {}
+            duel.mess = json.dumps(tmp)
+            duel.cost_result = json.dumps(tmp)
+            duel.cost = json.dumps(tmp)
+            duelobj.invoke_trigger_waiting(duel.trigger_waiting)
+            duel.current_priority = 10000
+            choices = duelobj.check_trigger(
+                decks, graves, hands, duel.phase, duel.user_turn, user, other_user
+            )
+    duelobj.save_all(user, other_user, room_number)
+    free_lock(room_number, lock)
+    return battle_det(request, duelobj, choices)
+
+
 def force_trigger(request):
     global check_array
     room_number = int(request.POST["room_number"])
@@ -6032,26 +6724,26 @@ def change_wait(request):
         elif check_det[0] == "kind":
             if check_det[1] == "my":
                 if check_det[3] == "check":
-                    if check_det[2] in whether_my_kind:
-                        pass
-                    else:
-                        whether_my_kind.append(check_det[2])
-                else:
                     if check_det[2] not in whether_my_kind:
                         pass
                     else:
                         whether_my_kind.remove(check_det[2])
-            elif check_det[1] == "other":
-                if check_det[3] == "check":
-                    if check_det[2] in whether_other_kind:
+                else:
+                    if check_det[2] in whether_my_kind:
                         pass
                     else:
-                        whether_other_kind.append(check_det[2])
-                else:
+                        whether_my_kind.append(check_det[2])
+            elif check_det[1] == "other":
+                if check_det[3] == "check":
                     if check_det[2] not in whether_other_kind:
                         pass
                     else:
                         whether_other_kind.remove(check_det[2])
+                else:
+                    if check_det[2] in whether_other_kind:
+                        pass
+                    else:
+                        whether_other_kind.append(check_det[2])
         elif check_det[0] == "timing":
             if check_det[1] == "my":
                 if check_det[3] == "check":

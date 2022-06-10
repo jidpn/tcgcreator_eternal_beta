@@ -29,6 +29,7 @@ from .models import (
 )
 from django.http import HttpResponse, HttpResponseRedirect
 from .custom_functions import (
+    check_special_cards,
     create_user_deck_det,
     create_user_deck_group,
     create_user_deck,
@@ -47,9 +48,9 @@ def init_duel(room_number, user,default_deck = None,enemy_deck=None,user1_choosi
         default_deck = int(default_deck)
     if user_deck:
         user_deck = int(user_deck)
+        '''
     if enemy_deck:
         enemy_deck = int(enemy_deck)
-        '''
     duel = Duel.objects.all().filter(id=room_number).first()
     duel_deck = DuelDeck.objects.all().filter(room_number=room_number)
     duel_deck.delete()
@@ -141,16 +142,16 @@ def init_duel(room_number, user,default_deck = None,enemy_deck=None,user1_choosi
     for grave in graves:
         if grave.mine_or_other == 1:
             DuelGrave(
-                room_number=room_number, mine_or_other=3, grave_id=i, grave_content="[]",
+                grave_name = grave.grave_name,room_number=room_number, mine_or_other=3, grave_id=i, grave_content="[]",
                 id=i*100+room_number*10+3
             ).save()
         else:
             DuelGrave(
-                room_number=room_number, mine_or_other=1, grave_id=i, grave_content="[]",
+                grave_name = grave.grave_name,room_number=room_number, mine_or_other=1, grave_id=i, grave_content="[]",
             id=i*100+room_number*10+1
             ).save()
             DuelGrave(
-                room_number=room_number, mine_or_other=2, grave_id=i, grave_content="[]",
+                grave_name = grave.grave_name,room_number=room_number, mine_or_other=2, grave_id=i, grave_content="[]",
                 id=i*100+room_number*10+2
             ).save()
         i += 1
@@ -158,61 +159,72 @@ def init_duel(room_number, user,default_deck = None,enemy_deck=None,user1_choosi
     for hand in hands:
         if hand.mine_or_other == 1:
             DuelHand(
-                room_number=room_number, mine_or_other=3, hand_id=i, hand_content="[]",
+                hand_name = hand.hand_name,room_number=room_number, mine_or_other=3, hand_id=i, hand_content="[]",
                 id=i*100+room_number*10+3
             ).save()
         else:
             DuelHand(
-                room_number=room_number, mine_or_other=1, hand_id=i, hand_content="[]",
+                hand_name = hand.hand_name,room_number=room_number, mine_or_other=1, hand_id=i, hand_content="[]",
                 id=i*100+room_number*10+1
             ).save()
             DuelHand(
-                room_number=room_number, mine_or_other=2, hand_id=i, hand_content="[]",
+                hand_name = hand.hand_name,room_number=room_number, mine_or_other=2, hand_id=i, hand_content="[]",
                 id=i*100+room_number*10+2
             ).save()
         i += 1
     i = 1
     duel.deck_choose_flag1 = False
     #if which_user == 1 and duel.deck_choose_flag1 is False:
+    special_cards = []
     if duel.deck_choose_flag1 is False:
         for deck in decks:
             user_deck = user_decks.filter(deck_type=deck).first()
-            if not user_deck:
+            user_deck_det = user_deck.deck.split("_")
+            special_cards.extend( check_special_cards(user_deck_det))
+        for deck in decks:
+            user_deck = user_decks.filter(deck_type=deck).first()
+            user_deck_det = user_deck.deck.split("_")
+            min_deck_size = deck.min_deck_size
+            max_deck_size = deck.max_deck_size
+            for special_card in special_cards:
+                if deck in special_card.deck.all():
+                    special_first = special_card
+                    min_deck_size = special_first.min_deck_size
+                    max_deck_size = special_first.max_deck_size
+            if len(user_deck_det) < min_deck_size:
+                resetduel(duel)
+                duel.save()
                 return HttpResponse("エラーが発生しました")
-            else:
-                user_deck_det = user_deck.deck.split("_")
-                if len(user_deck_det) < deck.min_deck_size:
-                    resetduel(duel)
-                    duel.save()
-                    return HttpResponse("エラーが発生しました")
-                elif len(user_deck_det) > deck.max_deck_size:
-                    resetduel(duel)
-                    duel.save()
-                    return HttpResponse("エラーが発生しました")
-                user_deck_det = create_user_deck_det(user_deck.deck, i, 1)
-                if deck.mine_or_other == 1:
-                    DuelDeck.objects.filter(
-                        room_number=room_number, mine_or_other=3, deck_id=i
-                    ).delete()
-                    DuelDeck(
-                        room_number=room_number,
-                        mine_or_other=3,
-                        deck_id=i,
-                        deck_content=user_deck_det,
-                        id=i*100+room_number*10+3
+            elif len(user_deck_det) > max_deck_size:
+                resetduel(duel)
+                duel.save()
+                return HttpResponse("エラーが発生しました")
+            user_deck_det = create_user_deck_det(user_deck.deck, i, 1)
+            if deck.mine_or_other == 1:
+                DuelDeck.objects.filter(
+                    room_number=room_number, mine_or_other=3, deck_id=i
+                ).delete()
+                DuelDeck(
+                    deck_name = deck.deck_name,
+                    room_number=room_number,
+                    mine_or_other=3,
+                    deck_id=i,
+                    deck_content=user_deck_det,
+                    id=i*100+room_number*10+3
 
-                    ).save()
-                else:
-                    DuelDeck.objects.filter(
-                        room_number=room_number, mine_or_other=1, deck_id=i
-                    ).delete()
-                    DuelDeck(
-                        room_number=room_number,
-                        mine_or_other=1,
-                        deck_id=i,
-                        deck_content=user_deck_det,
-                        id=i*100+room_number*10+1
-                    ).save()
+                ).save()
+            else:
+                DuelDeck.objects.filter(
+                    room_number=room_number, mine_or_other=1, deck_id=i
+                ).delete()
+                DuelDeck(
+                    deck_name = deck.deck_name,
+                    room_number=room_number,
+                    mine_or_other=1,
+                    deck_id=i,
+                    deck_content=user_deck_det,
+                    id=i*100+room_number*10+1
+                ).save()
             i += 1
     if duel.is_ai is False or ai_choosing is False:
         duel.ai_choosing = False
@@ -248,7 +260,7 @@ def init_duel(room_number, user,default_deck = None,enemy_deck=None,user1_choosi
             user_decks = EnemyDeck.objects.filter(deck_group__id=enemy_deck)
         else:
             user_decks = EnemyDeck.objects.filter(deck_group=enemy_deck_group)
-        if not user_decks:
+        if not user_deck:
             resetduel(duel)
             duel.save()
             return HttpResponse("エラーが発生しました")
@@ -258,17 +270,31 @@ def init_duel(room_number, user,default_deck = None,enemy_deck=None,user1_choosi
             duel.deck_choose_flag2 = True
     i = 1
     if duel.deck_choose_flag2 is False:
+        special_cards = []
+        for deck in decks:
+            if not user_deck:
+                return HttpResponse("エラーが発生しました")
+            user_deck = user_decks.filter(deck_type=deck).first()
+            user_deck_det = user_deck.deck.split("_")
+            special_cards.extend( check_special_cards(user_deck_det))
         for deck in decks:
             user_deck = user_decks.filter(deck_type=deck).first()
             if not user_deck:
                 return HttpResponse("エラーが発生しました")
             else:
                 user_deck_det = user_deck.deck.split("_")
+                min_deck_size = deck.min_deck_size
+                max_deck_size = deck.max_deck_size
+                for special_card in special_cards:
+                    if special_card.filter(deck = deck):
+                        special_first = special_card
+                        min_deck_size = special_first.min_deck_size
+                        max_deck_size = special_first.max_deck_size
                 if len(user_deck_det) < deck.min_deck_size and duel.is_ai == False:
                     resetduel(duel)
                     duel.save()
                     return HttpResponse("エラーが発生しました")
-                elif len(user_deck_det) > deck.max_deck_size and duel.is_ai == False:
+                elif len(user_deck_det) > max_deck_size and duel.is_ai == False:
                     resetduel(duel)
                     duel.save()
                     return HttpResponse("エラーが発生しました")
@@ -279,6 +305,7 @@ def init_duel(room_number, user,default_deck = None,enemy_deck=None,user1_choosi
                     ).delete()
                     DuelDeck(
                         room_number=room_number,
+                        deck_name = deck.deck_name,
                         mine_or_other=2,
                         deck_id=i,
                         deck_content=user_deck_det,
@@ -292,6 +319,7 @@ def init_duel(room_number, user,default_deck = None,enemy_deck=None,user1_choosi
     kind_whether_2_1 = ""
     kind_whether_1_2 = ""
     kind_whether_2_2 = ""
+    '''
     for effect_kind in effect_kinds:
         kind_whether_1_1 += str(effect_kind.id) + "_"
         kind_whether_1_2 += str(effect_kind.id) + "_"
@@ -301,6 +329,7 @@ def init_duel(room_number, user,default_deck = None,enemy_deck=None,user1_choosi
     kind_whether_1_2 = kind_whether_1_2[:-1]
     kind_whether_2_1 = kind_whether_2_1[:-1]
     kind_whether_2_2 = kind_whether_2_2[:-1]
+    '''
     duel.kind_whether_1_1 = kind_whether_1_1
     duel.kind_whether_1_2 = kind_whether_1_2
     duel.kind_whether_2_1 = kind_whether_2_1
@@ -329,6 +358,7 @@ def init_duel(room_number, user,default_deck = None,enemy_deck=None,user1_choosi
     duel.tmponce_per_turn_exist2 = ""
     duel.tmponce_per_turn_relate1 = ""
     duel.tmponce_per_turn_relate2 = ""
+    duel.effect_flag = 0
     effect_timings =  Timing.objects.filter(timing_whether_show = False)
     timing_whether_1_1 = ""
     timing_whether_1_2 = ""
@@ -433,7 +463,7 @@ def init_duel(room_number, user,default_deck = None,enemy_deck=None,user1_choosi
     duel.current_priority = 10000
     duel.ask = 0
     duel.timing_fresh = False
-
+    duel.background_image = config.background_image
     duel.save()
     return False
 
@@ -516,6 +546,16 @@ def check_enemy_deck(user,ai_id):
     return False
 def check_user_deck(user,deck_id):
     decks = Deck.objects.all()
+    special_cards = []
+    for deck in decks:
+        user_deck_group = UserDeckGroup.objects.filter(user = user,user_deck_id=deck_id).first()
+        user_decks = UserDeck.objects.filter(user=user, deck_group=user_deck_group)
+        user_deck = user_decks.filter(deck_type=deck).first()
+        if not user_deck:
+            return HttpResponse("エラーが発生しました")
+        user_deck = user_decks.filter(deck_type=deck).first()
+        user_deck_det = user_deck.deck.split("_")
+        special_cards.extend( check_special_cards(user_deck_det))
     user_deck_group = UserDeckGroup.objects.filter(user = user,user_deck_id=deck_id).first()
     if user_deck_group.user != user:
         return "デッキを構築してください"
@@ -523,13 +563,20 @@ def check_user_deck(user,deck_id):
     if not user_decks:
         return "error"
     for deck in decks:
+        min_deck_size = deck.min_deck_size
+        max_deck_size = deck.max_deck_size
+        for special_card in special_cards:
+           if deck in special_card.deck.all():
+               min_deck_size = special_card.min_deck_size
+               max_deck_size = special_card.max_deck_size
+               break
         user_deck = user_decks.filter(deck_type=deck).first()
         if not user_deck:
             return "デッキを構築してください"
         user_deck_det = user_deck.deck.split("_")
-        if len(user_deck_det) < deck.min_deck_size:
+        if len(user_deck_det) < min_deck_size:
             return deck.deck_name + "のデッキ枚数が足りません"
-        elif len(user_deck_det) > deck.max_deck_size:
+        elif len(user_deck_det) > max_deck_size:
             return deck.deck_name + "のデッキ枚数が多すぎます"
     return False
 

@@ -81,6 +81,7 @@ def deck_trigger(request):
             is True
         ):
             free_lock(room_number, lock)
+            duelobj.save_all(user, other_user, room_number)
             return battle_det(request, duelobj)
         else:
             free_lock(room_number, lock)
@@ -99,6 +100,7 @@ def deck_trigger(request):
             is True
         ):
             free_lock(room_number, lock)
+            duelobj.save_all(user, other_user, room_number)
             return battle_det(request, duelobj)
         else:
             free_lock(room_number, lock)
@@ -136,7 +138,6 @@ def deck_trigger_det(
         else:
             mine_or_other2 = 1
             tmp_user = 1
-
     if tmp_user == 1:
         tmp = DuelDeck.objects.get(
             room_number=room_number, mine_or_other=1, deck_id=deck_id
@@ -165,10 +166,12 @@ def deck_trigger_det(
                 "deck",
                 place_unique_id,
                 deck_id,
+                fusion = 1
             ):
                 duelobj.invoke_trigger(
                     result_trigger, "deck", deck, mine_or_other, duelobj.user, deck_id
                 )
+                duelobj.save_all(user, other_user, room_number)
                 return True
     return False
 

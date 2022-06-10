@@ -51,6 +51,10 @@
 	function getCostNextSpecify(id){
 	        name=$("#"+id+"_name_specify").val();
 	        cost_val=$("#"+id+"_effect_kind").val();
+		if( cost_val == null){
+			cost_val = "";
+		}
+				
 			$.ajax({
 		   'type': "POST",
 		   'url': "/tcgcreator/get_cost_wrapper_specify/",

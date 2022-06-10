@@ -4,6 +4,81 @@
 <head>
 <meta charset="utf-8">
 <style>
+.swing_number
+{
+  animation-name: anime;
+  animation-duration: 0.5s;
+  animation-iteration-count: 1;
+  
+  display: inline-block;
+  font-size: 30px;
+  font-weight: bold;
+  transform : translateY(-3px);
+  color: red;
+}
+.swing
+{
+  animation-name: anime;
+  animation-duration: 0.1s;
+  animation-iteration-count: 5;
+  
+  display: inline-block;
+  font-size: 30px;
+  font-weight: bold;
+  transform : translateY(-3px);
+  color: red;
+}
+
+@keyframes anime
+{
+  from{ transform : translateX(-3px); }
+ 
+  50%{ transform : translateX(6px); }
+  
+  to{ transform : translateX(-3px); }
+}
+#effect_video {
+	background-size:cover;
+	bottom:0;
+	height:auto;
+  min-width: 100%;
+  min-height: 100%;
+  position: fixed;
+  right:0;
+  width:auto;
+  display:none
+}
+.monster_video {
+	position:absolute;
+	top:0px;
+	padding:10px 30px;
+	text-align:center;
+    	min-width:{{Config.card_width}}px;
+    	height:{{Config.card_height}}px;
+	z-index:200;
+}
+
+/*画面サイズが変わっても常に動画の中央が表示されるようにする*/
+/*動画よりも画面が横に長くなるとき用*/
+@media (aspect-ratio: 16/9), (min-aspect-ratio: 16/9) {
+#effect_video {
+    width: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+}
+
+/*動画よりも画面が縦に長くなるとき用*/
+@media (max-aspect-ratio: 16/9) {
+ #effect_video {
+    height: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+.choose_left{
+	float:left;
+}
 #deck_side {
     border-collapse:collapse;
 }
@@ -20,9 +95,10 @@
     border:1px #000000 solid;
 }
 body {
-        background-image:url({% get_static_prefix %}tcgcreator/img/{{Config.background_image}});
+        background-image:url({% get_static_prefix %}tcgcreator/img/background/{{Duel.background_image}});
         background-position:right top;
-        background-repeat:repeat;
+	background-size: 100%;
+        background-repeat:no-repeat;
         color:{{Config.font_color}};
         font-size:18px;
 }
@@ -32,6 +108,11 @@ span{
 }
 div{
     font-size:18px;
+}
+.field_block{
+    width:{{Config.card_width}}px;
+    height:{{Config.card_height}}px;
+    border:1px solid #000;
 }
 img.explain_card{
     padding:10px;
@@ -122,8 +203,8 @@ table td{
     z-index:0;
 }
 </style>
-<script type="text/javascript" src="{% static 'tcgcreator/js/jquery.min.js'%}"></script>
-<script type="text/javascript" src="{% static 'tcgcreator/js/jquery-ui/jquery-ui.min.js'%}"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
 <script type="text/javascript" src="{% static 'tcgcreator/js/ajax.js'%}"></script>
 <script type="text/javascript">
     function getCookie(name) {
@@ -152,6 +233,7 @@ table td{
        var deck_choosing1 = "{{ Duel.deck_choose_flag1 }}";
        var deck_choosing2 = "{{ Duel.deck_choose_flag2 }}";
        var global_id;
+	var global_fusion_place_id;
        var timer_change;
         var variables;
         var monster_name_kind;
@@ -433,12 +515,14 @@ success: function(data){
     });
     }
     function WaitAi(){
+
     $.ajax({
    type: "POST",
    url: "{% url 'tcgcreator:battle_det'  %}",
    data: "room_number={{room_number}}&wait_ai=1",
    timeout: 60000,
 success: function(data){
+	 console.log("AAAAAA");
     if(data == "waiting"){
         return;
     }else{
@@ -565,6 +649,310 @@ success: function(data){
     }
 });
 }
+function chooseFusionPre(data){
+	global_min_equation_number = []
+	global_max_equation_number = []
+	global_monster = [];
+	global_result_monster = [[],[],[]];
+	global_fusion_place_id = [[],[],[]];
+	var monsters = data["monster"];
+	global_monster.push(monsters[0]["monster"]);
+	global_monster.push(monsters[1]["monster"]);
+	global_monster.push(monsters[2]["monster"]);
+	global_min_equation_number.push(monsters[0]["min"]);
+	global_min_equation_number.push(monsters[1]["min"]);
+	global_min_equation_number.push(monsters[2]["min"]);
+	global_max_equation_number.push(monsters[0]["max"]);
+	global_max_equation_number.push(monsters[1]["max"]);
+	global_max_equation_number.push(monsters[2]["max"]);
+}
+function choosedFusionMaterial(place,deck_id,place_unique_id,mine_or_other,j,i,x,y){
+		var monsters = global_monster[j];
+		var det = monsters[i]["det"];
+	    var result_monster = {};
+	    result_monster["place"] = place;
+	    result_monster["det"] = det;
+	    result_monster["deck_id"] = deck_id;
+	    result_monster["place_unique_id"] = place_unique_id;
+	    result_monster["x"] = x;
+	    result_monster["y"] = y;
+	    if(user == 1){
+	    	result_monster["mine_or_other"] = mine_or_other;
+	    }else{
+		    	if(mine_or_other == 1){
+	    	result_monster["mine_or_other"] = 2;
+			}else if(mine_or_other == 2){
+	    	result_monster["mine_or_other"] = 1;
+			}else{
+	    	result_monster["mine_or_other"] = mine_or_other;
+			}	    }
+	    if($.inArray(result_monster,global_result_monster[j])!= -1){
+	    	alert("同じモンスターを選択しています。");
+	    	Cancel();
+	    	return;
+	    }else{
+	    	global_result_monster[j].push(result_monster);
+		global_fusion_place_id.push(result_monster["place_unique_id"]);
+		}
+	    if(global_result_monster[j].length > global_max_equation_number[j]){
+		alert("選択したモンスターが多すぎます");
+	    	Cancel();
+	    	return;
+	    }else if(global_result_monster[j].length == global_max_equation_number[j]){
+		    if(j == 2){
+			    sendFusionMaterial();
+			    return;
+		    }else{
+			Success2();
+			chooseFusionMaterial(j+1);
+			    return;
+			}
+	    }
+	chooseFusionMaterial(j);
+
+}
+function sendFusionMaterial(){
+   $("#choosing_area").hide();
+    Success2();
+	var result_monster = JSON.stringify(global_result_monster);
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:send_fusion_material'  %}",
+   data: "room_number={{room_number}}&result_monster="+result_monster,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        alert("正しい対象を選択してください。");
+        ask();
+        return;
+    }
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(sendFusionMaterial,1000);
+        return;
+    }else{
+        Success(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+});
+}
+function chooseFusionMaterial(j){
+	monsters = global_monster[j];
+    	$("#choosing_area").hide();
+	if(global_max_equation_number[j] == 0){
+		    if(j == 2){
+			    sendFusionMaterial();
+			    return;
+		    }else{
+			Success2();
+			chooseFusionMaterial(j+1);
+			    return;
+			}
+	}
+	if(monsters.length == 0 ) {
+		if(j== 2){
+		  sendFusionMaterial()
+			return;
+		}else{
+			chooseFusionMaterial(j+1);
+			return;
+		}
+
+	}
+	var i;
+	var result_html = "";
+	var result_html_deck = {};
+	var result_html_grave = {};
+	var result_html_hand = {};
+        if(user == 1){
+            other_user =2;
+        }else{
+            other_user =1;
+        }
+	for(i = 0;i<monsters.length;i++){
+	    monster = monsters[i];
+	    if(monster["mine_or_other"] == user){
+	    	mine_or_other = user;
+	    	mine_or_other2 = "あなたの";
+	    }else if(monster["mine_or_other"] == other_user){
+	    	mine_or_other = other_user;
+	    	mine_or_other2 = "相手の";
+	    }
+	    switch(monster["place"]){
+	    	case "deck":
+			if(! result_html_deck[mine_or_other2 + monster["deck_name"]]){
+		        	result_html_deck[mine_or_other2 + monster["deck_name"]] = [] ;
+	    		}
+		        result_html_deck[mine_or_other2 + monster["deck_name"]].push(getFusionMaterial(monster,"deck",monster["deck_id"],mine_or_other,j,i));
+	    		break;
+	    	case "grave":
+			if(! result_html_grave[mine_or_other2 + monster["deck_name"]]){
+		        result_html_grave[mine_or_other2 + monster["deck_name"]] = [];
+	    		}
+		        result_html_grave[mine_or_other2 + monster["deck_name"]].push(getFusionMaterial(monster,"grave",monster["deck_id"],mine_or_other,j,i));
+	    		break;
+	    	case "hand":
+			if(! result_html_hand[mine_or_other2 + monster["deck_name"]]){
+		        	result_html_hand[mine_or_other2 + monster["deck_name"]]  = [];
+	    		}
+		        result_html_hand[mine_or_other2 + monster["deck_name"]].push(getFusionMaterial(monster,"hand",monster["deck_id"],mine_or_other,j,i));
+	    		break;
+	    	case "field":
+	    		showFusionFieldMaterial(monster,j,i);
+	   		break;
+	    }
+	}
+	    for(index in result_html_deck){
+	    result_html += index + "<br>"+showFusionMaterial(result_html_deck[index]);
+	    };
+
+	    for(index in result_html_grave){
+	    result_html += index + "<br>"+showFusionMaterial(result_html_grave[index]);
+	    };
+	    for(index in result_html_hand){
+	    result_html += index + "<br>"+showFusionMaterial(result_html_hand[index]);
+	    };
+
+	    result_html += '<br><input type="button" onclick="sendFusionMaterial()" value="選択完了">';
+    $("#choosing_area").html(result_html);
+	showChoosingArea();
+}
+function showChoosingArea(){
+	var w_height = $(window).height();
+	var w_width = $(window).width()
+    var el_height = $("#choosing_area").height();
+    var el_width = $("#choosing_area").width();
+	var scroll_height = $(window).scrollTop();
+	var position_h = (w_height - el_height) / 2;
+
+	// 横は画面左から算して半分の距離
+	var position_w = (w_width - el_width) / 2;
+
+    $("#choosing_area").draggable();
+    $("#choosing_area").css({
+		  position: 'absolute',
+		  'top': position_h + 'px',
+		  'left': position_w + 'px'
+   }).show();
+}
+function chooseFusionMonster(data){
+	var monsters = data["monster"];
+	var user = data["user"];
+	var i;
+	var result_html  = "";
+	var result_html_deck = {};
+	var result_html_grave = {};
+	var result_html_hand = {};
+        if(user == 1){
+            other_user =2;
+        }else{
+            other_user =1;
+        }
+	for(i = 0;i<monsters.length;i++){
+	    monster = monsters[i];
+	    	if(monster["mine_or_other"] == user){
+	    		mine_or_other = "あなたの";
+	    		mine_or_other_num = user;
+	    	}else if(monster["mine_or_other"] == other_user){
+	    		mine_or_other = "相手の";
+	    		mine_or_other_num = other_user;
+	    	}
+	    switch(monster["place"]){
+	    	case "deck":
+			    if( !(result_html_deck[mine_or_other + monster["deck_name"]])){
+
+	    		result_html_deck[mine_or_other+monster["deck_name"]] = [];
+	    			}
+		        result_html_deck[mine_or_other + monster["deck_name"]].push(getFusion(monster,"deck",monster["deck_id"],mine_or_other,mine_or_other_num));
+	    		break;
+	    	case "grave":
+		 if(!( result_html_grave[mine_or_other + monster["deck_name"]])){
+	    		result_html_grave[mine_or_other+monster["deck_name"]] = [];
+	    	}
+		        result_html_grave[mine_or_other + monster["deck_name"]].push(getFusion(monster,"grave",monster["deck_id"],mine_or_other,mine_or_other_num));
+	    		break;
+	    	case "hand":
+			 if(! result_html_hand[mine_or_other + monster["deck_name"]]){
+			        result_html_hand[mine_or_other + monster["deck_name"]] = [];
+	    		}
+
+			result_html_hand[mine_or_other + monster["deck_name"]].push( getFusion(monster,"hand",monster["deck_id"],mine_or_other,mine_or_other_num));
+	    		break;
+	    	case "field":
+	    		showFusionField(monster);
+	   		break;
+	    }
+	}
+	    for(index in result_html_deck){
+	    result_html += index + "<br>"+showFusion(result_html_deck[index]);
+	    };
+
+	    for(index in result_html_grave){
+	    result_html += index + "<br>"+showFusion(result_html_grave[index]);
+	    };
+	    for(index in result_html_hand){
+	    result_html += index + "<br>"+showFusion(result_html_hand[index]);
+	    };
+
+    $("#choosing_area").html(result_html);
+    	showChoosingArea();
+}
+function getFusionMaterial(monster,place,deck_id,mine_or_other,j,i){
+	if( $.inArray(monster["det"]["place_unique_id"],global_fusion_place_id) != -1){
+		return null;
+	}
+	let tmp = {}
+	tmp["place"] = place;
+	tmp["place_unique_id"] = monster["det"]["place_unique_id"];
+	tmp["img"] = monster["det"]["img"];
+	tmp["deck_id"] = deck_id;
+	tmp["mine_or_other"] = mine_or_other;
+	tmp["j"] = j;
+	tmp["i"] = i;
+	return tmp;
+}
+function showFusionMaterial(ary){
+    let result_html = "<table><tr>";
+      let result_button = "</tr><tr>";
+	for(var i =  0;i<ary.length;i++){
+			var tmp = ary[i];
+	    if(tmp == null){
+	    	continue;
+	    }
+        var img_url = tmp["img"];
+	     result_html += "<td><img card_id=\""+img_url+"\"  id=\""+monster["det"]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></td>";
+	  result_button += "<td><input value=\"選択\" type=\"button\" onclick=\"choosedFusionMaterial('"+tmp["place"]+"',"+tmp["deck_id"]+",'"+tmp["place_unique_id"]+"','"+tmp["mine_or_other"]+"',"+tmp["j"]+","+tmp["i"]+",0,0)\"  ></td>";
+	}
+											  return result_html+result_button+"</tr></table>";
+	return result_html;
+}
+function getFusion(monster,place,deck_id,mine_or_other,mine_or_other_num){
+	let tmp = {}
+	tmp["place"] = place;
+	tmp["place_unique_id"] = monster["det"]["place_unique_id"];
+	tmp["img"] = monster["det"]["img"];
+	tmp["deck_id"] = deck_id;
+	tmp["mine_or_other"] = mine_or_other;
+	tmp["mine_or_other_num"] = mine_or_other_num;
+	tmp["fusion"] = monster["fusion"]["id"];
+	tmp["sentence"] = monster["fusion"]["sentence"];
+	return tmp;
+    }
+function showFusion(ary){
+			      let result_html = "<table><tr>";
+			      let result_button = "</tr><tr>";
+	for(var i =  0;i<ary.length;i++){
+			var tmp = ary[i];
+				       console.log(tmp);
+        var img_url = tmp["img"];
+	     result_html += "<td><img card_id=\""+img_url+"\"  id=\""+monster["det"]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></td>";
+	  result_button += "<td><input value=\""+tmp["sentence"]+"\"  type=\"button\" onclick=\"sendFusionMonster('"+tmp["place"]+"',"+tmp["deck_id"]+",'"+tmp["place_unique_id"]+"',"+tmp["mine_or_other_num"]+","+tmp["fusion"]+")\"  ></td>";
+	}
+											  return result_html+result_button+"</tr></table>";
+}
 // 一度選択後に表示
 function ask_det2(type,k,l,under_id = ""){
     //一度選択をクリア
@@ -606,6 +994,12 @@ function ask_det2(type,k,l,under_id = ""){
         tmp["under_id"] = under_id;
         tmp["type"] = "under";;
         global_all_result.push(tmp);
+    }else if(type == "player"){
+	tmp["type"] = "player";
+        global_all_result.push(tmp);
+    }else if(type == "other_player"){
+	tmp["type"] = "other_player";
+        global_all_result.push(tmp);
     }
     min_equation_number = data["min_equation_number"];
     max_equation_number = data["max_equation_number"];
@@ -621,63 +1015,92 @@ function ask_det2(type,k,l,under_id = ""){
     var i,j;
     $("#end_chain").hide();
     global_field_fields = null;
-        if(ask_field != undefined){
-            MakeFieldsChoose(org_data,ask_field,ask_under)
+	var field_flag = false;
+        if(ask_field != undefined || ask_whether_0 != undefined){
+            field_flag = makeFieldsChoose(org_data,ask_field,ask_under)
         }
     var deck_i = 0;
     var grave_i = 0;
     var hand_i = 0;
+    var deck_flag = false;
+    var grave_flag = false;
+    var hand_flag = false;
+    var player_flag = false;
+	if(org_data["player"] == true){
+		player_flag = true;
+		var tmp ={};
+		tmp["type"] = "player";
+       		if($.inArray(tmp,global_all_result) == -1){
+			$("#player2").html( "<input type=\"button\" onclick=\"ask_det2('player',"+0+","+0+")\"  value=\"プレイヤー\">");
+	   	}
+	}
+	if(org_data["other_player"] == true){
+		var tmp ={};
+		tmp["type"] = "player";
+		player_flag = true;
+       		if($.inArray(tmp,global_all_result) == -1){
+			$("#player").html( "<input type=\"button\" onclick=\"ask_det2('other_player',"+0+","+0+")\"  value=\"プレイヤー\">");
+	   	}
+	}
     for(i = 0;i<data.length;i++){
         if(data[i]["mine_or_other"]){
             result_html += "<br>"+data[i]["mine_or_other"]+"<br>";
         }
         if(data[i]["cards"] != undefined){
+	  	result_html +="<table style=\"display:inline;text-align:center;\"><tr>";
             for(j=0;j<data[i]["cards"].length;j++){
-                if($.inArray(i+"_"+j,global_answer_deck) == -1){
+                if($.inArray(deck_i+"_"+j,global_answer_deck) == -1){
                     if(Validate(data[i]["cards"][j])){
+			deck_flag = true;
                         img_url = data[i]["cards"][j]["img"];
                         pid.push(data[i]["cards"][j]["place_unique_id"]);
-                        result_html += "<a target=\"_blank\" onclick=\"ask_det2('deck',"+deck_i+","+j+")\"  ><img card_id=\""+img_url+"\"  id=\""+data[i]["cards"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
+						   result_html += "<td><img card_id=\""+img_url+"\"  id=\""+data[i]["cards"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\">";
+		        result_html += "<br><input type=\"button\" onclick=\"ask_det2('deck',"+deck_i+","+j+")\" value=\""+global_field_sentence+"\"></td>";
                     }
                 }
             }
+		result_html += "</tr><table>";
             deck_i++;
         }
         if(data[i]["grave"] != undefined){
+	  	result_html +="<table style=\"display:inline;text-align:center;\"><tr>";
             for(j=0;j<data[i]["grave"].length;j++){
-                if($.inArray(i+"_"+j,global_answer_grave) == -1){
+                if($.inArray(grave_i+"_"+j,global_answer_grave) == -1){
                     if(Validate(data[i]["grave"][j])){
+			grave_flag = true;
                         pid.push(data[i]["grave"][j]["place_unique_id"]);
                         img_url = data[i]["grave"][j]["img"];
-                        result_html += "<a target=\"_blank\" onclick=\"ask_det2('grave',"+grave_i+","+j+")\"  ><img card_id=\""+img_url+"\"  id=\""+data[i]["grave"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
+					   result_html += "<td><img card_id=\""+img_url+"\"  id=\""+data[i]["grave"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\">";
+		        result_html += "<br><input type=\"button\" onclick=\"ask_det2('grave',"+grave_i+","+j+")\" value=\""+global_field_sentence+"\"></td>";
                     }
                 }
             }
+		result_html += "</tr><table>";
             grave_i++;
         }
         if(data[i]["hand"] != undefined){
-            //MakeHandsGray();
+            //makeHandsGray();
+	  	result_html +="<table style=\"display:inline;text-align:center;\"><tr>";
             for(j=0;j<data[i]["hand"].length;j++){
-                if($.inArray(i+"_"+j,global_answer_hand) == -1){
+		console.log(global_answer_hand);
+                if($.inArray(hand_i+"_"+j,global_answer_hand) == -1){
                     if(Validate(data[i]["hand"][j])){
+			hand_flag = true;
                         pid.push("hand"+data[i]["hand"][j]["place_unique_id"]);
                         img_url = data[i]["hand"][j]["img"];
-                        result_html +="<a target=\"_blank\" onclick=\"ask_det2('hand',"+hand_i+","+j+")\"  ><img card_id=\""+img_url+"\"  id=\"hand"+data[i]["hand"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
-                        //result_html_hand += "<br><input type=\"button\" onclick=\"ask_det2('hand',"+i+","+j+")\" value=\""+data[i]["hand"][j]["monster_name"]+"\">";;
+						   result_html +="<td><img card_id=\""+img_url+"\"  id=\"hand"+data[i]["hand"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\">";
+					  result_html += "<br><input type=\"button\" onclick=\"ask_det2('hand',"+hand_i+","+j+")\" value=\""+global_field_sentence+"\"></td>";;
                         //$("#"+data[i]["hand"][j]["place_unique_id"]).html(result_html_hand);
                     }
                 }
             }
             hand_i++;
+		result_html += "</tr><table>";
         }
     }
     result_html += "<br><input type=\"button\" value=\"選択完了\" onclick=\"sendAnswer()\"><input type=\"button\" style=\"width:100px\" value=\"{{Config.cancel_name}}\" onclick=\"javascript:Cancel()\">";
     $("#choosing_area").html(result_html);
-    var offset = $("#upper_line").offset();
-    var height = $("#choosing_area").height();
-    $("#choosing_area").draggable();
-    $("#choosing_area").show();
-    $("#choosing_area").offset({top:offset.top+500-height});
+    	showChoosingArea();
         for(i =0;i<pid.length;i++){
                 $("#"+pid[i]).hover(
                     function(){
@@ -688,6 +1111,15 @@ function ask_det2(type,k,l,under_id = ""){
                 }
                 );
         }
+	console.log(field_flag)
+	console.log(deck_flag)
+	console.log(grave_flag)
+	console.log(hand_flag)
+	console.log(player_flag)
+	if(field_flag == false && deck_flag == false && grave_flag == false && hand_flag == false && player_flag == false){
+		Success2();
+        	sendAnswer();
+      }
 
 }
 
@@ -822,15 +1254,16 @@ success: function(data){
  {% endif %}
 }
 function YesOrNoDet(data){
-    var sentence = data["prompt"];
-    var result_html = sentence+"<br>";
+    var prompt = data["prompt"];
+    var result_html = prompt+"<br>";
+	if(data["sentence"] == ""){
     result_html += "<input type=\"button\" value=\"はい\" onclick=\"AnswerYesOrNo('yes')\"><input type=\"button\" value=\"いいえ\" onclick=\"AnswerYesOrNo('no')\">";
-    $("#choosing_area").show();
+	}else{
+		var yes_or_no = data["sentence"].split("|");
+    result_html += "<input type=\"button\" value=\""+yes_or_no[0]+"\" onclick=\"AnswerYesOrNo('yes')\"><input type=\"button\" value=\""+yes_or_no[1]+"\" onclick=\"AnswerYesOrNo('no')\">";
+	}
         $("#choosing_area").html(result_html);
-        var height = $("#choosing_area").height();
-    var offset = $("#upper_line").offset();
-        $("#choosing_area").offset({top:offset.top+500-height});
-        $("#choosing_area").draggable();
+    	showChoosingArea();
     }
     function MultipleChoiceDet(data){
         var sentence = data["prompt"];
@@ -844,11 +1277,7 @@ function YesOrNoDet(data){
         var result_html = sentence+"<br>";
         $("#choosing_area").html(result_html);
     result_html += buttons;
-    var offset = $("#upper_line").offset();
-    $("#choosing_area").show();
-    $("#choosing_area").draggable();
-    var height = $("#choosing_area").height();
-    $("#choosing_area").offset({top:offset.top+500-height});
+    	showChoosingArea();
 }
 function ChooseOrder(i){
     global_order.push(i);
@@ -869,30 +1298,22 @@ function ValOrderDet(data){
         }
     }
     $("#choosing_area").show();
-    var offset = $("#upper_line").offset();
-    $("#choosing_area").html(result_html);
-    var height = $("#choosing_area").height();
-    $("#choosing_area").offset({top:offset.top+500-height});
-    $("#choosing_area").draggable();
+    	showChoosingArea();
 }
 function ChainVariableDet(data){
     var prompt = data["prompt"];
     var result_html = prompt+"<br>";
     result_html += "<input type=\"number\" id=\"chain_variable\" value=\""+data["min"]+"\"> <input type=\"button\" value=\"選択完了\" onclick=\"AnswerChainVariable("+data["min"]+","+data["max"]+")\">";
     $("#choosing_area").html(result_html);
-    $("#choosing_area").offset({top:offset.top+50});
-    $("#choosing_area").draggable();
-    $("#choosing_area").show();
-    var height = $("#choosing_area").height();
-    $("#choosing_area").offset({top:offset.top+500-height});
+    	showChoosingArea();
 
 }
-function ShowChooseMonster(monster){
+function showChooseMonster(monster){
     if(monster["place"] == "field"){
-        ShowChooseMonsterField(monster);
+        showChooseMonsterField(monster);
     }
 }
-function ShowChooseMonsterField(monster){
+function showChooseMonsterField(monster){
         if(monster["place"] == "field"){
         var fields = global_field_fields;
         var x = monster["x"];
@@ -959,17 +1380,13 @@ function ChooseMultiple(data){
     global_prompt = data["prompt"];
     result_html = global_field_sentence+"<br>";
     result_html += global_choosed_monster[multiple_number]["det"]["monster_name"]+global_prompt;
-    ShowFieldMultiple(global_choosed_monster[multiple_number]["det"]["place_unique_id"]);
+    showFieldMultiple(global_choosed_monster[multiple_number]["det"]["place_unique_id"]);
     if(min_equation_number == 0){
         result_html += "<input type=\"button\" value=\"{{Config.choose_multiple_cancel }}\" onclick=\"choosed('')\">";
     }
-    var offset = $("#upper_line").offset();
-    $("#choosing_area").show();
-    $("#choosing_area").draggable();
     $("#choosing_area").html(result_html);
-    var height = $("#choosing_area").height();
-    $("#choosing_area").offset({top:offset.top+500-height,left:400});
-    ShowChooseMonster(global_choosed_monster[multiple_number]);
+    	showChoosingArea();
+    showChooseMonster(global_choosed_monster[multiple_number]);
     global_to_monsters = data2[1];
     ChooseMonsterForMultiple("");
 }
@@ -983,7 +1400,7 @@ function choosed(data){
             sendMultipleAnswer(multiple_answer);
             return;
         }
-        ShowChooseMonster(global_choosed_monster[multiple_number]);
+        showChooseMonster(global_choosed_monster[multiple_number]);
         result_html = global_field_sentence+"<br>";
         result_html += global_choosed_monster[multiple_number]["det"]["monster_name"]+global_prompt;
     if(min_equation_number == 0){
@@ -1028,7 +1445,7 @@ function ChooseMonsterForMultiple(current_choice){
             sendMultipleAnswer(multiple_answer);
             return;
         }
-        ShowChooseMonster(global_choosed_monster[multiple_number]);
+        showChooseMonster(global_choosed_monster[multiple_number]);
     }
         result_html = global_field_sentence+"<br>";
         result_html += global_choosed_monster[multiple_number]["det"]["monster_name"]+prompt;
@@ -1041,7 +1458,7 @@ function ChooseMonsterForMultiple(current_choice){
 
     //一度選択をクリア
     Success2();
-        ShowFieldMultiple(global_choosed_monster[multiple_number]["det"]["place_unique_id"]);
+        showFieldMultiple(global_choosed_monster[multiple_number]["det"]["place_unique_id"]);
     for(i=0;i<to_monsters.length;i++){
 
         var none_flag = false;
@@ -1133,12 +1550,8 @@ function ChooseMonsterForMultiple(current_choice){
                 );
         }
     result_html = html_for_auto + result_html;
-    var offset = $("#upper_line").offset();
-    $("#choosing_area").show();
-    $("#choosing_area").draggable();
     $("#choosing_area").html(result_html);
-    var height = $("#choosing_area").height();
-    $("#choosing_area").offset({top:offset.top+500-height});
+    	showChoosingArea();
 }
 function end_message(){
     var result_html = "終了";
@@ -1176,6 +1589,19 @@ function ask_det(data){
        ValOrderDet(data);
            return;
     }
+    if(data["fusion"] == true){
+    	global_field_info = data["field_info"];
+	chooseFusionMonster(data);
+	return;
+    }
+    if(data["fusion_material"] == true){
+    	global_field_info = data["field_info"];
+	user = data["user"];
+	chooseFusionPre(data);
+	chooseFusionMaterial(0);
+	return;
+    }
+
     if(data["yes_or_no"] == true){
        YesOrNoDet(data);
            return;
@@ -1227,6 +1653,7 @@ function ask_det(data){
 
     prompt = data["prompt"];
     ask_field = data["ask_field"];
+    ask_whether_0 = data["ask_whether_0"];
     ask_under = data["ask_under"];
     global_field_info = data["field_info"];
     org_data = data;
@@ -1247,15 +1674,22 @@ function ask_det(data){
         }
     $("#end_chain").hide();
         var space = false;
-        if(ask_field != undefined || ask_under != undefined){
+        if(ask_field != undefined || ask_under != undefined || ask_whether_0 != undefined){
             auto_flag = false;
-            MakeFieldsChoose(org_data,ask_field,ask_under);
+            makeFieldsChoose(org_data,ask_field,ask_under);
         }else{
             space = true
         }
     var deck_i = 0;
     var grave_i = 0;
     var hand_i = 0;
+	if(org_data["other_player"] == true){
+			$("#player").html( "<input type=\"button\" onclick=\"ask_det2('other_player',"+0+","+0+")\"  value=\"プレイヤー\">");
+	}
+	if(org_data["player"] == true){
+			$("#player2").html( "<input type=\"button\" onclick=\"ask_det2('player',"+0+","+0+")\"  value=\"プレイヤー\">");
+	}
+	console.log(data);
     for(i = 0;i<data.length;i++){
         if(data[i]["mine_or_other"]){
             result_html += "<br>"+data[i]["mine_or_other"]+"<br>";
@@ -1263,15 +1697,17 @@ function ask_det(data){
         if(data[i]["cards"] != undefined){
             tmp_det  = [];
             for(j=0;j<data[i]["cards"].length;j++){
+	  	result_html +="<table style=\"display:inline;text-align:center;\"><tr>";
                 if(Validate(data[i]["cards"][j])){
                         img_url = data[i]["cards"][j]["img"];
                         pid.push(data[i]["cards"][j]["place_unique_id"]);
-                        result_html +="<a target=\"_blank\" onclick=\"ask_det2('deck',"+deck_i+","+j+")\"  ><img class=\"img_card\" card_id=\""+img_url+"\"  id=\""+data[i]["cards"][j]["place_unique_id"]+"\"    src=\""+static_url+"/img/"+img_url+"\"></a>";
+				result_html +="<td><img class=\"img_card\" card_id=\""+img_url+"\"  id=\""+data[i]["cards"][j]["place_unique_id"]+"\"    src=\""+static_url+"/img/"+img_url+"\">";
+		        result_html += "<br><input type=\"button\" onclick=\"ask_det2('deck',"+deck_i+","+j+")\" value=\""+global_field_sentence+"\"></td>";
 
                 auto_count++;
                     tmp_auto = {};
                     tmp_auto["place"] = "deck";
-                    tmp_auto["i"] = i;
+                    tmp_auto["i"] = decks.length;
                     tmp_auto["j"] = j;
                     auto_data.push(tmp_auto);
                 }
@@ -1285,19 +1721,22 @@ function ask_det(data){
             tmp2["key"] = data[i]["deck_id"];
             tmp2["val"]= j;
             tmp2["det"]= tmp_det;
+		result_html += "</tr></table>";
             decks.push(tmp2);
         }
         if(data[i]["grave"] != undefined){
             tmp_det  = [];
+	  result_html +="<table style=\"display:inline;text-align:center;\"><tr>";
             for(j=0;j<data[i]["grave"].length;j++){
                 if(Validate(data[i]["grave"][j])){
                         img_url = data[i]["grave"][j]["img"];
                         pid.push(data[i]["grave"][j]["place_unique_id"]);
-                        result_html +="<a target=\"_blank\" onclick=\"ask_det2('grave',"+grave_i+","+j+")\"  ><img class=\"img_card\" card_id=\""+img_url+"\"  id=\""+data[i]["grave"][j]["place_unique_id"]+"\"    src=\""+static_url+"/img/"+img_url+"\"></a>";
+				result_html +="<td><img class=\"img_card\" card_id=\""+img_url+"\"  id=\""+data[i]["grave"][j]["place_unique_id"]+"\"    src=\""+static_url+"/img/"+img_url+"\">";
+		        result_html += "<br><input type=\"button\" onclick=\"ask_det2('grave',"+grave_i+","+j+")\" value=\""+global_field_sentence+"\"></td>";
                 auto_count++;
                     tmp_auto = {};
                     tmp_auto["place"] = "grave";
-                    tmp_auto["i"] = i;
+                    tmp_auto["i"] = graves.length;
                     tmp_auto["j"] = j;
                     auto_data.push(tmp_auto);
                 }
@@ -1311,27 +1750,29 @@ function ask_det(data){
             tmp2["key"] = data[i]["grave_id"];
             tmp2["val"]= j;
             tmp2["det"]= tmp_det;
+		result_html += "</tr></table>";
             graves.push(tmp2);
         }
         if(data[i]["hand"] != undefined){
-            //MakeHandsGray();
+            //makeHandsGray();
             tmp_det  = [];
+					  result_html +="<table style=\"display:inline;text-align:center;\"><tr>";
             for(j=0;j<data[i]["hand"].length;j++){
                 if(Validate(data[i]["hand"][j])){
                     auto_count++;
                     tmp_auto = {};
                     tmp_auto["place"] = "hand";
-                    tmp_auto["i"] = i;
+                    tmp_auto["i"] = hands.length;
                     tmp_auto["j"] = j;
                     auto_data.push(tmp_auto);
                     if($("#"+data[i]["hand"][j]["place_unique_id"]).length>0){
                         img_url = data[i]["hand"][j]["img"];
                         pid.push("hand"+data[i]["hand"][j]["place_unique_id"]);
-                        result_html +="<a target=\"_blank\" onclick=\"ask_det2('hand',"+hand_i+","+j+")\"  ><img class=\"img_card\" card_id=\""+img_url+"\"  id=\"hand"+data[i]["hand"][j]["place_unique_id"]+"\"    src=\""+static_url+"/img/"+img_url+"\"></a>";
-                        //result_html_hand += "<br><input type=\"button\" onclick=\"ask_det2('hand',"+i+","+j+")\" value=\""+data[i]["hand"][j]["monster_name"]+"\">";;
+			    result_html +="<td><img class=\"img_card\" card_id=\""+img_url+"\"  id=\"hand"+data[i]["hand"][j]["place_unique_id"]+"\"    src=\""+static_url+"/img/"+img_url+"\">";
+			    result_html += "<br><input type=\"button\" onclick=\"ask_det2('hand',"+hand_i+","+j+")\" value=\""+global_field_sentence+"\"></td>";
                         //$("#"+data[i]["hand"][j]["place_unique_id"]).html(result_html_hand);
                     }else{
-                        result_html += "<input type=\"button\" onclick=\"ask_det2('hand',"+i+","+j+")\" value=\""+data[i]["hand"][j]["monster_name"]+"\">";
+			    result_html += "<td><input type=\"button\" onclick=\"ask_det2('hand',"+hand_i+","+j+")\" value=\""+data[i]["hand"][j]["monster_name"]+"\"></td>";
                     }
                 }
                 tmp = data[i]["hand"][j];
@@ -1339,6 +1780,7 @@ function ask_det(data){
                 tmp["mine_or_other"] = data[i]["mine_or_other_val"];
                 tmp_det.push(tmp);
             }
+		result_html += "</tr></table>";
             tmp2 = {};
             tmp2["key"] = data[i]["hand_id"];
             tmp2["val"]= j;
@@ -1359,12 +1801,8 @@ function ask_det(data){
     if(from_left != undefined && from_left == true){
         result_html += "<input style=\"margin-left:20px\" type=\"button\" value=\"左から選択\" onclick=\"sendFromLeft()\">";
     }
-    var offset = $("#upper_line").offset();
     $("#choosing_area").html(result_html);
-    $("#choosing_area").draggable();
-    $("#choosing_area").show();
-    var height = $("#choosing_area").height();
-    $("#choosing_area").offset({top:offset.top+500-height});
+  showChoosingArea();
         for(i =0;i<pid.length;i++){
                 $("#"+pid[i]).hover(
                     function(){
@@ -1386,12 +1824,8 @@ function ForceEffect(data){
             result_html += "("+data[i]["det"]["monster_name"]+")";
         }
     }
-    var offset = $("#upper_line").offset();
-    $("#choosing_area").show();
-    $("#choosing_area").draggable();
     $("#choosing_area").html(result_html);
-    var height = $("#choosing_area").height();
-    $("#choosing_area").offset({top:offset.top+500-height});
+  showChoosingArea();
 }
 function SendForceEffect(id){
     $("#choosing_area").hide();
@@ -1614,6 +2048,7 @@ function sendHandTrigger(hand_id,place_unique_id,trigger_id,mine_or_other){
    timeout: 60000,
 success: function(data){
     if(data == "waiting"){
+	    pprint("WAITING_HAND_TRIGGER");
         clearTimeout(timer);
         timer = setTimeout(sendHandTrigger,1000);
         return;
@@ -1667,6 +2102,90 @@ success: function(data){
     WaitAi();
  {% endif %}
 }
+var fusion_global_obj = {};
+function sendFusionField(x,y){
+	if(x == undefined){
+		x = fusion_global_obj["x"];
+		y = fusion_global_obj["y"];
+	}else{
+		fusion_global_obj["x"] =  x;
+		fusion_global_obj["y"] =  y;
+	}
+
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:send_fusion_monster_field'  %}",
+   data: "room_number={{room_number}}&x="+x+"&y="+y,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        alert("正しい対象を選択してください。");
+        ask();
+        return;
+    }
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(sendFusionMonster,1000);
+        return;
+    }else{
+        Success(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+    WaitAi();
+ {% endif %}
+}
+function sendFusionMonster(place,deck_id,place_unique_id,mine_or_other,fusion){
+    if(place == undefined){
+	    place = fusion_global_obj["place"];
+	    deck_id = fusion_global_obj["deck_id"];
+	    place_unique_id = fusion_global_obj["place_unique_id"];
+	    mine_or_other = fusion_global_obj["mine_or_other"];
+	    fusion = fusion_global_obj["fusion"];
+    }
+	 fusion_global_obj["place"] = place;
+	 fusion_global_obj["deck_id"] = deck_id;
+	 fusion_global_obj["place_unique_id"] = place_unique_id;
+	 fusion_global_obj["mine_or_other"] = mine_or_other;
+	 fusion_global_obj["fusion"] = fusion;
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:send_fusion_monster'  %}",
+   data: "room_number={{room_number}}&place="+place+"&deck_id="+deck_id+"&place_unique_id="+place_unique_id+"&mine_or_other="+mine_or_other+"&fusion="+fusion,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        alert("正しい対象を選択してください。");
+        ask();
+        return;
+    }
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(sendFusionMonster,1000);
+        return;
+    }else{
+        Success(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+    WaitAi();
+ {% endif %}
+}
+
 function sendAnswerOrder(){
     $("#choosing_area").hide();
     var result = "";
@@ -1835,6 +2354,7 @@ function autoSend(data){
     var hands = global_ask_hands;
     var i,j,k;
     Success2();
+
     var return_value = [];
     for(k=0;k<data.length;k++){
         if(data[k]["place"] == "deck"){
@@ -1909,6 +2429,14 @@ function sendAnswer(){
             tmp["x"] = tmp2[0];
             tmp["y"] = tmp2[1];
             tmp["place"] = "field";
+            return_value.push(tmp);
+	}else if(global_all_result[key_all]["type"] == "player"){
+            tmp["place"] = "player";
+		tmp["mine_or_other"] = 1;
+            return_value.push(tmp);
+	}else if(global_all_result[key_all]["type"] == "other_player"){
+            tmp["place"] = "player";
+		tmp["mine_or_other"] = 2;
             return_value.push(tmp);
         }else if(global_all_result[key_all]["type"] == "under"){
             tmp2 = global_all_result[key_all]["val"].split("_");
@@ -2711,7 +3239,7 @@ success: function(data){
     var fields = data["field_info"];
         for(x = 0;x<fields.length;x++){
             for(y = 0;y<fields[x].length;y++){
-                 $("#"+x+"_"+y).html("");
+                 $("#"+x+"_"+y).html("&nbsp;");
             }
 
         }
@@ -2719,19 +3247,1535 @@ success: function(data){
 }
     // 表示するために二つ目の関数を作る
     function Success2(){
+
+	$("#player").html("");
+	$("#player2").html("");
+    for(i = 0;i<data.length;i++){
+        if(data[i]["mine_or_other"]){
+            result_html += "<br>"+data[i]["mine_or_other"]+"<br>";
+        }
+        if(data[i]["cards"] != undefined){
+            tmp_det  = [];
+            for(j=0;j<data[i]["cards"].length;j++){
+                if(Validate(data[i]["cards"][j])){
+                        img_url = data[i]["cards"][j]["img"];
+                        pid.push(data[i]["cards"][j]["place_unique_id"]);
+                        result_html +="<a target=\"_blank\" onclick=\"ask_det2('deck',"+deck_i+","+j+")\"  ><img class=\"img_card\" card_id=\""+img_url+"\"  id=\""+data[i]["cards"][j]["place_unique_id"]+"\"    src=\""+static_url+"/img/"+img_url+"\"></a>";
+
+                auto_count++;
+                    tmp_auto = {};
+                    tmp_auto["place"] = "deck";
+                    tmp_auto["i"] = i;
+                    tmp_auto["j"] = j;
+                    auto_data.push(tmp_auto);
+                }
+                tmp= data[i]["cards"][j];
+                tmp["type"] = "deck";
+                tmp["mine_or_other"] = data[i]["mine_or_other_val"];
+                tmp_det.push(tmp);
+            }
+            deck_i++;
+            tmp2 = {};
+            tmp2["key"] = data[i]["deck_id"];
+            tmp2["val"]= j;
+            tmp2["det"]= tmp_det;
+            decks.push(tmp2);
+        }
+        if(data[i]["grave"] != undefined){
+            tmp_det  = [];
+            for(j=0;j<data[i]["grave"].length;j++){
+                if(Validate(data[i]["grave"][j])){
+                        img_url = data[i]["grave"][j]["img"];
+                        pid.push(data[i]["grave"][j]["place_unique_id"]);
+                        result_html +="<a target=\"_blank\" onclick=\"ask_det2('grave',"+grave_i+","+j+")\"  ><img class=\"img_card\" card_id=\""+img_url+"\"  id=\""+data[i]["grave"][j]["place_unique_id"]+"\"    src=\""+static_url+"/img/"+img_url+"\"></a>";
+                auto_count++;
+                    tmp_auto = {};
+                    tmp_auto["place"] = "grave";
+                    tmp_auto["i"] = i;
+                    tmp_auto["j"] = j;
+                    auto_data.push(tmp_auto);
+                }
+                tmp = data[i]["grave"][j];
+                tmp["type"] = "grave";
+                tmp["mine_or_other"] = data[i]["mine_or_other_val"];
+                tmp_det.push(tmp);
+            }
+            grave_i++;
+            tmp2 = {};
+            tmp2["key"] = data[i]["grave_id"];
+            tmp2["val"]= j;
+            tmp2["det"]= tmp_det;
+            graves.push(tmp2);
+        }
+        if(data[i]["hand"] != undefined){
+            //makeHandsGray();
+            tmp_det  = [];
+            for(j=0;j<data[i]["hand"].length;j++){
+                if(Validate(data[i]["hand"][j])){
+                    auto_count++;
+                    tmp_auto = {};
+                    tmp_auto["place"] = "hand";
+                    tmp_auto["i"] = i;
+                    tmp_auto["j"] = j;
+                    auto_data.push(tmp_auto);
+                    if($("#"+data[i]["hand"][j]["place_unique_id"]).length>0){
+                        img_url = data[i]["hand"][j]["img"];
+                        pid.push("hand"+data[i]["hand"][j]["place_unique_id"]);
+                        result_html +="<a target=\"_blank\" onclick=\"ask_det2('hand',"+hand_i+","+j+")\"  ><img class=\"img_card\" card_id=\""+img_url+"\"  id=\"hand"+data[i]["hand"][j]["place_unique_id"]+"\"    src=\""+static_url+"/img/"+img_url+"\"></a>";
+                        //result_html_hand += "<br><input type=\"button\" onclick=\"ask_det2('hand',"+i+","+j+")\" value=\""+data[i]["hand"][j]["monster_name"]+"\">";;
+                        //$("#"+data[i]["hand"][j]["place_unique_id"]).html(result_html_hand);
+                    }else{
+                        result_html += "<input type=\"button\" onclick=\"ask_det2('hand',"+i+","+j+")\" value=\""+data[i]["hand"][j]["monster_name"]+"\">";
+                    }
+                }
+                tmp = data[i]["hand"][j];
+                tmp["type"] = "hand";
+                tmp["mine_or_other"] = data[i]["mine_or_other_val"];
+                tmp_det.push(tmp);
+            }
+            tmp2 = {};
+            tmp2["key"] = data[i]["hand_id"];
+            tmp2["val"]= j;
+            tmp2["det"]= tmp_det;
+            hands.push(tmp2);
+            hand_i++;
+        }
+    }
+    global_ask_decks = decks;
+    global_ask_graves = graves;
+    global_ask_hands = hands;
+    global_auto_data = auto_data;
+    if(auto_flag == true && auto_count == max_equation_number){
+        autoSend(auto_data);
+        return;
+    }
+    result_html += "<br><input type=\"button\" value=\"選択完了\" onclick=\"sendAnswer()\"><input type=\"button\" style=\"width:100px\" value=\"{{Config.cancel_name}}\" onclick=\"javascript:Cancel()\">";
+    if(from_left != undefined && from_left == true){
+        result_html += "<input style=\"margin-left:20px\" type=\"button\" value=\"左から選択\" onclick=\"sendFromLeft()\">";
+    }
+    $("#choosing_area").html(result_html);
+  	showChoosingArea();
+        for(i =0;i<pid.length;i++){
+                $("#"+pid[i]).hover(
+                    function(){
+                    $("#card_img").html("<img class=\"explain_card\" src=\""+static_url+"/img/"+$(this).attr("card_id")+"\">");
+                },
+                    function(){
+                    //$("#card_img").html("");
+                }
+                );
+        }
+}
+function ForceEffect(data){
+    var i;
+    var result_html = "";
+    for(i=0;i<data.length;i++){
+        if(data[i]["able"] == 1){
+            result_html += "<input type=\"button\" onclick=\"SendForceEffect('"+data[i]["det"]["place_unique_id"]+"')\" value=\""+data[i]["det"]["monster_name"]+"\">";
+        }else{
+            result_html += "("+data[i]["det"]["monster_name"]+")";
+        }
+    }
+    showChoosingArea();
+    $("#choosing_area").html(result_html);
+}
+function SendForceEffect(id){
+    $("#choosing_area").hide();
+    if(id == undefined){
+        id = global_data;
+    }
+    global_data = id;
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:force_trigger'  %}",
+   data: "room_number={{room_number}}&place_unique_id="+id,
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(SendForceEffect,1000);
+        return;
+    }
+    Success(data);
+   },
+   error:function(){
+        //alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+        WaitAi();
+ {% endif %}
+}
+function InvokeChoice(id){
+    if(id == undefined){
+        id = global_data;
+    }
+    global_data = id;
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:choices'  %}",
+   data: "room_number={{room_number}}&trigger_id="+id,
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(InvokeChoice,1000);
+        return;
+    }
+    InvokeChoiceDet(data);
+   },
+   error:function(){
+        //alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+    WaitAi();
+ {% endif %}
+}
+function InvokeChoiceDet(data){
+	/*
+    if(data == undefined){
+        data = global_data;
+
+    }
+    global_data = data;
+		*/
+    Success(data);
+	/*
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:battle_det'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(InvokeChoiceDet,1000);
+        return;
+    }else{
+        Success(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+});
+	*/
+}
+function sendFieldTrigger(x,y,place_unique_id,trigger_id,mine_or_other){
+    if(x==undefined || y == undefined || place_unique_id == undefined || trigger_id == undefined || mine_or_other == undefined || mine_or_other == undefined){
+        x = global_data["x"];
+        y = global_data["y"];
+        place_unique_id = global_data["place_unique_id"];
+        trigger_id = global_data["trigger_id"];
+        mine_or_other = global_data["mine_or_other"];
+    }
+    global_data = {};
+    global_data["x"] = x;
+    global_data["y"] = y;
+    global_data["place_unique_id"] = place_unique_id;
+    global_data["trigger_id"] = trigger_id;
+    global_data["mine_or_other"] = mine_or_other;
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:field_trigger'  %}",
+   data: "room_number={{room_number}}&trigger_id="+trigger_id+"&x="+x+"&y="+y+"&place_unique_id="+place_unique_id+"&mine_or_other="+mine_or_other,
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(sendFieldTrigger,1000);
+        return;
+    }
+    sendFieldTriggerDet(data);
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+    WaitAi();
+ {% endif %}
+}
+function sendGraveTrigger(grave_id,place_unique_id,trigger_id,mine_or_other){
+    if(grave_id == undefined){
+        grave_id= global_data["grave_id"];
+        place_unique_id= global_data["place_unique_id"];
+        mine_or_other =  global_data["mine_or_other"];
+        trigger_id == global_data["trigger_id"];
+    }
+    global_data = {};
+    global_data["grave_id"] = grave_id;
+    global_data["place_unique_id"] = place_unique_id;
+    global_data["mine_or_other"] = mine_or_other;
+    global_data["trigger_id"] = trigger_id;
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:grave_trigger'  %}",
+   data: "room_number={{room_number}}&trigger_id="+trigger_id+"&grave_id="+grave_id+"&place_unique_id="+place_unique_id+"&mine_or_other="+mine_or_other,
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(sendGraveTrigger,1000);
+        return;
+    }else{
+    sendHandTriggerDet(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+    WaitAi();
+ {% endif %}
+}
+function sendDeckTrigger(deck_id,place_unique_id,trigger_id,mine_or_other){
+    if(deck_id == undefined){
+        deck_id= global_data["deck_id"];
+        place_unique_id= global_data["place_unique_id"];
+        mine_or_other =  global_data["mine_or_other"];
+        trigger_id == global_data["trigger_id"];
+    }
+    global_data = {};
+    global_data["deck_id"] = deck_id;
+    global_data["place_unique_id"] = place_unique_id;
+    global_data["mine_or_other"] = mine_or_other;
+    global_data["trigger_id"] = trigger_id;
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:deck_trigger'  %}",
+   data: "room_number={{room_number}}&trigger_id="+trigger_id+"&deck_id="+deck_id+"&place_unique_id="+place_unique_id+"&mine_or_other="+mine_or_other,
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(sendDeckTrigger,1000);
+        return;
+    }else{
+    sendHandTriggerDet(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+    WaitAi();
+ {% endif %}
+}
+function sendHandTrigger(hand_id,place_unique_id,trigger_id,mine_or_other){
+    if(hand_id == undefined){
+        hand_id= global_data["hand_id"];
+        trigger_id= global_data["trigger_id"];
+        place_unique_id= global_data["place_unique_id"];
+        mine_or_other =  global_data["mine_or_other"];
+    }
+    global_data = {};
+    global_data["hand_id"] = hand_id;
+    global_data["trigger_id"] = trigger_id;
+    global_data["place_unique_id"] = place_unique_id;
+    global_data["mine_or_other"] = mine_or_other;
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:hand_trigger'  %}",
+   data: "room_number={{room_number}}&trigger_id="+trigger_id+"&hand_id="+hand_id+"&place_unique_id="+place_unique_id+"&mine_or_other="+mine_or_other,
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(sendHandTrigger,1000);
+        return;
+    }else{
+        sendHandTriggerDet(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+    WaitAi();
+ {% endif %}
+}
+function sendMultipleAnswer(answer){
+    $("#choosing_area").hide();
+    if(answer == undefined){
+        answer = global_data;
+    }
+    global_data = answer;
+    answer = JSON.stringify(answer);
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:multiple_answer'  %}",
+   data: "room_number={{room_number}}&answer="+answer,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        ask();
+        return;
+    }
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(sendMultipleAnswer,1000);
+        return;
+    }else{
+        Success(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+    WaitAi();
+ {% endif %}
+}
+var fusion_global_obj = {};
+function sendFusionField(x,y){
+	if(x == undefined){
+		x = fusion_global_obj["x"];
+		y = fusion_global_obj["y"];
+	}else{
+		fusion_global_obj["x"] =  x;
+		fusion_global_obj["y"] =  y;
+	}
+
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:send_fusion_monster_field'  %}",
+   data: "room_number={{room_number}}&x="+x+"&y="+y,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        alert("正しい対象を選択してください。");
+        ask();
+        return;
+    }
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(sendFusionMonster,1000);
+        return;
+    }else{
+        Success(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+    WaitAi();
+ {% endif %}
+}
+
+function sendAnswerOrder(){
+    $("#choosing_area").hide();
+    var result = "";
+    for(var i=0;i<global_order.length;i++){
+        result += String(i) + "_";
+    }
+    result = result.substr(0,result.length-1);
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:answerorder'  %}",
+   data: "room_number={{room_number}}&order="+result,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        alert("正しい対象を選択してください。");
+        ask();
+        return;
+    }
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(sendAnswerOrder,1000);
+        return;
+    }else{
+        Success(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+    WaitAi();
+ {% endif %}
+}
+function sendAnswerAll(){
+        var i;
+        var return_value = [];
+        var tmp,tmp2;
+        for(i=0;i<global_all_fields.length;i++){
+            tmp2 = global_all_fields[i].split("_");
+        tmp = {};
+        tmp["x"] = tmp2[0];
+        tmp["y"] = tmp2[1];
+        tmp["place"] = "field";
+        return_value.push(tmp);
+
+        }
+    if(return_value.length <min_equation_number || return_value.length >max_equation_number){
+        alert("選択できるのは"+min_equation_number+"以上"+max_equation_number+"以下です");
+
+        return;
+    }
+    var answer = JSON.stringify(return_value);
+    Success2();
+    $('#choosing_area').hide();
+
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:answer'  %}",
+   data: "room_number={{room_number}}&answer="+answer,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        alert("正しい対象を選択してください。");
+        ask();
+        return;
+    }
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(sendAnswerAll,1000);
+        return;
+    }else{
+        Success(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+    WaitAi();
+ {% endif %}
+}
+function sendFromLeft(){
+    var decks = global_ask_decks;
+    var graves = global_ask_graves;
+    var hands = global_ask_hands;
+    var answer;
+    var i,j,k;
+    var tmp;
+    Success2();
+    var return_value = [];
+    var data = global_auto_data;
+    for(k=0;k<Math.min(max_equation_number,data.length);k++){
+        if(data[k]["place"] == "deck"){
+            i = data[k]["i"];
+            j = data[k]["j"];
+            tmp = decks[i]["det"][j];
+            tmp["deck_id"] = decks[i]["key"];
+            tmp["place"] = "deck";;
+            return_value.push(tmp);
+        }
+        if(data[k]["place"] == "grave"){
+            i = data[k]["i"];
+            j = data[k]["j"];
+            tmp = graves[i]["det"][j];
+            tmp["grave_id"] = graves[i]["key"];
+            tmp["place"] = "grave";;
+            return_value.push(tmp);
+        }
+        if(data[k]["place"] == "hand"){
+            i = data[k]["i"];
+            j = data[k]["j"];
+            tmp = hands[i]["det"][j];
+            tmp["hand_id"] = hands[i]["key"];
+            tmp["place"] = "hand";;
+            return_value.push(tmp);
+        }
+    }
+    answer = JSON.stringify(return_value);
+    $('#choosing_area').hide();
+
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:answer'  %}",
+   data: "room_number={{room_number}}&answer="+answer,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        alert("正しい対象を選択してください。");
+        ask();
+        return;
+    }
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(sendFromLeft,1000);
+        return;
+    }else{
+        Success(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+    WaitAi();
+ {% endif %}
+}
+function autoSend(data){
+    var tmp;
+    var answer;
+    if(data == undefined){
+        data = stored_data2;
+    }
+    stored_data2 = data;
+    var decks = global_ask_decks;
+    var graves = global_ask_graves;
+    var hands = global_ask_hands;
+    var i,j,k;
+    Success2();
+    var return_value = [];
+    for(k=0;k<data.length;k++){
+        if(data[k]["place"] == "deck"){
+            i = data[k]["i"];
+            j = data[k]["j"];
+            tmp = decks[i]["det"][j];
+            tmp["deck_id"] = decks[i]["key"];
+            tmp["place"] = "deck";;
+            return_value.push(tmp);
+        }
+        if(data[k]["place"] == "grave"){
+            i = data[k]["i"];
+            j = data[k]["j"];
+            tmp = graves[i]["det"][j];
+            tmp["grave_id"] = graves[i]["key"];
+            tmp["place"] = "grave";;
+            return_value.push(tmp);
+        }
+        if(data[k]["place"] == "hand"){
+            i = data[k]["i"];
+            j = data[k]["j"];
+            tmp = hands[i]["det"][j];
+            tmp["hand_id"] = hands[i]["key"];
+            tmp["place"] = "hand";;
+            return_value.push(tmp);
+        }
+    }
+    answer = JSON.stringify(return_value);
+
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:answer'  %}",
+   data: "room_number={{room_number}}&answer="+answer,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        alert("正しい対象を選択してください。");
+        ask();
+        return;
+    }
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(autoSend,1000);
+        return;
+    }else{
+        Success(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+    WaitAi();
+ {% endif %}
+}
+function sendAnswer(){
+    var decks = global_ask_decks;
+    var graves = global_ask_graves;
+    var hands = global_ask_hands;
+    var return_value = [];
+    var tmp,tmp2;
+    var key_all;
+    var i,j;
+    var answer;
+    for(key_all in global_all_result){
+        if(global_all_result[key_all]["type"] == "field"){
+            tmp2 = global_all_result[key_all]["val"].split("_");
+            tmp = {};
+            tmp["x"] = tmp2[0];
+            tmp["y"] = tmp2[1];
+            tmp["place"] = "field";
+            return_value.push(tmp);
+	}else if(global_all_result[key_all]["type"] == "player"){
+         	var		tmp = {}
+            tmp["place"] = "player";
+		tmp["mine_or_other"] = 1;
+            return_value.push(tmp);
+	}else if(global_all_result[key_all]["type"] == "other_player"){
+		var tmp = {};
+            tmp["place"] = "player";
+		tmp["mine_or_other"] = 2;
+            return_value.push(tmp);
+        }else if(global_all_result[key_all]["type"] == "under"){
+            tmp2 = global_all_result[key_all]["val"].split("_");
+            tmp = {};
+            tmp["x"] = tmp2[0];
+            tmp["y"] = tmp2[1];
+            tmp["under_id"] = global_all_result[key_all]["under_id"];
+            tmp["place"] = "under";
+            return_value.push(tmp);
+        }else if(global_all_result[key_all]["type"] == "deck"){
+            for(i=0;i<decks.length;i++){
+                for(j=0;j<decks[i]["val"];j++){
+                    if(global_all_result[key_all]["val"] == i+"_"+j){
+                        tmp = decks[i]["det"][j];
+                        tmp["deck_id"] = decks[i]["key"];
+                        tmp["place"] = "deck";;
+                        return_value.push(tmp);
+                    }
+                }
+            }
+        }else if(global_all_result[key_all]["type"] == "grave"){
+            for(var i=0;i<graves.length;i++){
+                for(j=0;j<graves[i]["val"];j++){
+                    if(global_all_result[key_all]["val"] == i+"_"+j){
+                        tmp = graves[i]["det"][j];
+                        tmp["grave_id"] = graves[i]["key"];
+                        tmp["place"] = "grave";;
+                        return_value.push(tmp);
+                    }
+                }
+            }
+        }else if(global_all_result[key_all]["type"] == "hand"){
+            for(var i=0;i<hands.length;i++){
+                for(j=0;j<hands[i]["val"];j++){
+                    if(global_all_result[key_all]["val"] == i+"_"+j){
+                        tmp = hands[i]["det"][j];
+                        tmp["hand_id"] = hands[i]["key"];
+                        tmp["place"] = "hand";;
+                        return_value.push(tmp);
+                    }
+                }
+            }
+        }
+    }
+    if(return_value.length <min_equation_number || return_value.length >max_equation_number){
+        alert("選択できるのは"+min_equation_number+"以上"+max_equation_number+"以下です");
+
+        return;
+    }
+    answer = JSON.stringify(return_value);
+    Success2();
+    $('#choosing_area').hide();
+
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:answer'  %}",
+   data: "room_number={{room_number}}&answer="+answer,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        alert("正しい対象を選択してください。");
+        ask();
+        return;
+    }
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(sendAnswer,1000);
+        return;
+    }else{
+        Success(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+        WaitAi();
+ {% endif %}
+}
+function sendFieldTriggerDet(data){
+    if(data == undefined){
+        data = global_data;
+    }
+    global_data = data;
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:battle_det'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(sendFieldTriggerDet,1000);
+        return;
+    }else{
+        Success(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+});
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+        WaitAi();
+ {% endif %}
+}
+function sendHandTriggerDet(data){
+	console.log("HAND_TRIGGER");
+    if(data == undefined){
+        data = global_data;
+    }
+    global_data = data;
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:battle_det'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+	console.log(data);
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(sendHandTriggerDet,1000);
+        return;
+    }else{
+        Success(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+});
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+        WaitAi();
+ {% endif %}
+}
+function answerDet(data){
+    if(data == undefined){
+        data = global_data;
+    }
+    global_data = data;
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:battle_det'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(answerDet,1000);
+        return;
+    }else{
+        Success(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+});
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+        WaitAi();
+ {% endif %}
+}
+function ask(){
+    Success2();
+    $("#center_message").html("");
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:ask_place'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    clearTimeout(timer);
+    ask_det(data);
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+}
+function None(){
+    Success2();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:none'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(None,1000);
+        return;
+    }else if( data == "error"){
+	    consoel.log("ZZZ");
+        clearTimeout(timer);
+        timer = setTimeout(Wait,1000);
+        return;
+    }else{
+        data = JSON.parse(data);
+        if(data["sound_effect"] != ""){
+            PlaySoundEffect(data["sound_effect"]);
+        }
+        none(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+        WaitAi();
+ {% endif %}
+}
+function ChooseGuestName(){
+        Init();
+    $("#guest_name_choosing").show();
+    $("#guest_name_choosing").draggable();
+    $("#guest_name_choosing").offset({top:300});
+}
+function SendGuestName(){
+    var guest_name = $("#choose_guest_name").val();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:chooseguestname'  %}",
+   data: "room_number={{room_number}}&guest_name="+guest_name,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        alert("エラーが発生しました");
+        return;
+    }else{
+            $("#guest_name_choosing").hide();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:battle_det'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(Wait,1000);
+        return;
+    }
+        clearTimeout(timer);
+    Success(data);
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+});
+}
+{% if user == 1 %}
+    {% if user_flag == False %}
+function ChooseDeck(){
+        Init();
+        var html = "デッキを選択<br>";
+        var default_deck_html = "";
+        {% if default_deck_groups %}
+            var default_deck_html='自分のデッキ<select id="default_deck">';
+            {% for default_deck in default_deck_groups %}
+                default_deck_html+='<option value="{{default_deck.id}}">{{default_deck.deck_name}}</option>';
+            {% endfor %}
+            default_deck_html+="</select>";
+        {% endif %}
+        default_deck_html+='<input type="button" value="選択完了" onclick="SendChooseDeck()">';
+    $("#own_choosing").html(html+default_deck_html);
+    $("#own_choosing").show();
+    $("#own_choosing").draggable();
+    $("#own_choosing").offset({top:300});
+
+}
+        {% else %}
+function ChooseDeck(){
+        Init();
+        var html = "デッキを選択<br>";
+        var user_deck_html = "";
+        {% if user_deck_groups %}
+            var user_deck_html='自分のデッキ<select id="user_deck">';
+            {% for user_deck in user_deck_groups %}
+                user_deck_html+='<option value="{{user_deck.id}}">{{user_deck.deck_name}}</option>';
+            {% endfor %}
+            user_deck_html+="</select>";
+        {% endif %}
+        user_deck_html+='<input type="button" value="選択完了" onclick="SendUserChooseDeck()">';
+    $("#own_choosing").html(html+user_deck_html);
+    $("#own_choosing").show();
+    $("#own_choosing").draggable();
+    $("#own_choosing").offset({top:300});
+
+}
+        {% endif %}
+function SendUserChooseDeck(){
+    {% if user_deck_groups %}
+        var user_deck = $("#user_deck").val();
+    {%else %}
+        var user_deck = "-1";
+    {% endif %}
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:chooseuserdeck'  %}",
+   data: "room_number={{room_number}}&user_deck="+user_deck,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        alert("エラーが発生しました");
+        return;
+    }else{
+            deck_choosing1 = "False";
+            deck_choosing2 = "False";
+            $("#own_choosing").hide();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:battle_det'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(Wait,1000);
+        return;
+    }
+        clearTimeout(timer);
+    Success(data);
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+});
+}
+function SendChooseDeck(){
+    {% if default_deck_groups %}
+        var default_deck = $("#default_deck").val();
+    {%else %}
+        var default_deck = "-1";
+    {% endif %}
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:choosedeck'  %}",
+   data: "room_number={{room_number}}&default_deck="+default_deck,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        alert("エラーが発生しました");
+        return;
+    }else{
+            deck_choosing1 = "False";
+            deck_choosing2 = "False";
+            $("#own_choosing").hide();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:battle_det'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(Wait,1000);
+        return;
+    }
+        clearTimeout(timer);
+    Success(data);
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+});
+}
+{% elif user == 2 %}
+    {% if user_flag == False %}
+function ChooseDeck(){
+        Init();
+        var html = "デッキを選択<br>";
+        var default_deck_html = "";
+        {% if default_deck_groups %}
+            var default_deck_html='自分のデッキ<select id="default_deck">';
+            {% for default_deck in default_deck_groups %}
+                default_deck_html+='<option value="{{default_deck.id}}">{{default_deck.deck_name}}</option>';
+            {% endfor %}
+            default_deck_html+="</select>";
+        {% endif %}
+        default_deck_html+='<input type="button" value="選択完了" onclick="SendChooseDeck()">';
+    $("#own_choosing").html(html+default_deck_html);
+    $("#own_choosing").show();
+    $("#own_choosing").draggable();
+    $("#own_choosing").offset({top:300});
+
+}
+    {%else %}
+function ChooseDeck(){
+        Init();
+        var html = "デッキを選択<br>";
+        var user_deck_html = "";
+        {% if user_deck_groups %}
+            var user_deck_html='自分のデッキ<select id="user_deck">';
+            {% for user_deck in user_deck_groups %}
+                user_deck_html+='<option value="{{user_deck.id}}">{{user_deck.deck_name}}</option>';
+            {% endfor %}
+            user_deck_html+="</select>";
+        {% endif %}
+        user_deck_html+='<input type="button" value="選択完了" onclick="SendUserChooseDeck()">';
+    $("#own_choosing").html(html+user_deck_html);
+    $("#own_choosing").show();
+    $("#own_choosing").draggable();
+    $("#own_choosing").offset({top:300});
+
+}
+    {%endif%}
+function SendUserChooseDeck(){
+    {% if user_deck_groups %}
+        var user_deck = $("#user_deck").val();
+    {%else %}
+        var user_deck = "-1";
+    {% endif %}
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:chooseuserdeck'  %}",
+   data: "room_number={{room_number}}&user_deck="+user_deck,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        alert("エラーが発生しました");
+        return;
+    }else{
+            deck_choosing1 = "False";
+            deck_choosing2 = "False";
+            $("#own_choosing").hide();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:battle_det'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(Wait,1000);
+        return;
+    }
+        clearTimeout(timer);
+    Success(data);
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+});
+}
+function SendChooseDeck(){
+    {% if default_deck_groups %}
+        var default_deck = $("#default_deck").val();
+    {%else %}
+        var default_deck = "-1";
+    {% endif %}
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:choosedeck'  %}",
+   data: "room_number={{room_number}}&default_deck="+default_deck,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        alert("エラーが発生しました");
+        return;
+    }else{
+         deck_choosing1 = "False";
+         deck_choosing2 = "False";
+         $("#own_choosing").hide();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:battle_det'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(Wait,1000);
+        return;
+    }
+        clearTimeout(timer);
+    Success(data);
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+});
+}
+{% endif %}
+{% if Duel.is_ai == True %}
+function ChooseAi(){
+        Init();
+        var html = "デッキを選択<br>";
+        var default_deck_html = "";
+    var enemy_deck_html='NPCのデッキ<select id="enemy_deck">';
+        {% for enemy_deck in enemy_deck_groups %}
+            enemy_deck_html+='<option value="{{enemy_deck.id}}">{{enemy_deck.deck_name}}</option>';
+        {% endfor %}
+    enemy_deck_html+="</select>";
+    enemy_deck_html+='<input type="button" value="選択完了" onclick="SendChooseAi()">';
+    $("#ai_choosing").html(html+default_deck_html+enemy_deck_html);
+    $("#ai_choosing").show();
+    $("#ai_choosing").draggable();
+    $("#ai_choosing").offset({top:300});
+
+}
+function SendChooseAi(){
+    var default_deck = "-1";
+    var user_deck = "-1";
+    var enemy_deck = $("#enemy_deck").val();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:chooseai'  %}",
+   data: "room_number={{room_number}}&user_deck="+user_deck+"&enemy_deck="+enemy_deck+"&default_deck="+default_deck,
+   timeout: 60000,
+success: function(data){
+    if(data == "error"){
+        alert("エラーが発生しました");
+        return;
+    }else if(data == "init_duel"){
+        alert("対戦相手が入室しました。");
+        location.reload();
+        return;
+    }else if(data == "time"){
+        alert("一定時間操作がありませんでした");
+        history.back('-1');
+        return;
+    }else{
+        ai_choosing = "False";
+        $("#ai_choosing").hide();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:battle_det'  %}",
+   data: "room_number={{room_number}}",
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(Wait,1000);
+        return;
+    }
+        clearTimeout(timer);
+    Success(data);
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+});
+}
+{% endif %}
+{% if cheat == True %}
+function ChooseCheat(data){
+    var cheat_html='<select id="cheat_monster">';
+        {% for monster in monsters %}
+            cheat_html+='<option value="{{monster.id}}">{{monster.monster_name}}</option>';
+            cheat_html+='<option value="{{monster.id}}_bottom">{{monster.monster_name}}_bottom</option>';
+        {% endfor %}
+    cheat_html+="</select>";
+    cheat_html+='<select id="cheat_place">'+data+'</select>';
+    cheat_html+='<input type="button" value="選択完了" onclick="SendCheat()">';
+    $("#message").html(cheat_html);
+}
+function SendCheat(){
+    var tmp = $("#cheat_place").val();
+    tmp = tmp.split("_");
+    var place = tmp[0];
+    var deck_id = tmp[1];
+    var mine_or_other = tmp[2];
+    var monster_id = $("#cheat_monster").val();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:cheat'  %}",
+   data: "room_number={{room_number}}&place="+place+"&deck_id="+deck_id+"&mine_or_other="+mine_or_other+"&monster_id="+monster_id,
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(Wait,1000);
+        return;
+    }else{
+        clearTimeout(timer);
+        Success(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+});
+}
+function Cheat(){
+        clearTimeout(timer);
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:get_place_kind'  %}",
+   data: "mode=1",
+   timeout: 60000,
+success: function(data){
+        ChooseCheat(data);
+   },
+   error:function(){
+        alert("error");
+    }
+});
+}
+function Cheat2(user_turn){
+        clearTimeout(timer);
+	if( user_turn == undefined){
+		user_turn = tmp_turn;
+	}
+	tmp_turn = user_turn;
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:cheat2'  %}",
+   data: "room_number={{room_number}}&user_turn="+String(user_turn),
+   timeout: 60000,
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(Cheat2,1000);
+        return;
+    }
+        Success(data);
+   },
+   error:function(){
+        alert("error");
+    }
+});
+}
+{% endif %}
+function Cancel(){
+    Success2();
+    $("#choosing_area").hide();
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:cancel'  %}",
+   timeout: 60000,
+   data: "room_number={{room_number}}",
+success: function(data){
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(Cancel,1000);
+        return;
+    }else{
+        cancel(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+});
+
+}
+    function PlayAskMusic(){
+            sound_effect.pause();
+            sound_effect.volume = {{Config.audio_volume}};
+            sound_effect.src = static_url+"/audio/{{Config.ask_audio}}";
+            sound_effect.play();
+    }
+    function PlayMessageMusic(){
+            sound_effect.pause();
+            sound_effect.volume = {{Config.audio_volume}};
+            sound_effect.src = static_url+"/audio/{{Config.chat_audio}}";
+            sound_effect.play();
+    }
+    function PlaySoundEffect(audio_name){
+        var audio_names = audio_name.split(",");
+        var i;
+        var flag = false;
+        sound_effect2.pause();
+        sound_effect2.repeat = true;
+        sound_effect2.volume = {{Config.audio_volume}};
+        for(i=0;i<audio_names.length;i++){
+            var audio_name2 = audio_names[i].split("_");
+            if($.inArray(audio_name2[1],sound_effect_ary)== -1 ){
+                sound_effect2.src = static_url+"/audio/"+ audio_name2[0];
+                sound_effect_ary.push(audio_name2[1]);
+                flag = true;
+                break;
+            }
+        }
+        if(flag == false){
+             sound_effect2.repeat = false;
+             return;
+        }
+        sound_effect2.play();
+        sound_effect2.addEventListener('ended',function(){
+
+            if (!!this.repeat){
+                flag = false;
+                for(;i<audio_names.length;i++){
+                    var audio_name2 = audio_names[i].split("-");
+                    if($.inArray(audio_name2[1],sound_effect_ary) == -1 ){
+                        sound_effect2.src = static_url+"/audio/"+ audio_name2[0];
+                        sound_effect_ary.push(audio_name2[1]);
+                        flag = true;
+                        break;
+                    }
+                }
+                if(flag == false){
+                     this.repeat = false;
+                }
+            }
+        })
+    }
+    function PlayWinMusic(){
+            music.pause();
+            sound_effect.pause();
+            sound_effect.volume = {{Config.audio_volume}};
+            sound_effect.src = static_url+"/audio/{{Config.win_audio}}";
+            sound_effect.play();
+    }
+    function PlayLoseMusic(){
+            music.pause();
+            sound_effect.volume = {{Config.audio_volume}};
+            sound_effect.pause();
+            sound_effect.src = static_url+"/audio/{{Config.lose_audio}}";
+            sound_effect.play();
+    }
+    function PlayMusic(audio_name){
+        if(music_flag == false){
+            return;
+        }
+        if(audio_name != music_name){
+            music.pause();
+            music.volume =  {{Config.audio_volume}};
+            music.src = static_url+"/audio/"+audio_name;
+            music_name = audio_name;
+            music.play();
+            music.repeat = true;
+            music.addEventListener('ended',function(){
+    if (!!this.repeat){
+        this.play();
+    }
+});
+        }
+    }
+    function Init(){
+    $("#choices").html("");
+    $("#center_message").html("");
+    $("#message").html("");
+    $("#hands").html("");
+    $("#choosing_area").hide();
+    var x,y,data;
+    if(stored_data == null){
+        return;
+
+    }else{
+        data = stored_data;
+    var fields = data["field_info"];
+        for(x = 0;x<fields.length;x++){
+            for(y = 0;y<fields[x].length;y++){
+                 $("#"+x+"_"+y).html("&nbsp;");
+            }
+
+        }
+    }
+}
+    // 表示するために二つ目の関数を作る
+    function Success2(){
+
+	$("#player").html("");
+	$("#player2").html("");
         $("#control").show();
         if(stored_data == null){
             return;
         }
         var data = stored_data;
-    MakeHands(data,1);
-    MakeFields(data,data["koka"],1);
+    makeHands(data,1);
+    makeFields(data,data["koka"],1);
     $("#choices").html("");
     $("#center_message").html("処理中ですしばらくお待ちください");
     $("#message").html("");
 
 }
     function Success3(data_org){
+	console.log("Success3");
+
         if(data_org == "init_duel"){
             alert("対戦相手が入室しました。");
             location.reload();
@@ -2741,10 +4785,41 @@ success: function(data){
         $("#center_message").html("");
             global_all_fields = [];
     data = JSON.parse(data_org);
+	console.log(data);
     if(data["waiting_ai"] == undefined){
-        Success(data_org);
+        Success(data);
 
     }
+
+   if(data["effect_move"] != undefined){
+	for(var i = 0;i<data["effect_move"].length;i++){
+		var x = data["effect_move"][i]["x"];
+		var y = data["effect_move"][i]["y"];
+	      if(data["effect_move"][i]["move"] == "from"){
+                 $("#"+x+"_"+y).html("&nbsp;");
+	      }else{
+             		if(show_img == false){
+					      $("#"+x+"_"+y).html("<div style='background-color:bloack'></div>");
+				}else{
+        				var fields = data["field_info"];
+					var img_url = effect_kind[3]
+                			if(fields[x][y]["color"] != ""){
+			                    color = fields[x][y]["color"];
+			                }else if(fields[x][y]["mine_or_other"] == user){
+                    				color = mine_color;
+			                }else {
+                    				color = other_color;
+ 			                }
+									result="<table><tr><td style=\"color:black;background-color:white\" ><a target=\"_blank\" card_id=\""+img_url+"\"> <img  class=\"img_card\" style=\"opacity:0.4;\" src=\""+static_url+"/img/"+img_url+"\"></a><br></td></tr>";
+					      $("#"+x+"_"+y).html("<div style='background-color:bloack'></div>");
+														}
+			}
+		}
+	}
+   if(data["effect"] && data["effect_flag"] != 0){
+    	showEffect(data,1);
+	return;						
+}
     stored_data = data;
     koka = data["koka"];
 						       /*
@@ -2759,20 +4834,24 @@ success: function(data){
         return;
     }
 						       */
-    //MakeLeftColumn(data);
-    MakeOpponentHands(data);
-    MakeRightColumn(data);
-    MakeChoices(data);
-    MakeNone(data);
+    //makeLeftColumn(data);
+    makeOpponentHands(data);
+    makeRightColumn(data);
+    makeChoices(data);
+    makeNone(data);
     $("#message").html("");
-    MakeHands(data,0);
-    MakeFields(data,koka,0);
+    makeHands(data,0);
+    makeFields(data,koka,0);
     WriteLog(data);
    if(data["sound_effect"]){
         PlaySoundEffect(data["sound_effect"]);
     }
 }
     function Success(data){
+	console.log(data);
+
+	$("#player").html("");
+	$("#other_player").html("");
         if(data == "init_duel"){
             alert("対戦相手が入室しました。");
             location.reload();
@@ -2808,10 +4887,15 @@ success: function(data){
         $("#center_message").html("");
             global_all_fields = [];
     data = JSON.parse(data);
-    MakeOpponentHands(data);
-    MakeRightColumn(data);
-    var choice_flag = MakeChoices(data);
-    MakeNone(data);
+							if(data["effect"] && data["effect_flag"] != 0){
+    	showEffect(data,0);
+	return;						}
+           $(".swing").removeClass("swing")
+	    $(".animation_number").remove();
+    makeOpponentHands(data);
+    makeRightColumn(data);
+    var choice_flag = makeChoices(data);
+    makeNone(data);
     if(data["winner"] == true){
         if(data["winner_who"] == data["user"]){
             PlayWinMusic();
@@ -2840,8 +4924,8 @@ success: function(data){
         }
         PlayMusic(data["audio"]);
         $("#message").html("");
-        MakeHands(data,1);
-        MakeFields(data,koka,0);
+        makeHands(data,1);
+        makeFields(data,koka,0);
         WriteLog(data);
         ask();
         return;
@@ -2853,8 +4937,8 @@ success: function(data){
         }
         PlayMusic(data["audio"]);
         $("#message").html("");
-        MakeHands(data,1);
-        MakeFields(data,koka,0);
+        makeHands(data,1);
+        makeFields(data,koka,0);
         WriteLog(data);
         clearTimeout(timer);
         timer = setTimeout(Wait,5000);
@@ -2882,12 +4966,12 @@ success: function(data){
     }
     PlayMusic(data["audio"]);
     $("#message").html("");
-    MakeHands(data,0);
-    MakeFields(data,koka,0);
+    makeHands(data,0);
+    makeFields(data,koka,0);
     WriteLog(data);
    if(!choice_flag){
 	 Wait();
-	}	
+	}
 }
     function WriteLog(data){
         var log = data["log"].replace(/\n/g,"<br>");
@@ -2901,7 +4985,7 @@ success: function(data){
         $("#center_logs").html(data["current_log"].replace(/\n/g,"<br>"));
 
     }
-    function MakeNone(data){
+    function makeNone(data){
         if(data["pri"] == false){
            return;
         }
@@ -2909,7 +4993,7 @@ success: function(data){
         html += '<input type="button" value="優先権を放棄" onclick ="None()">';
         $("#choices").html(html);
     }
-    function MakeChoices(data){
+    function makeChoices(data){
         var i;
         var html="";
         if(data["choices"] == "monster_trigger"){
@@ -2925,10 +5009,10 @@ success: function(data){
 
         }
         $("#choices").html(html);
-										   
+
 	return true;
     }
-    function ShowFieldMultiple(place_unique_id){
+    function showFieldMultiple(place_unique_id){
         var fields = global_field_fields;
         var x,y;
         var arrow_html = "";
@@ -2994,7 +5078,7 @@ success: function(data){
                 );
         }
     }
-    function MakeFieldsChoose2(result_x,result_y){
+    function makeFieldsChoose2(result_x,result_y){
         var fields = global_field_fields;
         var gray_flag = false;
         var arrow_html = "";
@@ -3038,9 +5122,13 @@ success: function(data){
                 }
                 if(fields[x][y]["det"] == null){
                     if(global_field_whether_monster == 0 ){
+			tmp = x+"_"+y;
+                        if($.inArray(tmp,ask_whether_0) == -1){
+				continue;
+			}
                         if($.inArray(x+"_"+y,global_ask_fields) != -1){
                             if(user == 1){
-                                $("#"+x+"_"+y).html("");
+                                $("#"+x+"_"+y).html("&nbsp;");
                             }else{
                                 $("#"+x+"_"+(fields[x].length-y-1)).html("");
                             }
@@ -3048,7 +5136,7 @@ success: function(data){
                             continue;
 
                         }
-                        result="<input type=\"button\" style=\"height:30px;background-color:"+color+"\" value=\""+global_field_sentence+"\" onclick=\"MakeFieldsChoose2("+x+","+y+")\")>";
+                        result="<input type=\"button\" style=\"height:30px;background-color:"+color+"\" value=\""+global_field_sentence+"\" onclick=\"makeFieldsChoose2("+x+","+y+")\")>";
 
                         if(user == 1){
                             $("#"+x+"_"+y).html(result);
@@ -3057,7 +5145,7 @@ success: function(data){
                         }
                     }else{
                         if(user == 1){
-                            $("#"+x+"_"+y).html("");
+                            $("#"+x+"_"+y).html("&nbsp;");
                         }else{
                             $("#"+x+"_"+({{field_y}}-y-1)).html("");
                         }
@@ -3116,9 +5204,9 @@ success: function(data){
                             }
                        {% endif %}
                         if(gray_flag == true){
-                            result="<table><tr><td style=\"background-color:"+color+"\"><a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" onclick=\"MakeFieldsChoose2("+x+","+y+")\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\"  {% if Config.card_href %} href=\"{% url "tcgcreator:explain" %}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\"  style=\"opacity:0.4:background:gray;"+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+add_val_html+add_name_html+"</td></tr>";
+                            result="<table><tr><td style=\"background-color:"+color+"\"><a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" onclick=\"makeFieldsChoose2("+x+","+y+")\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\"  {% if Config.card_href %} href=\"{% url "tcgcreator:explain" %}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\"  style=\"opacity:0.4:background:gray;"+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+add_val_html+add_name_html+"</td></tr>";
                         }else{
-                            result="<table><tr><td style=\"background-color:"+color+"\">"+arrow_html_before+"<a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" onclick=\"MakeFieldsChoose2("+x+","+y+")\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\"  {% if Config.card_href %}  href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\"  style=\""+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+add_val_html+add_name_html+"</td></tr>";
+                            result="<table><tr><td style=\"background-color:"+color+"\">"+arrow_html_before+"<a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" onclick=\"makeFieldsChoose2("+x+","+y+")\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\"  {% if Config.card_href %}  href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\"  style=\""+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+add_val_html+add_name_html+"</td></tr>";
                         }
                     }
                     if(under_flag == false){
@@ -3128,7 +5216,7 @@ success: function(data){
                                 tmp = {};
                                 tmp["x"] = x;
                                 tmp["y"] = y;
-                                    result+="<tr><td style=\"height:30px;background-color:"+color+"\"><input type=\"button\" value=\""+global_field_sentence+"\" onclick=\"MakeFieldsChoose2("+x+","+y+")\"></td></tr>";
+                                    result+="<tr><td style=\"height:30px;background-color:"+color+"\"><input type=\"button\" value=\""+global_field_sentence+"\" onclick=\"makeFieldsChoose2("+x+","+y+")\"></td></tr>";
                             }
                         }
                     }else{
@@ -3169,7 +5257,64 @@ success: function(data){
                 );
         }
     }
-    function MakeFieldsChoose(data,field_ids,under_ids){
+  function showFusionFieldMaterial(monster,j,i){
+	var x = monster["x"];
+	var y = monster["y"];
+        var fields = global_field_info;
+	var color;
+            if(fields[x][y]["color"] != ""){
+                color = fields[x][y]["color"];
+            }else if(fields[x][y]["mine_or_other"] == user){
+                color = mine_color;
+            }else {
+                color = other_color;
+            }
+            if(checkVal(fields[x][y]["det"],gray_out) >= 1){
+                  var gray_css = "opacity:0.4;background:gray;";
+            }else{
+                  var gray_css = "";
+            }
+            if(checkVal(fields[x][y]["det"],"rotate")>=1){
+                var rotate_css = "transform: rotate(90deg)";
+            }else{
+                var rotate_css = ""
+            }
+            var img_url = fields[x][y]["det"]["img"];
+            var result="<table class=\"field\"><tr><td style=\"background-color:"+color+"\"  colspan=\"2\"><img class=\"img_card\"  style=\""+gray_css+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\">"+fields[x][y]["det"]["monster_name"]+"</td></tr>";
+            for(i=0;i<fields[x][y]["det"]["variables"].length;i++){
+                result += "<tr><td style=\"background-color:"+color+"\" >"+fields[x][y]["det"]["variables"][i]["name"]+"</td><td>"+fields[x][y]["det"]["variables"][i]["str"]+"</td></tr>";
+            }
+            result+="<tr><td style=\"height:30px;background-color:"+color+"\" ><input type=\"button\" value=\"選択\" onclick=\"choosedFusionMaterial('field',0,'"+fields[x][y]["det"]["place_unique_id"]+"',"+fields[x][y]["mine_or_other"]+","+j+","+i+","+x+","+y+")\"></td></tr>";
+            if(user == 1){
+                $("#"+x+"_"+y).html(result);
+            }else{
+                $("#"+x+"_"+({{field_y}}-y-1)).html(result);
+            }
+  }
+  function showFusionField(monster){
+	var x = monster["x"];
+	var y = monster["y"];
+        var fields = global_field_info;
+	var color;
+            if(fields[x][y]["color"] != ""){
+                color = fields[x][y]["color"];
+            }else if(fields[x][y]["mine_or_other"] == user){
+                color = mine_color;
+            }else {
+                color = other_color;
+            }
+            var result="<table class=\"field\"><tr><td style=\"background-color:"+color+"\"  colspan=\"2\">"+fields[x][y]["det"]["monster_name"]+"</td></tr>";
+            for(i=0;i<fields[x][y]["det"]["variables"].length;i++){
+                result += "<tr><td style=\"background-color:"+color+"\" >"+fields[x][y]["det"]["variables"][i]["name"]+"</td><td>"+fields[x][y]["det"]["variables"][i]["str"]+"</td></tr>";
+            }
+            result+="<tr><td style=\"height:30px;background-color:"+color+"\" ><input type=\"button\" value=\"選択\" onclick=\"sendFusionField(\"field,"+x+","+y+")\"></td></tr>";
+            if(user == 1){
+                $("#"+x+"_"+y).html(result);
+            }else{
+                $("#"+x+"_"+({{field_y}}-y-1)).html(result);
+            }
+  }
+    function makeFieldsChoose(data,field_ids,under_ids){
         var tmp;
         var global_field_ids = field_ids;
         var global_under_ids = under_ids;
@@ -3178,6 +5323,7 @@ success: function(data){
         var sentence;
         var result_tmp;
         var tmp_flag = false;
+	    var return_flag = false;
         var pid = [];
         if(data["auto_select"] != undefined){
             auto_select = data["auto_select"].split("_");
@@ -3216,18 +5362,21 @@ success: function(data){
                 if($.inArray(x+"_"+y,global_ask_fields2)!= -1 || $.inArray(x+"_"+y,global_ask_fields)!= -1){
                 }else{
                     if(global_field_whether_monster == 0 ){
+			tmp = x+"_"+y;
+                        if($.inArray(tmp,ask_whether_0) == -1){
+				continue;
+			}
                         result="<input type=\"button\" style=\"background-color:"+color+";height:30px\" value=\""+global_field_sentence+"\" onclick=\"ask_det2('field',"+x+","+y+")\")>";
                         tmp = x+"_"+y;
                         global_ask_fields2.push(tmp);
-
                         if(user == 1){
                             $("#"+x+"_"+y).html(result);
                         }else{
-                            $("#"+x+"_"+({{field_y}}-y-1)).html(result);
+                            $("#"+x+"_"+({{field_y}}-y-1)).html(result );
                         }
                     }else{
                         if(user == 1){
-                            $("#"+x+"_"+y).html("");
+                            $("#"+x+"_"+y).html("&nbsp;");
                         }else{
                             $("#"+x+"_"+({{field_y}}-y-1)).html("");
                         }
@@ -3285,9 +5434,9 @@ success: function(data){
                             }
                        {% endif %}
                         if(gray_flag == true){
-                            result_tmp="<table><tr><td style=\"background-color:"+color+"\" >"+arrow_html_before+"<a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\" onclick=\"MakeFieldsChoose2("+x+","+y+")\"  {% if Config.card_href %} href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\"  style=\"opacity:0.4;background:gray;"+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+add_val_html+add_name_html+"</td></tr>";
+                            result_tmp="<table><tr><td style=\"background-color:"+color+"\" >"+arrow_html_before+"<a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\" onclick=\"makeFieldsChoose2("+x+","+y+")\"  {% if Config.card_href %} href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\"  style=\"opacity:0.4;background:gray;"+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+add_val_html+add_name_html+"</td></tr>";
                         }else{
-                            result_tmp="<table><tr><td style=\"background-color:"+color+"\" >"+arrow_html_before+"<a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\" onclick=\"MakeFieldsChoose2("+x+","+y+")\" {% if Config.card_href %} href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\" style=\""+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+add_val_html+add_name_html+"</td></tr>";
+                            result_tmp="<table><tr><td style=\"background-color:"+color+"\" >"+arrow_html_before+"<a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\" onclick=\"makeFieldsChoose2("+x+","+y+")\" {% if Config.card_href %} href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\" style=\""+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+add_val_html+add_name_html+"</td></tr>";
                         }
                     }
 
@@ -3296,6 +5445,7 @@ success: function(data){
                             tmp = x+"_"+y;
                             global_all_fields.push(tmp);
                             global_ask_fields2.push(tmp);
+			    return_flag = true;
                             if(under_flag == false){
                                 result="<table><tr><td style=\"background-color:"+color+"\" >"+arrow_html_before+"<a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" onclick=\"ask_det2('field',"+x+","+y+")\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\"   {% if Config.card_href %} href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\"  style=\""+rotate_css+"\" src=\""+static_url+"/img/"+fields[x][y]["det"]["img"]+"\"></a>"+sentence+arrow_html+add_val_html+"</td></tr>";
                                 result+="<tr><td style=\"height:30px;background-color:"+color+"\" ><input type=\"button\" value=\""+global_field_sentence+"\" onclick=\"ask_det2('field',"+x+","+y+")\"></td></tr>";
@@ -3337,8 +5487,9 @@ success: function(data){
                 }
                 );
         }
+	return return_flag;
 }
-function MakeFields(data,koka,success2){
+function makeFields(data,koka,success2){
         var arrow_html = "";
         var arrow_html_before = "";
         var fields = data["field_info"];
@@ -3354,7 +5505,6 @@ function MakeFields(data,koka,success2){
         var result;
         var gray_flag;
         var pid = [];
-	console.log(fields);				      
         for(x = 0;x<fields.length;x++){
             for(y = 0;y<fields[x].length;y++){
                 if(fields[x][y]["color"] != ""){
@@ -3378,9 +5528,9 @@ function MakeFields(data,koka,success2){
                     }
                     }else{
                     if(user == 1){
-                        $("#"+x+"_"+y).html("");
+                        $("#"+x+"_"+y).html("&nbsp;");
                     }else{
-                        $("#"+x+"_"+({{ field_y}}-y-1)).html("");
+                        $("#"+x+"_"+({{ field_y}}-y-1)).html("&nbsp;");
                     }
                     }
                 }else{
@@ -3491,7 +5641,7 @@ function MakeFields(data,koka,success2){
                 );
         }
     }
-    function MakeHandsGray(){
+    function makeHandsGray(){
         var data = stored_data;
         var hands = data["hand_info"];
         var i,j,k;
@@ -3536,7 +5686,7 @@ function MakeFields(data,koka,success2){
                 );
         }
     }
-    function MakeHands(data,mode){
+    function makeHands(data,mode){
         var hands = data["hand_info"];
         var i,j,k;
         var img_url;
@@ -3571,7 +5721,7 @@ function MakeFields(data,koka,success2){
                     if(hands[i]["myhand"][j]["trigger"] != undefined && hands[i]["myhand"][j]["trigger"].length  ){
                         for(k=0;k<hands[i]["myhand"][j]["trigger"].length;k++){
                             if(k==0){
-                                result+="<div "+style+" card_id="+img_url+" id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a target=\"_blank\" onclick=\"sendHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+hands[i]["myhand"][j]["trigger"][k]["id"]+"',1)\"  title=\""+hands[i]["myhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain" %}?id="+hands[i]["myhand"][j]["id"]+"\" {% endif %} ><img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
+                                result+="<div "+style+" card_id="+img_url+" id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a target=\"_blank\" title=\""+hands[i]["myhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain" %}?id="+hands[i]["myhand"][j]["id"]+"\" {% endif %} ><img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
                                 result+= "<br><input type=\"button\" onclick=\"sendHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+hands[i]["myhand"][j]["trigger"][k]["id"]+"',1)\" value=\""+hands[i]["myhand"][j]["trigger"][k]["name"]+"\">";
                             }else{
                                 result+= "<br><input type=\"button\" onclick=\"sendHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+hands[i]["myhand"][j]["trigger"][k]["id"]+"',1)\" value=\""+hands[i]["myhand"][j]["trigger"][k]["name"]+"\">";
@@ -3610,7 +5760,129 @@ function MakeFields(data,koka,success2){
         }
     }
 
-    function MakeOpponentHands(data){
+    function showEffect(data,mode){
+	console.log(mode);
+	var data_effect = data["effect"];
+	data["effect_move"] = []
+        data_effect_tmp = data_effect.split("*");
+        data_effects = data_effect_tmp[0].split("|");
+	console.log(data_effect);				      
+	for(var i=0;i<data_effects.length;i++){
+		if(data_effects[i] == ""){
+			continue;
+	        }else{
+                    var effect_kind = data_effects[i].split(";");
+        	    switch(effect_kind[0]){
+                          case "background":
+				$("body").css("background-image",'url({% get_static_prefix %}tcgcreator/img/background/'+effect_kind[1]+')');
+				break;
+                          case "field_move":
+				x = effect_kind[1];
+				y = effect_kind[2];
+			  	if(user == 2){
+					  y = {{field_y}}-y-1;
+			  	}
+				tmp = {};
+				tmp["x"] = x;
+				tmp["y"] = y;
+				tmp["move"] = "from";
+			      data["effect_move"].push(  tmp);
+					   
+				break;
+                          case "field_move_to":
+				x = effect_kind[1];
+				y = effect_kind[2];
+			  	if(user == 2){
+					  y = {{field_y}}-y-1;
+			  	}
+				tmp = {};
+				tmp["x"] = x;
+				tmp["y"] = y;
+				tmp["move"] = "to";
+				tmp["img"] = effect_kind[3]
+			      	data["effect_move"].push(  tmp);
+				break;
+                          case "video":
+				$("#effect_video").css("z-index:999999999")
+				$("#effect_video").show();
+				var video  = $("#effect_video").get(0);
+				video.src=static_url+"/img/effect/"+effect_kind[1];
+				video.playbackRate = 5;
+				video.play();
+				video.addEventListener('ended',function() {
+				$("#effect_video").css("z-index:-100")
+				$("#effect_video").hide();
+		      		});
+			break;
+					      				case "monster":
+				x = effect_kind[1];
+				y = effect_kind[2];
+			  if(user == 2){
+				  y = {{field_y}}-y-1;
+			  }
+					      				doEachMonsterEffect(x,y,effect_kind);
+
+
+			}
+
+	        }
+
+	}
+	 console.log(data_effect_tmp);
+	var tmp = data_effect_tmp.shift();
+	if(Array.isArray(tmp)){
+		data["effect"] = tmp.join("*");
+												data["effect_flag"] -= 1;
+	}else{
+		data["effect"] = null;
+												data["effect_flag"] -= 1;
+	}
+
+      data = JSON.stringify(data);
+       if(mode == 0){
+		var timer = setTimeout(Success,1000,data);
+       }else{
+	var timer = setTimeout(Success3,1000,data);
+	       	}
+
+    }
+     function doEachMonsterEffect(x,y,effect_kind_all){
+	
+	effect_kind = effect_kind_all[3]
+      	effect_kind = effect_kind.split("_");
+      	switch(effect_kind[0]){
+    		case "number":
+			number = effect_kind_all[4];
+
+			number_x = $("#"+x+"_"+y).offset().left;
+			number_y = $("#"+x+"_"+y).offset().bottom;
+			numbers = number.split("")
+			for(var i=numbers.length-1;i>=0;i--){
+			      $("#"+x+"_"+y).after("<span style='color:black;' class='animation_number' id='animation_number_"+i+"'>"+numbers[i]+"</span>");
+		      }
+			      $("#"+x+"_"+y).after("<br class='animation_number'>");
+			for(var i=0;i<numbers.length;i++){
+				$("#animation_number_"+i).addClass("swing_number");
+				$("#animation_number_"+i).css("animation-delay",(String)(i*0.1)+"s");
+			}
+		break;
+    		case "move":
+              $("#"+x+"_"+y).removeClass("swing").addClass("swing")
+					      			break;
+  	case "video":
+              $("#"+x+"_"+y).prepend ("<video class='monster_video' id='effect_video"+x+"_"+y+"'></video>");
+		var width = $("#effect_video"+x+"_"+y).width();
+	      $("#effect_video"+x+"_"+y).css("left",-((width-{{Config.card_width}}) /2));
+
+	 	var video  = $("#effect_video"+x+"_"+y).get(0);
+
+		video.src=static_url+"/img/effect/"+effect_kind[1];
+		video.playbackRate = 5;
+		video.play();
+					      			break;
+	}					      	}
+
+    function makeOpponentHands(data){
     var img_url;
         var hands = data["hand_info"];
         var i,j,k;
@@ -3665,7 +5937,7 @@ function MakeFields(data,koka,success2){
     }
 
 
-    function MakeRightColumn(data){
+    function makeRightColumn(data){
         var decks = data["deck_info"];
         var graves = data["grave_info"];
         var html="";
@@ -3680,21 +5952,39 @@ function MakeFields(data,koka,success2){
                 html+="<span class=\"life\">";
         {% for variable in Variable %}
             {% if variable.center is False %}
-                html += '<span style="font-size={{variable.font_size}}">{{variable.variable_name}}<br>';
                 if({{variable.mine_or_other}} == 1){
+	    		if(data["variable"]["{{variable.variable_name}}"]["show"] == 0){
+			}else{
+                	html += '<span style="font-size={{variable.font_size}}">{{variable.variable_name}}<br>';
                     html += data["variable"]["{{variable.variable_name}}"]["value"];
+			}
                 }else{
+	    		if(data["variable"]["{{variable.variable_name}}"]["1_show"] ==  0 &&  data["variable"]["{{variable.variable_name}}"]["2_show"] == 0){
+			}else{
+                    html += '<span style="font-size={{variable.font_size}}">{{variable.variable_name}}<br>';
+	    	if(data["variable"]["{{variable.variable_name}}"][data["user"]+"_show"] == 1){
                     html+=data["user_name1"]+"<br>";
                     html += data["variable"]["{{variable.variable_name}}"][data["user"]+"_value"]+"<br>";
+		}
+	    	if(data["variable"]["{{variable.variable_name}}"][data["other_user"]+"_show"] == 1){
                     html+=data["user_name2"]+"<br>";
                     html += data["variable"]["{{variable.variable_name}}"][data["other_user"]+"_value"]+"<br>";
-                }
+		}
                 html+="</span>";
+		}
+		}
             {% else %}
+	    	if(data["variable"]["{{variable.variable_name}}"]["1_show"] == 0 &&  data["variable"]["{{variable.variable_name}}"]["2_show"] == 0){
+		}else{
                 center_html += '<span style="font-size:{{variable.font_size}}">{{variable.variable_name}} ';
                 center_opponent_html += '<span style="font-size:{{variable.font_size}}">{{variable.variable_name}} ';
-                center_html += data["variable"]["{{variable.variable_name}}"][data["user"]+"_value"]+"</span><br>";
-                center_opponent_html += data["variable"]["{{variable.variable_name}}"][data["other_user"]+"_value"]+"</span><br>";
+	    	if(data["variable"]["{{variable.variable_name}}"][data["user"]+"_show"] == 1){
+                	center_html += data["variable"]["{{variable.variable_name}}"][data["user"]+"_value"]+"</span><br>";
+		}
+	    	if(data["variable"]["{{variable.variable_name}}"][data["other_user"]+"_show"] == 1){
+                	center_opponent_html += data["variable"]["{{variable.variable_name}}"][data["other_user"]+"_value"]+"</span><br>";
+		}
+		}
             {% endif %}
 
         {% endfor %}
@@ -3732,7 +6022,6 @@ function MakeFields(data,koka,success2){
         {% else %}
         var variables = data["variables"];
         html+="<span class=\"decks\">";
-		    console.log(decks);
         for(i=0;i<decks.length;i++){
             html+=decks[i]["deck_name"]+"<br>";
             if(decks[i]["commondecknum"] != undefined){
@@ -3838,7 +6127,7 @@ function MakeFields(data,koka,success2){
 }
 
         /*
-    function MakeRightColumn(data){
+    function makeRightColumn(data){
         var html="";
         var color = "{{Config.font_color}}";
         var turn;
@@ -4066,6 +6355,11 @@ success: function(data){
 </script>
 </head>
 <body>
+	<div class="video-container">
+		<div class="video-wrap">
+<video id="effect_video"></video>
+		</div>
+	</div>
 {% if user_point2 %}
 <span style="font-size:25px;text-align:center;background-color:white">{{user_name2}} {{user_point2.win}}勝{{user_point2.lose}}敗 {{user_point2.point}}pt</span><br>
 {% endif %}
@@ -4113,7 +6407,7 @@ success: function(data){
         <div style="float:left">
 <table id="field" width="100%" style="table-layout:fixed">
 <tr >
-    
+
 <td rowspan="2" height="100%" align="center" valign="top">
 <span id="player" style="margin-top:0px"> </span>
 <br><span style="font-size:18px;overflow-x:auto" id="opponent_hands"></span><br>
@@ -4124,7 +6418,7 @@ success: function(data){
 {% for y in range_y %}
 <tr>
 {% for x in range_x %}
-<td id="{{x}}_{{y}}" class=" {% for tmp in y|get_field:x %} {{tmp}} {% endfor %}">
+<td id="{{x}}_{{y}}" class=" field_block {% for tmp in y|get_field:x %} {{tmp}} {% endfor %}">
 </td>
 {% endfor %}
 </tr>
@@ -4210,4 +6504,3 @@ success: function(data){
         <div id="choosing_area" style="z-index:1000;offset-position:auto;text-align:center;position:absolute;width:600px;background-color:white;display:none;border:1px solid #000000;"></div>
     </body>
     </html>
-

@@ -1,4 +1,5 @@
 from .models import (
+    Fusion,
     Config,
     Monster,
     MonsterItem,
@@ -24,12 +25,13 @@ from .models import (
     EternalTrigger,
     UnderDirection,
     TriggerTimingChangeVal,
+    TriggerTimingNotEffected,
     TriggerTimingMonsterChangeVal,
     TriggerTimingRelation,
 )
 from django.db.models import Q
 from django.db import reset_queries
-
+import inspect
 import json
 import re
 import os
@@ -38,6 +40,7 @@ from django.db import connection
 import random
 import copy
 from pprint import pprint
+import inspect
 import numpy as np
 from time import time
 import html
@@ -467,6 +470,7 @@ class DuelObj:
 
     def copy_monster_to_field(self, monster, x, y, mine_or_other, variable_names):
         duel = self.duel
+        monster = copy.deepcopy(monster)
         monster["place_unique_id"] = str(uuid.uuid4())
         monster["place"] = "field"
         monster["deck_id"] = 0
@@ -543,6 +547,7 @@ class DuelObj:
         y,
         mine_or_other=-1,
         cost=None,
+        amount = 0
     ):
         id = self.get_monster_id(monster, place, user, deck_id, 0, 0, mine_or_other)
         monster_det = Monster.objects.get(id=id)
@@ -591,9 +596,21 @@ class DuelObj:
                 self.invoke_eternal_effect_det(tmp, user)
         if place_unique_id in self.not_effected:
             self.not_effected.remove(place_unique_id)
-        return self.check_eternal_det(
+        result =  self.check_eternal_det(
             monster, user, effect_kind, place, deck_id, x, y, mine_or_other, 0, cost
         )
+        tmp2 = {}
+        tmp2["det"] = monster
+        tmp2["mine_or_other"] = mine_or_other
+        tmp2["user"] = user
+        tmp2["place"] = place
+        tmp2["deck_id"] = deck_id
+        tmp2["x"] = x
+        tmp2["y"] = y
+        tmp2["place_unique_id"] = monster["place_unique_id"]
+        if result is True:
+            self.raise_trigger_not_effected(tmp2, amount, cost, effect_kind, user, 1)
+        return result
 
     def check_invoke_invalid(
         self,
@@ -903,7 +920,8 @@ class DuelObj:
         return tmp
 
     def check_change_name(self, monster, user, place, deck_id, x, y, mine_or_other=-1):
-        return_tmp = None
+        return_tmp = []
+        return_tmp.append(monster["monster_name"])
         if "eternal" in monster and monster["eternal"] is not None:
             for i in range(len(monster["eternal"])):
                 if monster["eternal"][i] is None:
@@ -919,12 +937,42 @@ class DuelObj:
                     mine_or_other,
                 ):
                     if "monster_name" in monster["eternal"][i]:
-                        return_tmp = monster["eternal"][i]["monster_name"]
+                        if monster["eternal"][i]["monster_name"][
+                            "add"
+                            ] == 1:
+                            return_tmp.append(monster["eternal"][i]["monster_name"])
+                        else:
+                            return_tmp = []
+                            return_tmp.append( monster["eternal"][i]["monster_name"])
                 else:
                     del monster["eternal"][i]
-
-        if return_tmp is None:
-            return monster["monster_name"]
+        tmp = self.check_eternal_det(
+        monster,
+        user,
+        "-1",
+        place,
+        deck_id,
+        x,
+        y,
+        mine_or_other,
+        25,
+        0, 
+        return_tmp)
+        if tmp != None:
+            return_tmp = []
+            return_tmp.append( tmp)
+        return_tmp = self.check_eternal_det(
+        monster,
+        user,
+        "-1",
+        place,
+        deck_id,
+        x,
+        y,
+        mine_or_other,
+        26,
+        0, 
+        return_tmp)
         return return_tmp
 
     def check_change_val(
@@ -950,14 +998,17 @@ class DuelObj:
                         return_tmp = monster["eternal"][i]["variables"][val_name][
                             "value"
                         ]
-                        if self.is_float(return_tmp):
+                        if monster["eternal"][i]["variables"][val_name][
+                            "add"
+                            ] == 1:
+                            return_value = return_tmp
+                        elif self.is_float(return_tmp):
                             return_value += float(return_tmp)
                         else:
                             return return_tmp
 
                 else:
-                    del monster["eternal"][i]
-
+                    del monster["eternal"][i]   
         if place == "field":
             flag = True
         else:
@@ -998,7 +1049,8 @@ class DuelObj:
                 tmp["place_unique_id"] = place_unique_id
                 tmp["mine_or_other"] = mine_or_other
                 self.invoke_eternal_effect_det(tmp, user)
-        return_value += self.check_eternal_det(
+
+        tmp_value = self.check_eternal_det(
             monster,
             user,
             "-1",
@@ -1011,7 +1063,9 @@ class DuelObj:
             persist,
             val_name,
         )
-        return float(return_value)
+        if self.is_float(return_value) and self.is_float(tmp_value) and tmp_value != 0.0:
+            return_value = float(return_value) + float(tmp_value)
+        return return_value
 
     def check_change_dest(
         self, monster, user, place, deck_id, x, y, val_name, mine_or_other=-1, persist=0
@@ -1085,6 +1139,7 @@ class DuelObj:
             tmp2["y"] = y
             tmp2["place_unique_id"] = monster["place_unique_id"]
 
+        name_flag= False 
         if duel.in_cost is True:
             chain_user = json.loads(duel.chain_user)
             chain_user = chain_user[str(self.tmp_chain)]
@@ -1109,6 +1164,14 @@ class DuelObj:
             condition = self.change_val_eternal_effect
             change_val = 0
             choose = 2
+        elif mode == 25:
+            condition = self.change_name_eternal_effect
+            choose = 2
+            name_flag = True
+        elif mode == 26:
+            condition = self.change_name_add_eternal_effect
+            choose = 2
+            name_flag = True
         elif mode == 5:
             condition = self.no_invoke_eternal_effect
             choose = 2
@@ -1187,6 +1250,33 @@ class DuelObj:
             condition = self.swap_init_val_eternal_effect
             change_val = 0
             choose = 2
+        if mode !=2:
+            if("monster" in condition):
+                if self.check_eternal_invalid(
+                    condition["monster"],
+                    condition["mine_or_other"],
+                    effect_kind,
+                    conditoin["place"],
+                    condition["deck_id"],
+                    conditoin["x"],
+                    conditioon["y"],
+                    conditoin["mine_or_other"],
+                ):
+                    if mode == 4:
+                        return 0
+                    elif mode == 25 or mode == 26:
+                        return val_name
+                    elif mode == 7 or mode == 24:
+                        return val_name
+                    elif mode == 14:
+                        return []
+                    elif mode == 17:
+                        return []
+                    elif mode == 21:
+                        return []
+                    else:
+                        return False
+
         for not_effected in condition:
             if "place_unique_id" not in not_effected:
                 not_effected["place_unique_id"] = ""
@@ -1213,6 +1303,8 @@ class DuelObj:
             place_unique_id = not_effected["place_unique_id"]
             eternals = not_effected["eternal"]
             eternal_effect = copy.deepcopy(eternals)
+            if mode == 25 or mode == 26:
+                eternal_values = eternal_effect.value.split("_")
             if mode == 4:
                 eternal_names = eternal_effect.val_name.split("_")
                 eternal_values = eternal_effect.value.split("_")
@@ -1240,7 +1332,7 @@ class DuelObj:
                 # 行き先変更永続
                 # フィールドはうまくいかない
                 eternal_names = json.loads(eternal_effect.val_name)
-                eternal_values = eternal_effect.value
+                eternal_values = json.loads(eternal_effect.value)
                 val_name_det = val_name.split("_")
                 if val_name_det[2] == "4":
                     if monster["owner"] == user:
@@ -1316,6 +1408,13 @@ class DuelObj:
                                 relate_monster["place_unique_id"]
                                 == field[x][y]["det"]["place_unique_id"]
                             ):
+                                if mode == 25:
+                                    return eternal_values[0]
+                                elif mode == 26:
+                                    for eternal_value in eternal_values:
+                                        val_name.append(eternal_value)
+                                    return val_name
+
                                 tmp3 = {}
                                 tmp3["det"] = field[x][y]["det"]
                                 tmp3["mine_or_other"] = field[x][y]["mine_or_other"]
@@ -1387,6 +1486,12 @@ class DuelObj:
                                 ][index]
                             else:
                                 ini = False
+                            if "monster_variable_change_add" in monster_effect:
+                                add = monster_effect[
+                                    "monster_variable_change_add"
+                                ][index]
+                            else:
+                                add = 0
                             change_val_eternal["variables"][variable_name] = {}
                             change_val_eternal["variables"][variable_name][
                                 "value"
@@ -1394,6 +1499,9 @@ class DuelObj:
                             change_val_eternal["variables"][variable_name][
                                 "ini"
                             ] = ini
+                            change_val_eternal["variables"][variable_name][
+                                "add"
+                            ] = add
                         if "eternal" not in field[x][y]["det"]:
                             field[x][y]["det"]["eternal"] = []
                         field[x][y]["det"]["eternal"].append(change_val_eternal)
@@ -1428,6 +1536,12 @@ class DuelObj:
                             relate_monster["monster"]["place_unique_id"]
                             == monster["place_unique_id"]
                         ):
+                            if mode == 25:
+                                return eternal_values[0]
+                            elif mode == 26:
+                                for eternal_value in eternal_values:
+                                    val_name.append( eternal_value)
+                                return val_name
                             if mode == 4:
                                 if (
                                     relate_monster["monster"]["mine_or_other"]
@@ -1470,6 +1584,12 @@ class DuelObj:
                                 return True
                 elif eternal["as_monster_condition"] == "trigger":
                     if place_unique_id == monster["place_unique_id"]:
+                        if mode == 25:
+                            return eternal_values[0]
+                        elif mode == 26:
+                            for eternal_value in eternal_values:
+                                 val_name.append( eternal_value)
+                            return val_name
                         if mode == 4:
                             if monster["mine_or_other"] == chain_user:
                                 change_val += self.calculate_boland(
@@ -1530,7 +1650,8 @@ class DuelObj:
                                     0,
                                     0,
                                     0,
-                                    not_effected["place_unique_id"]
+                                    not_effected["place_unique_id"],
+                                    name_flag = name_flag
                                 ):
                                     if mode == 4:
                                         if user == chain_user:
@@ -1541,8 +1662,6 @@ class DuelObj:
                                             change_val += self.calculate_boland(
                                                 eternal_values[val_key], tmp2, True, 1,eternal = True
                                             )
-                                    elif mode == 6:
-                                        return eternal_values
                                     elif mode == 7 or mode == 24:
                                         return swap
                                     elif mode == 14:
@@ -1551,6 +1670,12 @@ class DuelObj:
                                         return not_effected["timings"]
                                     elif mode == 21:
                                         return not_effected["ignore_variable"]
+                                    if mode == 25:
+                                        return eternal_values[0]
+                                    elif mode == 26:
+                                        for eternal_value in eternal_values:
+                                            val_name.append( eternal_value)
+                                        return val_name
                                     else:
                                         return True
                         elif place == "under":
@@ -1586,7 +1711,8 @@ class DuelObj:
                                         0,
                                         0,
                                         0,
-                                        not_effected["place_unique_id"]
+                                        not_effected["place_unique_id"],
+                                        name_flag = name_flag
                                 ):
                                     if mode == 4:
                                         if user == chain_user:
@@ -1607,6 +1733,12 @@ class DuelObj:
                                         return not_effected["timings"]
                                     elif mode == 21:
                                         return not_effected["ignore_variable"]
+                                    elif mode == 25:
+                                        return eternal_values[0]
+                                    elif mode == 26:
+                                        for eternal_value in eternal_values:
+                                            val_name.append( eternal_value)
+                                        return val_name
                                     else:
                                         return True
                         else:
@@ -1641,7 +1773,8 @@ class DuelObj:
                                 0,
                                 mine_or_other,
                                 0,
-                                not_effected["place_unique_id"]
+                                not_effected["place_unique_id"],
+                                name_flag = name_flag
                             ):
                                 if mode == 4:
                                     if user == chain_user:
@@ -1652,6 +1785,12 @@ class DuelObj:
                                         change_val += self.calculate_boland(
                                             eternal_values[val_key], tmp2, True, 1
                                         )
+                                elif mode == 25: 
+                                    return eternal_values[0]
+                                elif mode == 26:
+                                    for eternal_value in eternal_values:
+                                        val_name.append( eternal_value)
+                                    return val_name
                                 elif mode == 7 or mode == 24:
                                     return swap
                                 elif mode == 14:
@@ -1660,10 +1799,20 @@ class DuelObj:
                                     return not_effected["timings"]
                                 elif mode == 21:
                                     return not_effected["ignore_variable"]
+                                elif mode == 25:
+                                    return eternal_values[0]
+                                elif mode == 26:
+                                    for eternal_value in eternal_values:
+                                        val_name.append( eternal_value)
+                                    return val_name
                                 else:
                                     return True
         if mode == 4:
             return change_val
+        elif mode == 25:
+            return val_name[0]
+        elif mode == 26:
+            return val_name
         elif mode == 7 or mode == 24:
             return val_name
         elif mode == 14:
@@ -1689,7 +1838,8 @@ class DuelObj:
         mine_or_other=-1,
         cost_flag=0,
         eternal_place_unique_id = "",
-        monster_check = None
+        monster_check = None,
+        name_flag = False
     ):
         if user != self.user:
             other_user_flag2 = True
@@ -1803,32 +1953,37 @@ class DuelObj:
                 return False
 
         monster_name_kind = monster_condition["monster_name_kind"]
-        tmp_flag = True
-        cond_flag = True
         current_and_or = "and"
-        monster_name = self.check_change_name(monster, user, place, deck_id, x, y, -1)
+        if(name_flag is False):
+            monster_names = self.check_change_name(monster, user, place, deck_id, x, y, -1)
+        else:
+            monster_names = [monster["monster_name"]]
+        cond_flag = True
         for name_kind in monster_name_kind:
             if name_kind != "":
-                cond_flag = True
-                if name_kind["operator"] == "=":
-                    if monster_name != self.get_name(
-                        name_kind["monster_name"], 0, monster,eternal_place_unique_id
-                    ):
-                        tmp_flag = False
-                elif name_kind["operator"] == "!=":
-                    if monster_name == self.get_name(
-                        name_kind["monster_name"], 0, monster
-                    ):
-                        tmp_flag = False
+                tmp_flag = False
+                for monster_name in monster_names:
+                    if name_kind["operator"] == "=":
+                        if monster_name == self.get_name(
+                            name_kind["monster_name"], 0, monster,eternal_place_unique_id
+                        ):
+                            tmp_flag = True
+                    elif name_kind["operator"] == "!=":
+                        if monster_name != self.get_name(
+                            name_kind["monster_name"], 0, monster
+                        ):
+                            tmp_flag = True
 
-                elif name_kind["operator"] == "like":
-                    if (
-                        monster_name.find(
-                            self.get_name(name_kind["monster_name"], 0, monster)
-                        )
-                        == -1
-                    ):
-                        tmp_flag = False
+                    elif name_kind["operator"] == "like":
+                        if (
+                            monster_name.find(
+                                self.get_name(name_kind["monster_name"], 0, monster)
+                            )
+                            != -1
+                        ):
+                            tmp_flag = True
+                    else:
+                            tmp_flag = True
                 if current_and_or == "and":
                     if cond_flag is True:
                         cond_flag = tmp_flag
@@ -1902,7 +2057,9 @@ class DuelObj:
                 )
                 tmp = monster["variables"][name2]
                 if not cond_val["num"].isnumeric() and not self.special_val(cond_val["num"][0]):
-                    if tmp["value"].isnumeric():
+                    value = self.check_change_val(
+                        monster, user, place, deck_id, x, y, name, mine_or_other,tmp["value"])
+                    if value.isnumeric():
                         if cond_val["operator"] == "!=":
                             tmp_flag = True
                         else:
@@ -1921,10 +2078,21 @@ class DuelObj:
                         continue
                     else:
                         if cond_val["operator"] == "=":
-                            if tmp["value"] == cond_val["num"]:
+                            if value == cond_val["num"]:
                                 tmp_flag = True
                             else:
                                 tmp_flag = False
+                        elif cond_val["operator"] == "":
+                            values = value.split("_")
+                            if cond_val["num"] in values:
+                                tmp_flag = True
+                            else:
+                                tmp_flag = False
+                        elif cond_val["operator"] == "!=":
+                            if value == cond_val["num"]:
+                                tmp_flag = False
+                            else:
+                                tmp_flag = True
                         if current_and_or == "and":
                             if cond_flag is True:
                                 cond_flag = tmp_flag
@@ -1938,15 +2106,24 @@ class DuelObj:
                         current_and_or = cond_val["and_or"]
                         continue
                 if not tmp["value"].isnumeric():
+                    value = self.check_change_val(
+                        monster, user, place, deck_id, x, y, name, mine_or_other,tmp["value"])
                     if cond_val["operator"] == "!=":
-                        if cond_val["num"] == tmp["value"]:
+                        if cond_val["num"] == value["value"]:
                             tmp_flag = False
                         else:
                             tmp_flag = True
-                    elif cond_val["operator"] != "=" and cond_val["operator"] != "":
+                    elif cond_val["operator"] == "":
+                        values = value.split("_")
+                        if cond_val["num"] in values:
+                            tmp_flag = True
+                        else:
+                            tmp_flag = False
+
+                    elif cond_val["operator"] != "=":
                         tmp_flag = False
                     else:
-                        if cond_val["num"] == tmp["value"]:
+                        if cond_val["num"] == value:
                             tmp_flag = True
                         else:
                             tmp_flag = False
@@ -1963,7 +2140,6 @@ class DuelObj:
                     current_and_or = cond_val["and_or"]
                     continue
                 if cond_val["init"] == 0:
-
                     value = self.check_change_val(
                         monster, user, place, deck_id, x, y, name, mine_or_other,int(tmp["value"])
                     )
@@ -1971,25 +2147,37 @@ class DuelObj:
                     value = tmp["i_val"]
                 elif cond_val["init"] == 2:
                     value = tmp["i_i_val"]
-                if tmp["minus"] is False and int(value) < 0:
+                if tmp["minus"] is False and float(value) < 0:
                     value = 0
-                if cond_val["operator"] == "=" or cond_val["operator"] == "":
-                    if int(value) != self.calculate_boland(
+                if cond_val["operator"] == "=": 
+                    if float(value) != self.calculate_boland(
                         cond_val["num"], monster2, False,other_user_flag2 = other_user_flag2
                     ):
                         tmp_flag = False
+                elif cond_val["operator"] == "":
+                        values = str(value).split("_")
+                        for index in range(len(values)):
+                            values[index] = int(float(values[index]))
+                        if int(cond_val["num"]) not in values:
+                            tmp_flag = False
+                elif cond_val["operator"] == "!==":
+                        values = str(value).split("_")
+                        for index in range(len(values)):
+                            values[index] = int(float(values[index]))
+                        if int(cond_val["num"]) in values:
+                            tmp_flag = False
                 elif cond_val["operator"] == "<=":
-                    if int(value) > self.calculate_boland(
+                    if float(value) > self.calculate_boland(
                         cond_val["num"], monster2, False,other_user_flag2 = other_user_flag2
                     ):
                         tmp_flag = False
                 elif cond_val["operator"] == ">=":
-                    if int(value) < self.calculate_boland(
+                    if float(value) < self.calculate_boland(
                         cond_val["num"], monster2, False,other_user_flag2 = other_user_flag2
                     ):
                         tmp_flag = False
                 elif cond_val["operator"] == "!=":
-                    if int(value) == self.calculate_boland(
+                    if float(value) == self.calculate_boland(
                         cond_val["num"], monster2, False,other_user_flag2 = other_user_flag2
                     ):
                         tmp_flag = False
@@ -2108,6 +2296,7 @@ class DuelObj:
                 value = self.check_change_val(
                     monster, user, place, deck_id, x, y, name, -1
                 )
+                value = float(value)
                 if cond_val["operator"] == "=" or cond_val["operator"] == "":
                     if str(value) != str(
                         self.calculate_boland(cond_val["num"], monster2, False,other_user_flag2 = other_user_flag2,mode = 1)
@@ -2151,6 +2340,7 @@ class DuelObj:
         excludes=False,
         choose=0,
         effect_kind="",
+        name_flag = False
     ):
         if user != self.user:
             other_user_flag2 = True
@@ -2518,7 +2708,8 @@ class DuelObj:
                                 monster2["x"],
                                 monster2["y"],
                                 monster2["mine_or_other"],
-                                monster_check = monster
+                                monster_check = monster,
+                                name_flag = name_flag
                             )
                             is True
                         ):
@@ -2597,7 +2788,8 @@ class DuelObj:
                                                 x,
                                                 y,
                                                 field[x][y]["mine_or_other"],
-                                                monster_check = monster
+                                                monster_check = monster,
+                                                name_flag = name_flag
                                             )
                                             is True
                                         ):
@@ -2751,7 +2943,8 @@ class DuelObj:
                                     0,
                                     0,
                                     mine_or_other3,
-                                    monster_check = monster
+                                    monster_check = monster,
+                                                name_flag = name_flag
                                 )
                                 is True
                             ):
@@ -2838,7 +3031,8 @@ class DuelObj:
                                     0,
                                     0,
                                     mine_or_other3,
-                                    monster_check = monster
+                                    monster_check = monster,
+                                                name_flag = name_flag
                                 )
                                 is True
                             ):
@@ -2927,7 +3121,8 @@ class DuelObj:
                                     0,
                                     0,
                                     mine_or_other3,
-                                    monster_check = monster
+                                    monster_check = monster,
+                                                name_flag = name_flag
                                 )
                                 is True
                             ):
@@ -2996,9 +3191,9 @@ class DuelObj:
             min_equation_number = monster_condition["min_equation_number"]
             max_equation_number = monster_condition["max_equation_number"]
             if equation_kind == "number":
-                if count >= self.calculate_boland(
+                if count >= float(self.calculate_boland(
                     min_equation_number, monster,other_user_flag2 = other_user_flag2
-                ) and count <= self.calculate_boland(max_equation_number, monster,other_user_flag2 = other_user_flag2):
+                )) and count <= float(self.calculate_boland(max_equation_number, monster,other_user_flag2 = other_user_flag2)):
                     if and_or_all == "or":
                         flag = True
                     elif flag is True:
@@ -3173,20 +3368,506 @@ class DuelObj:
         else:
             return False
 
+    def unique_fusion_effect(self):
+        duel = self.duel
+        tmp = self.mess
+        if str(duel.chain - 1) not in tmp:
+            tmp[str(duel.chain - 1)] = {}
+        place1 = tmp[str(duel.chain - 1)]["fusion"]
+        place = place1[0]
+        fusion = Fusion.objects.get(id=place["fusion"])
+        return fusion.unique_effect
+    def get_fusion_material(self,monster_effect,user,trigger,mode=0,effect_flag = 0,strategy = "",strategy_up_or_down =""):
+        duel = self.duel
+        tmp = self.mess
+        if str(duel.chain - 1) not in tmp:
+            tmp[str(duel.chain - 1)] = {}
+        place1 = tmp[str(duel.chain - 1)]["fusion"]
+        place = place1[0]
+        if trigger.instead_condition:
+            instead_condition = json.loads(trigger.instead_condition)
+            if self.check_monster_effect_condition(
+                    instead_condition, 0, 2):
+                instead = True
+            else:
+                instead = False
+        else:
+            instead = True
+        trigger_fusion1 = json.loads(trigger.fusion1)
+        if(trigger.instead1):
+            instead1 = json.loads(trigger.instead1)
+        else:
+            instead1 = None
+        if(trigger.fusion2):
+            trigger_fusion2 = json.loads(trigger.fusion2)
+        else:
+            trigger_fusion2 = None
+        if(trigger.instead2):
+            instead2 = json.loads(trigger.instead2)
+        else:
+            instead2 = None
+        if(trigger.fusion3):
+            trigger_fusion3 = json.loads(trigger.fusion3)
+        else:
+            trigger_fusion3 = None
+        if(trigger.instead3):
+            instead3 = json.loads(trigger.instead3)
+        else:
+            instead3 = None
+        monster_id = self.get_monster_id(
+            place["det"], place["place"], place["det"]["owner"],place["deck_id"],place["x"], place["y"], place["mine_or_other"])
+        fusion = Fusion.objects.get(id=place["fusion"])
+        fusion1 = json.loads(fusion.fusion1)
+        if(fusion.fusion2):
+            fusion2 = json.loads(fusion.fusion2)
+        else:
+            fusion2 = None
+        if(fusion.fusion3):
+            fusion3 = json.loads(fusion.fusion3)
+        else:
+            fusion3 = None
+        if fusion1:
+            fusion_monster1 = self.check_fusion_monster_det(trigger_fusion1,fusion1,instead1,fusion,user,mode = mode,effect_flag = effect_flag,strategy = strategy,strategy_up_or_down = strategy_up_or_down)
+        else:
+            fusion_monster1 = {}
+            fusion_monster1["max"] = 0
+            fusion_monster1["min"] = 0
+            fusion_monster1["monsters"] = []
+        if fusion2:
+            fusion_monster2 = self.check_fusion_monster_det(trigger_fusion2,fusion2,instead2,fusion,user,mode = mode,effect_flag = effect_flag,strategy = strategy,strategy_up_or_down = strategy_up_or_down)
+        else:
+            fusion_monster2 = {}
+            fusion_monster2["max"] = 0
+            fusion_monster2["min"] = 0
+            fusion_monster2["monsters"] = []
+        if fusion3:
+            fusion_monster3 = self.check_fusion_monster_det(trigger_fusion3,fusion3,instead3,fusion,user,mode = mode,effect_flag = effect_flag,strategy = strategy,strategy_up_or_down = strategy_up_or_down)
+        else:
+            fusion_monster3 = {}
+            fusion_monster3["max"] = 0
+            fusion_monster3["min"] = 0
+            fusion_monster3["monsters"] = []
+        ary = [fusion_monster1,fusion_monster2,fusion_monster3]
+        if mode == 0:
+            if fusion_monster1 is False or fusion_monster2 is False or fusion_monster3 is False:
+                return False
+            else:
+                return True
+        return ary
+
+    def get_fusion_monster(
+        self, fusion_monster_condition, user, trigger,mode = 0,effect_flag = 0,strategy = ""
+        ):
+        duel = self.duel
+        effect_kind = trigger.trigger_kind
+        return_monster = []
+        tmp2 = json.loads(fusion_monster_condition)
+        fusion_monster_condition = tmp2
+        exclude = fusion_monster_condition["exclude"]
+        tmp2 = tmp2["monster"]
+        monster_effect_det2 = tmp2[0]
+        tmp_deck = None
+        if effect_flag == 1:
+            minus_chain =  -1
+        else:
+            minus_chain = 0 
+        for tmps in tmp2:
+            places = tmps["monster"]["place"]
+            for place in places:
+                place_tmp = place["det"].split("_")
+                deck_id = int(place_tmp[1])
+                if place_tmp[0] == "deck":
+                    chain_user2 = json.loads(duel.chain_user)
+                    effect_user = chain_user2[str(duel.chain + minus_chain )]
+                    if tmp_deck is None:
+                        if (place_tmp[2] == "1" and effect_user == 1) or (
+                            place_tmp[2] == "2" and effect_user != 1
+                        ):
+                            mine_or_other = 1
+                        elif (place_tmp[2] == "1" and effect_user != 1) or (
+                            place_tmp[2] == "2" and effect_user == 1
+                        ):
+                            mine_or_other = 2
+                        else:
+                            mine_or_other = 3
+                        if (place_tmp[2] == "1" and effect_user == self.user) or (
+                            place_tmp[2] == "2" and effect_user != self.user
+                        ):
+                            mine_or_other2 = 1
+                        elif (place_tmp[2] == "1" and effect_user != self.user) or (
+                            place_tmp[2] == "2" and effect_user == self.user
+                        ):
+                            mine_or_other2 = 2
+                        else:
+                            mine_or_other2 = 3
+                        if mine_or_other2 == 1:
+                            tmp_deck = self.get_deck_with_effect(
+                                self.decks[deck_id]["mydeck"],
+                                monster_effect_det2,
+                                effect_kind,
+                                exclude,
+                                effect_user,
+                                "deck",
+                                deck_id,
+                                0,
+                                0,
+                                mine_or_other,
+                                0,
+                            )
+                            org_deck = self.decks[deck_id]["mydeck"]
+                        elif mine_or_other2 == 2:
+                            tmp_deck = self.get_deck_with_effect(
+                                self.decks[deck_id]["otherdeck"],
+                                monster_effect_det2,
+                                effect_kind,
+                                exclude,
+                                effect_user,
+                                "deck",
+                                deck_id,
+                                0,
+                                0,
+                                mine_or_other,
+                                0,
+                            )
+                            org_deck = self.decks[deck_id]["otherdeck"]
+                        else:
+                            tmp_deck = self.get_deck_with_effect(
+                                self.decks[deck_id]["commondeck"],
+                                monster_effect_det2,
+                                effect_kind,
+                                exclude,
+                                effect_user,
+                                "deck",
+                                deck_id,
+                                0,
+                                0,
+                                mine_or_other,
+                                0,
+                            )
+                            org_deck = self.decks[deck_id]["commondeck"]
+                        deck_name = self.decks[deck_id]["deck_name"]
+                        user_decks = org_deck
+                elif place_tmp[0] == "grave":
+                    chain_user2 = json.loads(duel.chain_user)
+                    effect_user = chain_user2[str(duel.chain + minus_chain )]
+                    if tmp_deck is None:
+                        if (place_tmp[2] == "1" and effect_user == 1) or (
+                            place_tmp[2] == "2" and effect_user != 1
+                        ):
+                            mine_or_other = 1
+                        elif (place_tmp[2] == "1" and effect_user != 1) or (
+                            place_tmp[2] == "2" and effect_user == 1
+                        ):
+                            mine_or_other = 2
+                        else:
+                            mine_or_other = 3
+                        if (place_tmp[2] == "1" and effect_user == self.user) or (
+                            place_tmp[2] == "2" and effect_user != self.user
+                        ):
+                            mine_or_other2 = 1
+                        elif (place_tmp[2] == "1" and effect_user != self.user) or (
+                            place_tmp[2] == "2" and effect_user == self.user
+                        ):
+                            mine_or_other2 = 2
+                        else:
+                            mine_or_other2 = 3
+                        if mine_or_other2 == 1:
+                            tmp_deck = self.get_grave_with_effect(
+                                self.graves[deck_id]["mygrave"],
+                                monster_effect_det2,
+                                effect_kind,
+                                exclude,
+                                effect_user,
+                                "grave",
+                                deck_id,
+                                0,
+                                0,
+                                mine_or_other,
+                                0,
+                            )
+                            org_deck = self.graves[deck_id]["mygrave"]
+                        elif mine_or_other2 == 2:
+                            tmp_deck = self.get_grave_with_effect(
+                                self.graves[deck_id]["othergrave"],
+                                monster_effect_det2,
+                                effect_kind,
+                                exclude,
+                                effect_user,
+                                "grave",
+                                deck_id,
+                                0,
+                                0,
+                                mine_or_other,
+                                0,
+                            )
+                            org_deck = self.graves[deck_id]["othergrave"]
+                        else:
+                            tmp_deck = self.get_grave_with_effect(
+                                self.decks[grave_id]["commondeck"],
+                                monster_effect_det2,
+                                effect_kind,
+                                exclude,
+                                effect_user,
+                                "grave",
+                                deck_id,
+                                0,
+                                0,
+                                mine_or_other,
+                                0,
+                            )
+                            org_deck = self.graves[deck_id]["commongrave"]
+                        deck_name = self.graves[deck_id]["grave_name"]
+                        user_decks = org_deck
+                elif place_tmp[0] == "hand":
+                    chain_user2 = json.loads(duel.chain_user)
+                    effect_user = chain_user2[str(duel.chain + minus_chain )]
+                    if tmp_deck is None:
+                        if (place_tmp[2] == "1" and effect_user == 1) or (
+                            place_tmp[2] == "2" and effect_user != 1
+                        ):
+                            mine_or_other = 1
+                        elif (place_tmp[2] == "1" and effect_user != 1) or (
+                            place_tmp[2] == "2" and effect_user == 1
+                        ):
+                            mine_or_other = 2
+                        else:
+                            mine_or_other = 3
+                        if (place_tmp[2] == "1" and effect_user == self.user) or (
+                            place_tmp[2] == "2" and effect_user != self.user
+                        ):
+                            mine_or_other2 = 1
+                        elif (place_tmp[2] == "1" and effect_user != self.user) or (
+                            place_tmp[2] == "2" and effect_user == self.user
+                        ):
+                            mine_or_other2 = 2
+                        else:
+                            mine_or_other2 = 3
+                        if mine_or_other2 == 1:
+                            tmp_deck = self.get_hand_with_effect(
+                                self.hands[deck_id]["myhand"],
+                                monster_effect_det2,
+                                effect_kind,
+                                exclude,
+                                effect_user,
+                                "hand",
+                                deck_id,
+                                0,
+                                0,
+                                mine_or_other,
+                                0,
+                            )
+                            org_deck = self.hands[deck_id]["myhand"]
+                        elif mine_or_other2 == 2:
+                            tmp_deck = self.get_hand_with_effect(
+                                self.hands[deck_id]["otherhand"],
+                                monster_effect_det2,
+                                effect_kind,
+                                exclude,
+                                effect_user,
+                                "hand",
+                                deck_id,
+                                0,
+                                0,
+                                mine_or_other,
+                                0,
+                            )
+                            org_deck = self.hands[deck_id]["otherhand"]
+                        else:
+                            tmp_deck = self.get_hand_with_effect(
+                                self.decks[hand_id]["commondeck"],
+                                monster_effect_det2,
+                                effect_kind,
+                                exclude,
+                                effect_user,
+                                "hand",
+                                deck_id,
+                                0,
+                                0,
+                                mine_or_other,
+                                0,
+                            )
+                            org_deck = self.hands[deck_id]["commonhand"]
+                        deck_name = self.hands[deck_id]["hand_name"]
+                        user_decks = org_deck
+                elif place_tmp[0] == "field":
+                    field = self.field
+                    tmp_deck = False
+                    field_tmp.append(place_tmp[1])
+                    if place["and_or"] == "and":
+                        continue
+                    else:
+                        field_tmp2 = field_tmp
+                        field_tmp = []
+                    effect_user = chain_user
+                    if (place_tmp[2] == "1" and effect_user == 1) or (
+                        place_tmp[2] == "2" and effect_user == 2
+                    ):
+                        mine_or_other2 = 1
+                    elif (place_tmp[2] == "1" and effect_user == 2) or (
+                        place_tmp[2] == "2" and effect_user == 1
+                    ):
+                        mine_or_other2 = 2
+                    else:
+                        mine_or_other2 = 3
+                    for x in range(len(field)):
+                        for y in range(len(field[x])):
+                            exclude = ""
+                            field_kind_flag = True
+                            if self.field_free is False:
+                                kind = field[x][y]["kind"]
+                            else:
+                                kind = field[0][y]["kind"]
+                            if kind != "":
+                                tmp = kind.split("_")
+                                for kind in field_tmp2:
+                                    if kind not in tmp:
+                                        field_kind_flag = False
+                                        break
+
+                            if field_kind_flag is False:
+                                continue
+                            if field[x][y]["mine_or_other"] != mine_or_other2:
+                                continue
+                            if field[x][y]["det"] is None:
+                                continue
+                            fusion_monster = {}
+                            if strategy != "": 
+                                if strategy in field[x][y]["det"]["variables"]:
+                                    tmp_variable = field[x][y]["det"]["variables"][strategy]
+                                    if not tmp_variable["value"].isnumeric():
+                                         tmp_variable["value"] = 0
+                                else:
+                                    tmp_variable = {}
+                                    tmp_variable["value"] = 0
+                                value = self.check_change_val(
+                        field[x][y]["det"], user, "field", 0, x, y, strategy, mine_or_other, int(tmp_variable["value"])
+                    )
+                            else: 
+                                value = 0
+                            fusion_monster["det"] = field[x][y]["det"]
+                            fusion_monster["mine_or_other"] = field[x][y]["mine_or_other"]
+                            fusion_monster["user"] = chain_user
+                            fusion_monster["place"] = "field"
+                            fusion_monster["deck_id"] = 0
+                            fusion_monster["x"] = x
+                            fusion_monster["y"] = y
+                            fusion_monster["strategy_value"] = value
+                            fusion_monster["place_unique_id"] = field[x][y]["det"][
+                                "place_unique_id"
+                            ]
+                            exclude = fusion_monster_condition["exclude"]
+                            if self.validate_answer(
+                                fusion_monster, fusion_monster_condition["monster"], exclude, duel
+                                ):
+                                fusions = self.check_fusion_monster(fusion_monster,trigger,user,effect_flag = effect_flag)
+                                if fusions:
+                                    if mode == 1:
+                                        return True
+                                    for fusion in fusions:
+                                        fusion_monster["fusion"] = fusion
+                                        return_monster.append(fusion_monster)
+                if not tmp_deck:
+                    continue
+                for tmp_fusion_monster in tmp_deck:
+                        if strategy != "": 
+                            tmptmpdeck = org_deck[tmp_fjusion_monster]
+                            if strategy in tmptmpdeck["variables"]:
+                                tmp_variable = tmptmpdeck["variables"][strategy]
+                                if not tmp_variable["value"].isnumeric():
+                                    tmp_variable["value"] = 0
+                            else:
+                                tmp_variable = {}
+                                tmp_variable["value"] = 0
+                            value = self.check_change_val(
+                                tmptmpdeck, user, place_tmp[0], deck_id, 0, 0, strategy, mine_or_other, int(tmp_variable["value"])
+                            )
+                        else:
+                            value = 0
+                        fusion_monster = {}
+                        fusion_monster["det"] = org_deck[tmp_fusion_monster]
+                        fusion_monster["mine_or_other"] = mine_or_other
+                        fusion_monster["user"] = user
+                        fusion_monster["place"] = place_tmp[0]
+                        fusion_monster["deck_id"] = deck_id
+                        fusion_monster["deck_name"] = deck_name
+                        fusion_monster["x"] = 0
+                        fusion_monster["y"] = 0
+                        fusion_monster["place_unique_id"] = org_deck[tmp_fusion_monster][
+                            "place_unique_id"
+                        ]
+                        fusion_monster["strategy_value"] = value
+                        exclude = fusion_monster_condition["exclude"]
+                        if self.validate_answer(
+                            fusion_monster, fusion_monster_condition["monster"][0]["monster"], exclude, duel
+                            ):
+                           fusions = self.check_fusion_monster(fusion_monster,trigger,user,effect_flag = effect_flag)
+                           if fusions:
+                                if mode == 1:
+                                   return True
+                                for fusion in fusions:
+                                    fusion_monster["fusion"] = fusion
+                                    return_monster.append(fusion_monster)
+        if mode == 1:
+            return False
+        return return_monster
+    def validate_place(self,monster_condition,monster,user):
+        monster_place = monster["place"]
+        tmp2 = monster_condition["monster"]
+        flag = True
+        for tmps in tmp2:
+            current_and_or = "and"
+            places = tmps["monster"]["place"]
+            if places is None:
+                return flag
+            for place_tmp in places:
+                place = place_tmp["det"]
+                and_or = place_tmp["and_or"]
+                place_tmp = place.split("_")
+                flag2 = False
+                flag3 = True
+                if place_tmp[0] == monster_place:
+                    if monster_place == "field":
+                        flag3 = True
+                    elif str(monster["deck_id"]).find(place_tmp[1]) == -1:
+                        flag3 = False
+                else:
+                    flag3 = False
+                if  (place_tmp[2] == "1" and user == 1 and int(monster["mine_or_other"]) == 1):
+                        flag2 = True
+                elif (place_tmp[2] == "1"
+                    and user == 2 and int(monster["mine_or_other"]) == 2):
+                        flag2 = True
+                elif  (place_tmp[2] == "2" and user == 1 and int(monster["mine_or_other"]) == 2):
+                        flag2 = True
+                elif(place_tmp[2] == "2" and user == 2 and int(monster["mine_or_other"]) == 1):
+                        flag2 = True
+                if monster_place != place_tmp[0]:
+                    flag2 = False
+                if flag2 is True and flag3 is True:
+                   if current_and_or == "or":
+                       flag = True
+                else:
+                   if current_and_or == "and":
+                       flag = False
+                current_and_or = and_or
+
+            if flag is False:
+                return False
+        return True
     def check_trigger_monster_det(
         self, trigger_monster_condition, monster, user, trigger,move_from
-    ):
+        ):
         if monster["det"] is None:
             monster = move_from
         monster_place = monster["place"]
         effect_kind = trigger.trigger_kind
-        tmps2 = json.loads(trigger_monster_condition)
-        tmps2 = tmps2["monster"]
+        tmp2 = json.loads(trigger_monster_condition)
+        tmp2 = tmp2["monster"]
         flag = True
-        for tmps in tmps2:
+        for tmps in tmp2:
             current_and_or = "and"
             places = tmps["monster"]["place"]
-            as_monster = tmps["as_monster_condition"]
+            as_monster =tmps["as_monster_condition"]
             if monster != 0 and not self.check_ignore_monster_place_func(
                 monster["det"],
                 user,
@@ -3236,11 +3917,11 @@ class DuelObj:
                             flag2 = True
                     '''
                     if flag2 is True and flag3 is True:
-                        if current_and_or == "or":
-                            flag = True
+                       if current_and_or == "or":
+                           flag = True
                     else:
-                        if current_and_or == "and":
-                            flag = False
+                       if current_and_or == "and":
+                           flag = False
                     current_and_or = and_or
 
                 if flag is False:
@@ -3898,7 +4579,7 @@ class DuelObj:
                     y = tmp["y"]
                     effect_kind = tmp["kind"]
                     move_to = json.loads(tmp["det"])
-                    move_to_tmp = move_to.copy()
+                    move_to_tmp = copy.deepcopy(move_to)
                     move_to_org = json.loads(tmp["move_from"])
                     org_move_to = json.loads(tmp["org_det"])
                     check_cost = self.cost
@@ -3922,8 +4603,8 @@ class DuelObj:
                         tmp2["deck_id"] = 0
                         check_cost[str(self.tmp_chain)]["~trigger"] = []
                         check_cost[str(self.tmp_chain)]["~trigger"].append(tmp2)
-                        check_mess[str(self.tmp_chain)]["~trigger"] = []
-                        check_mess[str(self.tmp_chain)]["~trigger"].append(tmp2)
+                        check_mess[str(self.tmp_chain)]["trigger"] = []
+                        check_mess[str(self.tmp_chain)]["trigger"].append(tmp2)
                         self.cost = check_cost
                         self.mess = check_mess
                     field[x][y]["det"] = move_to
@@ -3974,8 +4655,8 @@ class DuelObj:
                         tmp2["deck_id"] = deck_id
                         check_cost[str(self.tmp_chain)]["~trigger"] = []
                         check_cost[str(self.tmp_chain)]["~trigger"].append(tmp2)
-                        check_mess[str(self.tmp_chain)]["~trigger"] = []
-                        check_mess[str(self.tmp_chain)]["~trigger"].append(tmp2)
+                        check_mess[str(self.tmp_chain)]["trigger"] = []
+                        check_mess[str(self.tmp_chain)]["trigger"].append(tmp2)
                         self.cost = check_cost
                         self.mess = check_mess
                     self.raise_trigger(
@@ -4043,8 +4724,8 @@ class DuelObj:
                         tmp2["deck_id"] = deck_id
                         check_cost[str(self.tmp_chain)]["~trigger"] = []
                         check_cost[str(self.tmp_chain)]["~trigger"].append(tmp2)
-                        check_mess[str(self.tmp_chain)]["~trigger"] = []
-                        check_mess[str(self.tmp_chain)]["~trigger"].append(tmp2)
+                        check_mess[str(self.tmp_chain)]["trigger"] = []
+                        check_mess[str(self.tmp_chain)]["trigger"].append(tmp2)
                         self.cost = check_cost
                         self.mess = check_mess
                     self.raise_trigger(
@@ -4113,8 +4794,8 @@ class DuelObj:
                         tmp2["deck_id"] = deck_id
                         check_cost[str(self.tmp_chain)]["~trigger"] = []
                         check_cost[str(self.tmp_chain)]["~trigger"].append(tmp2)
-                        check_mess[str(self.tmp_chain)]["~trigger"] = []
-                        check_mess[str(self.tmp_chain)]["~trigger"].append(tmp2)
+                        check_mess[str(self.tmp_chain)]["trigger"] = []
+                        check_mess[str(self.tmp_chain)]["trigger"].append(tmp2)
                         self.cost = check_cost
                     self.raise_trigger(
                         move_to,
@@ -4834,8 +5515,8 @@ class DuelObj:
                                 x,
                                 y,
                                 cond_det[0],
-                                1,
-                            )
+                                1,)
+                            
                             if val_name5 in field[x][y]["det"]["variables"]:
                                 tmp4 = field[x][y]["det"]["variables"][val_name5]["value"].split("_")
                             else:
@@ -4869,21 +5550,21 @@ class DuelObj:
                                         if current_and_or == "and":
                                             cond_flag = False
                             elif cond_det[2] == ">=":
-                                if int(tmp4[0]) >= int(cond_det[1]):
+                                if int(tmp4) >= int(cond_det[1]):
                                     if current_and_or == "or":
                                         cond_flag = True
                                 else:
                                     if current_and_or == "and":
                                         cond_flag = False
                             elif cond_det[2] == "<=":
-                                if int(tmp4[0]) <= int(cond_det[1]):
+                                if int(tmp4) <= int(cond_det[1]):
                                     if current_and_or == "or":
                                         cond_flag = True
                                 else:
                                     if current_and_or == "and":
                                         cond_flag = False
                             elif cond_det[2] == "!=":
-                                if int(tmp4[0]) != int(cond_det[1]):
+                                if int(tmp4) != int(cond_det[1]):
                                     if current_and_or == "or":
                                         cond_flag = True
                                 else:
@@ -5157,6 +5838,10 @@ class DuelObj:
             monster_effect_kind = val[9]
         else:
             monster_effect_kind = "0"
+        if (len(val) > 10) and val[10] == "1":
+            init = val[10]
+        else:
+            init = 0
 
         return_value = 0
         if mode == 0:
@@ -5252,7 +5937,8 @@ class DuelObj:
                                 return_tmp += int(
                                     monster2["det"]["variables"][val_name2]["value"]
                                 )
-                            return_tmp = self.check_change_val(
+                            if init == 0:
+                                return_tmp = self.check_change_val(
                                 monster2["det"],
                                 monster2["mine_or_other"],
                                 monster2["place"],
@@ -5369,7 +6055,8 @@ class DuelObj:
                             return return_tmp
                         else:
                             return_tmp = int(return_tmp)
-                        return_tmp = self.check_change_val(
+                        if init == 0:
+                            return_tmp = self.check_change_val(
                             under_monster,
                             monster["mine_or_other"],
                             "under",
@@ -5444,8 +6131,12 @@ class DuelObj:
                         monster["user"],
                     )
                     if val_name2 in tmp2:
-                        return_tmp = int(tmp2[val_name2]["value"])
-                    return_tmp = self.check_change_val(
+                        if tmp2[val_name2]["value"].isnumeric():
+                            return_tmp = int(tmp2[val_name2]["value"])
+                        else:
+                            return_tmp = 0
+                    if init == 0:
+                        return_tmp = self.check_change_val(
                         monster["det"],
                         monster["mine_or_other"],
                         monster["place"],
@@ -5925,6 +6616,85 @@ class DuelObj:
         for monster in monsters:
             return_value += monster["det"]["monster_name"] + " "
         return return_value
+
+    def get_place_name(self,val,user):
+        val = val[1:-1]
+        val_ary = val.split(";")
+        val_ary[1] = self.calculate_boland(val_ary[1],user = user)
+        if val_ary[0] == "deck":
+           return self.get_deck_name(val_ary[1],val_ary[2],val_ary[3],user)
+        elif val_ary[0] == "grave":
+            return self.get_grave_name(val_ary[1],val_ary[2],val_ary[3],user)
+        elif val_ary[0] == "hand":
+            return self.get_hand_name(val_ary[1],val_ary[2],val_ary[3],user)
+    def get_deck_name(self,num,deck_id,rel_mine_or_other,user):
+        deck_id = int(deck_id)
+        rel_mine_or_other = int(rel_mine_or_other)
+        mine_or_other = rel_mine_or_other
+        if user  == 2:
+            if rel_mine_or_other == 1:
+                mine_or_other = 2
+            elif rel_mine_or_other == 2:
+                mine_or_other = 1
+        if rel_mine_or_other == 1:
+            user_decks = self.decks[deck_id]["mydeck"]
+        elif rel_mine_or_other == 2:
+            user_decks = self.decks[deck_id]["otherdeck"]
+        else:
+            user_decks = self.decks[deck_id]["commondeck"]
+        return self.get_name_det(user_decks,"deck",deck_id,mine_or_other,num)
+    def get_grave_name(self,num,deck_id,rel_mine_or_other,user):
+        deck_id = int(deck_id)
+        rel_mine_or_other = int(rel_mine_or_other)
+        mine_or_other = rel_mine_or_other
+        if user  == 2:
+            if rel_mine_or_other == 1:
+                mine_or_other = 2
+            elif rel_mine_or_other == 2:
+                mine_or_other = 1
+        if rel_mine_or_other == 1:
+            user_graves = self.graves[deck_id]["mygrave"]
+        elif rel_mine_or_other == 2:
+            user_graves = self.graves[deck_id]["othergrave"]
+        else:
+            user_graves = self.graves[deck_id]["commongrave"]
+        return self.get_name_det(user_graves,"grave",deck_id,mine_or_other,num)
+    def get_hand_name(self,num,deck_id,rel_mine_or_other,user):
+        deck_id = int(deck_id)
+        rel_mine_or_other = int(rel_mine_or_other)
+        mine_or_other = rel_mine_or_other
+        if user  == 2:
+            if rel_mine_or_other == 1:
+                mine_or_other = 2
+            elif rel_mine_or_other == 2:
+                mine_or_other = 1
+        if rel_mine_or_other == 1:
+            user_hands = self.hands[deck_id]["myhand"]
+        elif rel_mine_or_other == 2:
+            user_hands = self.hands[deck_id]["otherhand"]
+        else:
+            user_hands = self.hands[deck_id]["commonhand"]
+        return self.get_name_det(user_hands,"hand",deck_id,mine_or_other,num)
+    def get_name_det(self,cards,place,deck_id,mine_or_other,num):
+        ret = ""
+        i = 0
+        for card in cards:
+            monster_name = self.check_change_name(
+                card,
+                mine_or_other,
+                place,
+                deck_id,
+                0,
+                0,
+                mine_or_other,
+            )
+            ret += monster_name[0]+","
+            i += 1
+            if i >= num:
+                break
+        ret = ret[:-1]
+        return ret
+
 
     def get_name_all(self, val, mode=0):
         if val[0] != "{":
@@ -6546,6 +7316,8 @@ class DuelObj:
         eternal = False,
         user = None
     ):
+        if other_user_flag2 == True:
+            other_user_flag = True
         if boland == "":
             return 0
         operator = {
@@ -6972,6 +7744,7 @@ class DuelObj:
                         if field[x][y]["det"]["place_unique_id"] != place_unique_id:
                             continue
                     field[x][y]["det"] = None
+                    self.effect += "field_move;"+str(x)+";"+str(y)+"|"
                     if self.config.sort is True:
                         field = self.sortField(field,y)
                 self.field = field
@@ -7001,18 +7774,18 @@ class DuelObj:
                     deck_id = tmp["deck_id"]
                     user = tmp["user"]
                     place_unique_id = tmp["place_unique_id"]
-                    if user == 1 and self.user == 1 or user == 2 and self.user == 2:
+                    if (user == 1 and self.user == 1) or (user == 2 and self.user == 2):
                         user_decks = self.decks[deck_id]["mydeck"]
-                    elif user == 2 and self.user == 1 or user == 1 and self.user == 2:
+                    elif (user == 2 and self.user == 1) or (user == 1 and self.user == 2):
                         user_decks = self.decks[deck_id]["otherdeck"]
                     elif user == 3:
                         user_decks = self.decks[deck_id]["commondeck"]
                     for user_deck in user_decks:
                         if place_unique_id == user_deck["place_unique_id"]:
                             user_decks.remove(user_deck)
-                    if user == 1 and self.user == 1 or user == 2 and self.user == 2:
+                    if (user == 1 and self.user == 1) or (user == 2 and self.user == 2):
                         self.decks[deck_id]["mydeck"] = user_decks
-                    elif user == 2 and self.user == 1 or user == 1 and self.user == 2:
+                    elif (user == 2 and self.user == 1) or (user == 1 and self.user == 2):
                         self.decks[deck_id]["otherdeck"] = user_decks
                     elif user == 3:
                         self.decks[deck_id]["commondeck"] = user_decks
@@ -7022,18 +7795,18 @@ class DuelObj:
                     deck_id = tmp["deck_id"]
                     user = tmp["user"]
                     place_unique_id = tmp["place_unique_id"]
-                    if user == 1 and self.user == 1 or user == 2 and self.user == 2:
+                    if (user == 1 and self.user == 1) or ( user == 2 and self.user == 2):
                         user_graves = self.graves[deck_id]["mygrave"]
-                    elif user == 2 and self.user == 1 or user == 1 and self.user == 2:
+                    elif (user == 2 and self.user == 1) or (user == 1 and self.user == 2):
                         user_graves = self.graves[deck_id]["othergrave"]
                     elif user == 3:
                         user_graves = self.graves[deck_id]["commongrave"]
                     for user_grave in user_graves:
                         if place_unique_id == user_grave["place_unique_id"]:
                             user_graves.remove(user_grave)
-                    if user == 1 and self.user == 1 or user == 2 and self.user == 2:
+                    if (user == 1 and self.user == 1) or (user == 2 and self.user == 2):
                         self.graves[deck_id]["mygrave"] = user_graves
-                    elif user == 2 and self.user == 1 or user == 1 and self.user == 2:
+                    elif (user == 2 and self.user == 1) or (user == 1 and self.user == 2):
                         self.graves[deck_id]["othergrave"] = user_graves
                     elif user == 3:
                         self.graves[deck_id]["commongrave"] = user_graves
@@ -7042,18 +7815,18 @@ class DuelObj:
                     deck_id = tmp["deck_id"]
                     user = tmp["user"]
                     place_unique_id = tmp["place_unique_id"]
-                    if user == 1 and self.user == 1 or user == 2 and self.user == 2:
+                    if (user == 1 and self.user == 1) or (user == 2 and self.user == 2):
                         user_hands = self.hands[deck_id]["myhand"]
-                    elif user == 2 and self.user == 1 or user == 1 and self.user == 2:
+                    elif (user == 2 and self.user == 1) or (user == 1 and self.user == 2):
                         user_hands = self.hands[deck_id]["otherhand"]
                     elif user == 3:
                         user_hands = self.hands[deck_id]["commonhand"]
                     for user_hand in user_hands:
                         if place_unique_id == user_hand["place_unique_id"]:
                             user_hands.remove(user_hand)
-                    if user == 1 and self.user == 1 or user == 2 and self.user == 2:
+                    if (user == 1 and self.user == 1) or (user == 2 and self.user == 2):
                         self.hands[deck_id]["myhand"] = user_hands
-                    elif user == 2 and self.user == 1 or user == 1 and self.user == 2:
+                    elif (user == 2 and self.user == 1) or (user == 1 and self.user == 2):
                         self.hands[deck_id]["otherhand"] = user_hands
                     elif user == 3:
                         self.hands[deck_id]["commonhand"] = user_hands
@@ -7273,6 +8046,8 @@ class DuelObj:
                 duel.cost_det = cost_det
                 cost = cost_next
                 cost_unwrap = cost.cost
+                ppeinr(cost_unwrap)
+                ppeinr(cost_unwrap.cost_val)
                 if cost_unwrap.cost_val == 5:
                     if self.duel.is_ai is False:
                         self.duel.ask = 3
@@ -7392,6 +8167,7 @@ class DuelObj:
     def pay_cost(self, cost, user,org_chain, trigger,copy=0):
         self.in_execute = True
         duel = self.duel
+        pprint(cost)
         if copy != 0:
             duel.in_copying = True
         in_copying_org = duel.in_copying
@@ -7440,6 +8216,7 @@ class DuelObj:
                         cost_next = cost.cost_next
                     else:
                         cost_next = self.pop_pac_cost(user)
+            pprint(cost_next)
             if not cost_next or cost_next == -2:
                 self.end_cost(user,org_chain,trigger,Flase,copy)
                 if in_copying_org == 0 or self.copying_flag >= 2:
@@ -7503,11 +8280,10 @@ class DuelObj:
             else:
                 if duel.user_turn == 1:
                     self.duel.ask = 1
+                    self.answer_ai(strategy,strategy_up_or_down)
                 else:
-                    if duel.is_ai is False:
-                        self.duel.ask = 2
-                    else:
-                        self.answer_ai(strategy,strategy_up_or_down)
+                    self.duel.ask = 2
+                    self.answer_ai(strategy,strategy_up_or_down)
             return False
         elif cost_unwrap.cost_val == 3:
             cost_text = json.loads(cost_unwrap.cost)
@@ -7634,6 +8410,7 @@ class DuelObj:
         duel.cost_det = cost.id
         cost_next = self.invoke_cost(cost, chain)
         while cost_next and cost_next != -2 and cost_next != -3:
+            pprint(cost_next)
             if cost_next == -1:
                 return False
             else:
@@ -7835,10 +8612,10 @@ class DuelObj:
             tmp_cost[str(chain)]["~trigger_org"] = []
             tmp_cost[str(chain)]["~trigger_org"].append(tmp2)
             self.mess = tmp
-            tmp_cost[str(chain)]["~trigger_relate"] = []
-            tmp_cost[str(chain)]["~trigger_relate"].append(tmp2)
-            tmp_cost[str(chain)]["~trigger_org_relate"] = []
-            tmp_cost[str(chain)]["~trigger_org_relate"].append(tmp2)
+            tmp_cost[str(chain)]["trigger_relate"] = []
+            tmp_cost[str(chain)]["trigger_relate"].append(tmp2)
+            tmp_cost[str(chain)]["trigger_org_relate"] = []
+            tmp_cost[str(chain)]["trigger_org_relate"].append(tmp2)
             self.cost = tmp_cost
         else:
             variable_mess = self.variable_mess
@@ -7983,6 +8760,10 @@ class DuelObj:
                 self.duel.tmponce_per_turn1 = str(trigger.id) 
             else:
                 self.duel.tmponce_per_turn2 = str(trigger.id) 
+            if  user == 1:
+                self.duel.tmponce_per_duel1 = str(trigger.id) 
+            else:
+                self.duel.tmponce_per_duel2 = str(trigger.id) 
             if trigger.once_per_turn_group != 0:
                 if  user == 1:
                     self.duel.tmponce_per_turn_group1 = str(trigger.once_per_turn_group) 
@@ -7994,13 +8775,12 @@ class DuelObj:
                     self.duel.tmponce_per_turn_monster1 = str(trigger.id)+"*"+ trigger_monster["place_unique_id"]
                 else:
                     self.duel.tmponce_per_turn_monster2 = str(trigger.id)+"*"+ trigger_monster["place_unique_id"]
-                if trigger.once_per_turn_group != 0:
+                if trigger.once_per_turn_monster_group != 0:
                     if  user == 1:
-                        pass
-                        self.duel.tmponce_per_turn_monster_group1 = str(trigger.once_per_turn_group)+"*"+str(trigger.once_per_turn_group) 
+                        self.duel.tmponce_per_turn_monster_group1 = str(trigger.once_per_turn_monster_group)+"*"+str( trigger_monster["place_unique_id"]) 
                     else:
-                        pass
-                        self.duel.tmponce_per_turn_monster_group2 = str(trigger.once_per_turn_group)+"*"+str(trigger.once_per_turn_group) 
+                        self.duel.tmponce_per_turn_monster_group2 = str(trigger.once_per_turn_monster_group)+"*"+str(trigger_monster["place_unique_id"]) 
+
             variable_mess = self.variable_mess
             variable_mess[str(org_chain)] = change_val
             self.variable_mess = variable_mess
@@ -8030,8 +8810,8 @@ class DuelObj:
             tmp[str(org_chain)]["trigger_org"] = []
             tmp[str(org_chain)]["trigger_org"].append(tmp2)
             if who == 0:
-                tmp[str(org_chain)]["~trigger_all"] = []
-                tmp[str(org_chain)]["~trigger_all"].append(tmp2)
+                tmp[str(org_chain)]["trigger_all"] = []
+                tmp[str(org_chain)]["trigger_all"].append(tmp2)
             tmp_cost = self.cost
             tmp_cost[str(org_chain)] = {}
             tmp_cost[str(org_chain)]["~trigger"] = []
@@ -8050,7 +8830,7 @@ class DuelObj:
                 tmp_from["place_unique_id"] = monster_from["place_unique_id"]
                 tmp_from["det"] = monster_from
                 tmp[str(org_chain)]["trigger_from"] = []
-                tmp[str(org_chain)]["trigger_from"].append(tmp2)
+                tmp[str(org_chain)]["trigger_from"].append(tmp_from)
             if null_relate is not None:
                 tmp[str(org_chain)]["null_relate"] = []
                 tmp[str(org_chain)]["null_relate"].append(null_relate)
@@ -8199,9 +8979,9 @@ class DuelObj:
             )
         triggers = triggers.filter(
             Q(chain__isnull=True)
-            | (Q(chain_kind=0) & Q(chain__lte=duel.chain))
-            | (Q(chain_kind=1) & Q(chain__gte=duel.chain))
-            | (Q(chain_kind=2) & Q(chain=duel.chain))
+            | (Q(chain_kind=0) & Q(chain__lte=duel.virtual_chain))
+            | (Q(chain_kind=1) & Q(chain__gte=duel.virtual_chain))
+            | (Q(chain_kind=2) & Q(chain=duel.virtual_chain))
         )
         if duel.timing is not None:
             triggers = triggers.filter(Q(timing=duel.timing))
@@ -8252,7 +9032,7 @@ class DuelObj:
                 tmp["id"] = trigger.id
                 available_trigger.append(tmp)
         trigger_num = self.check_monster_trigger(
-            decks, graves, hands, user, other_user, priority,0
+            decks, graves, hands, user, other_user, priority,1
         )
         if len(available_trigger) > 1 and (self.duel.is_ai is False or user == 1):
             return_value.append(available_trigger)
@@ -8400,7 +9180,7 @@ class DuelObj:
         deck_info = self.get_deck_info(decks, user, other_user)
         return_value["deck_info"] = copy.deepcopy(deck_info)
         if self.modify_deck_info(
-            return_value["deck_info"], self.count_deck(decks), user, other_user, priority, 1
+            return_value["deck_info"], self.count_deck(decks), user, other_user, priority, 1,mode2
         ):
             flag =  True
         grave_info = self.get_grave_info(graves, user, other_user)
@@ -8437,6 +9217,11 @@ class DuelObj:
                 pass
         else:
             self.sound_effect = ""
+        if  user == 1:
+            self.effect = duel.effect
+        else:
+            self.effect = duel.effect2
+        duel.effect_flag = 0
         self.log_initial = duel.current_log
         self.current_log = ""
         self.in_execute = duel.in_execute
@@ -8478,11 +9263,18 @@ class DuelObj:
                     duel.log += self.write_log(time_win, user)
                     self.current_log += self.write_log(time_win, user)
                     self.win_the_game_by_time()
+        
 
     def save_all(self, user, other_user, room_number):
         duel = self.duel
         game_name = self.config.game_name
         pwd = os.path.dirname(__file__)
+        if user == 1:
+            duel.effect = ""
+            duel.effect2 += self.effect
+        else:
+            duel.effect += self.effect
+            duel.effect2 = ""
         if duel.cost_det is None:
             duel.cost_det = 0
         if self.config.cheat is True or self.config.detail_log is True or (self.turn_changed is True and self.config.initial_turn_log is True):
@@ -8660,6 +9452,7 @@ class DuelObj:
                 tmp = DuelDeck.objects.filter(
                     room_number=room_number, mine_or_other=3, deck_id=i + 1
                 ).first()
+                result_decks[i + 1]["deck_name"] = tmp.deck_name
                 if tmp is not None:
                     tmp = json.loads(tmp.deck_content)
                     result_decks[i + 1]["commondeck"] = tmp
@@ -8669,6 +9462,7 @@ class DuelObj:
                 tmp = DuelDeck.objects.filter(
                     room_number=room_number, mine_or_other=user, deck_id=i + 1
                 ).first()
+                result_decks[i + 1]["deck_name"] = tmp.deck_name
                 if tmp is not None:
                     tmp = json.loads(tmp.deck_content)
                     result_decks[i + 1]["mydeck"] = tmp
@@ -8677,6 +9471,7 @@ class DuelObj:
                 tmp = DuelDeck.objects.filter(
                     room_number=room_number, mine_or_other=other_user, deck_id=i + 1
                 ).first()
+                result_decks[i + 1]["deck_name"] = tmp.deck_name
                 if tmp is not None:
                     tmp = json.loads(tmp.deck_content)
                     result_decks[i + 1]["otherdeck"] = tmp
@@ -8699,12 +9494,14 @@ class DuelObj:
                 tmp = DuelGrave.objects.filter(
                     room_number=room_number, mine_or_other=3, grave_id=i + 1
                 ).first()
+                result_graves[i + 1]["deck_name"] = tmp.grave_name
                 tmp = json.loads(tmp.grave_content)
                 result_graves[i + 1]["commongrave"] = tmp
             else:
                 tmp = DuelGrave.objects.filter(
                     room_number=room_number, mine_or_other=user, grave_id=i + 1
                 ).first()
+                result_graves[i + 1]["deck_name"] = tmp.grave_name
                 tmp = json.loads(tmp.grave_content)
                 result_graves[i + 1]["mygrave"] = tmp
                 tmp = DuelGrave.objects.filter(
@@ -8729,12 +9526,15 @@ class DuelObj:
                 tmp = DuelHand.objects.filter(
                     room_number=room_number, mine_or_other=3, hand_id=i + 1
                 ).first()
+                result_hands[i + 1]["deck_name"] = tmp.hand_name
+                tmp = json.loads(tmp.grave_content)
                 tmp = json.loads(tmp.hand_content)
                 result_hands[i + 1]["commonhand"] = tmp
             else:
                 tmp = DuelHand.objects.filter(
                     room_number=room_number, mine_or_other=user, hand_id=i + 1
                 ).first()
+                result_hands[i + 1]["deck_name"] = tmp.hand_name
                 tmp = json.loads(tmp.hand_content)
                 result_hands[i + 1]["myhand"] = tmp
                 tmp = DuelHand.objects.filter(
@@ -8880,6 +9680,7 @@ class DuelObj:
 
             current_and_or = "and"
             monster_name_kind = effect_det["monster"]["monster_name_kind"]
+            monster_names = self.check_change_name(user_decks[index], user, place, deck_id, x, y, -1)
             name_flag = True
             if (
                 "monster_effect" in effect_det["monster"]
@@ -8906,45 +9707,53 @@ class DuelObj:
                             break
                     if monster_effect_flag is False:
                         continue
+            name_flag = True
             if len(monster_name_kind) != 1 or monster_name_kind[0]["operator"] != "":
                 for name_kind in monster_name_kind:
                     if name_kind != "":
-                        if name_kind["operator"] == "=":
-                            if user_decks[index]["monster_name"] != self.get_name(
-                                name_kind["monster_name"], 0, user_decks[index]
-                            ):
-                                if current_and_or == "and":
-                                    name_flag = False
-                            else:
-                                if current_and_or == "or":
-                                    name_flag = True
-                            current_and_or = name_kind["and_or"]
-                        elif name_kind["operator"] == "!=":
-                            if user_decks[index]["monster_name"] == self.get_name(
-                                name_kind["monster_name"], 0, user_decks[index]
-                            ):
-                                if current_and_or == "and":
-                                    name_flag = False
-                            else:
-                                if current_and_or == "or":
-                                    name_flag = True
-                            current_and_or = name_kind["and_or"]
-
-                        elif name_kind["operator"] == "like":
-                            if (
-                                user_decks[index]["monster_name"].find(
-                                    self.get_name(
-                                        name_kind["monster_name"], 0, user_decks[index]
+                        name_flag2 = False
+                        for monster_name in monster_names:
+                            if name_kind["operator"] == "=":
+                                if monster_name == self.get_name(
+                                    name_kind["monster_name"], 0, user_decks[index]
+                                ):
+                                    name_flag2 = True
+                                    break
+                            elif name_kind["operator"] == "!=":
+                                if monster_name != self.get_name(
+                                    name_kind["monster_name"], 0, user_decks[index]
+                                ):
+                                    name_flag2 = True
+                                    break
+                            elif name_kind["operator"] == "like":
+                                if (
+                                    monster_name.find(
+                                        self.get_name(
+                                            name_kind["monster_name"], 0, user_decks[index]
+                                        )
                                     )
-                                )
-                                > -1
-                            ):
-                                if current_and_or == "and":
-                                    name_flag = False
-                            else:
-                                if current_and_or == "or":
-                                    name_flag = True
-                            current_and_or = name_kind["and_or"]
+                                    == -1
+                                ):
+                                     name_flag2 = True
+                                     break
+                            elif name_kind["operator"] == "notlike":
+                                if (
+                                    user_decks[index]["monster_name"].find(
+                                        self.get_name(
+                                            name_kind["monster_name"], 0, user_decks[index]
+                                        )
+                                    )
+                                    != -1
+                                ):
+                                    name_flag2 = True
+                                    break
+                        if current_and_or == "and":
+                            if name_flag is True:
+                                name_flag = name_flag2
+                        else:
+                            if name_flag is False:
+                                name_flag = name_flag2
+                        current_and_or = name_kind["and_or"]
             if name_flag is False:
                 continue
             check_flag = effect_det["monster"]["flag"]
@@ -8989,43 +9798,46 @@ class DuelObj:
                             mine_or_other,
                         )
                         tmp = user_decks[index]["variables"][cond_val["name"]]
-                        if cond_val["init"] == 0:
+                        if not tmp["value"].isnumeric():
                             value = tmp["value"]
-                            value = self.check_change_val(
-                                monster,
-                                mine_or_other,
-                                place,
-                                deck_id,
-                                x,
-                                y,
-                                name,
-                                mine_or_other,
-                                value
-                            )
-                        elif cond_val["init"] == 1:
-                            tmp = user_decks[index]["variables"][name2]
-                            value = tmp["i_val"]
-                        elif cond_val["init"] == 2:
-                            value = tmp["i_i_val"]
+                        else:
+                            if cond_val["init"] == 0:
+                                value = int(tmp["value"])
+                                value = self.check_change_val(
+                                    monster,
+                                    mine_or_other,
+                                    place,
+                                    deck_id,
+                                    x,
+                                    y,
+                                    name,
+                                    mine_or_other,
+                                    value
+                                )
+                            elif cond_val["init"] == 1:
+                                tmp = user_decks[index]["variables"][name2]
+                                value = int(tmp["i_val"])
+                            elif cond_val["init"] == 2:
+                                value = int(tmp["i_i_val"])
                         if cond_val["operator"] == "=" or cond_val["operator"] == "":
-                            if int(value) != self.calculate_boland(
+                            if str(float(value)) != str(self.calculate_boland(
                                 cond_val["num"], None
-                            ):
+                            )):
                                 tmp_flag = False
                         elif cond_val["operator"] == "<=":
-                            if int(value) > self.calculate_boland(
+                            if str(value) > str(self.calculate_boland(
                                 cond_val["num"], None
-                            ):
+                            )):
                                 tmp_flag = False
                         elif cond_val["operator"] == ">=":
-                            if int(value) < self.calculate_boland(
+                            if str(value) < str(self.calculate_boland(
                                 cond_val["num"], None
-                            ):
+                            )):
                                 tmp_flag = False
                         elif cond_val["operator"] == "!=":
-                            if int(value) == self.calculate_boland(
+                            if str(value) == str(self.calculate_boland(
                                 cond_val["num"], None
-                            ):
+                            )):
                                 tmp_flag = False
                         if current_and_or == "and":
                             if cond_flag is True:
@@ -9164,6 +9976,8 @@ class DuelObj:
                 return_value[i]["otherhandnum"] = len(tmp)
                 if mode == 1 or mode == 2:
                     if hand.show == 2 and hand.show != 5:
+                        return_value[i]["otherhand"] = tmp
+                    else:
                         if (hand.show == 3 or hand.show == 4) and mode != 3:
                             return_value[i]["otherhand"] = []
                             for val  in tmp:
@@ -9194,6 +10008,11 @@ class DuelObj:
         duel = self.duel
         eternal_effect = eternal["eternal"]
         turn = eternal_effect.turn
+        if(eternal_effect.eternal_effect_val == 8 or eternal_effect.eternal_effect_val == 9):
+            name_flag = True
+        else:
+            name_flag = False
+
         if turn != 0:
             if effect_user == 1:
                 if (
@@ -9218,13 +10037,17 @@ class DuelObj:
         if duel.timing is not None:
             if duel.timing not in eternal_effect.timing.all():
                 return False
+        elif eternal_effect.none_timing is False:
+            return False
         if duel.timing2 is not None:
             if duel.timing2 not in eternal_effect.timing2.all():
                 return False
+        elif eternal_effect.none_timing2 is False:
+            return False
         if duel.timing3 is not None:
             if duel.timing3 not in eternal_effect.timing3.all():
                 return False
-        elif eternal_effect.none_timing is False:
+        elif eternal_effect.none_timing3 is False:
             return False
         if eternal_effect.eternal_effect_condition != "":
             eternal_condition = json.loads(eternal_effect.eternal_effect_condition)
@@ -9237,6 +10060,7 @@ class DuelObj:
                     [],
                     0,
                     eternal_effect.eternal_kind,
+                    name_flag = name_flag
                 )
                 is False
             ):
@@ -9260,10 +10084,8 @@ class DuelObj:
         if eternal_effect.eternal_monster != "":
             eternal_monsters = json.loads(eternal_effect.eternal_monster)
             eternal_monster = eternal_monsters["monster"][0]
-            eternal_monster_place = eternal_monsters["monster"][0]["monster"]["place"][
-                0
-            ]
-            eternal_places = eternal_monster_place["det"].split("_")
+            eternal_monster_place_ary = eternal_monsters["monster"][0]["monster"]["place"]
+                
         else:
             if "place_unique_id" in eternal:
                 place_unique_id = eternal["place_unique_id"]
@@ -9463,364 +10285,406 @@ class DuelObj:
         persist = eternal_effect.persist
         eternal["persist"] = persist
         eternal["invalid_kinds"] = invalid_kinds
-        if (effect_user == 1 and int(eternal_places[2]) == 1) or (
-            effect_user == 2 and int(eternal_places[2]) == 2
-        ):
-            mine_or_other4 = 1
-        elif (
-            effect_user == 2
-            and int(eternal_places[2]) == 1
-            or (effect_user == 2 and int(eternal_places[2]) == 1)
-        ):
-            mine_or_other4 = 2
-        else:
-            mine_or_other4 = 3
-        eternal["mine_or_other"] = mine_or_other4
-        if eternal["place"] == "" or eternal["place"] is None:
-            flag = True
-            det = {}
-            det["place_unique_id"] = ""
-        elif eternal["place"] != eternal_places[0]:
-            return
-        elif eternal["place"] == "field":
-            fields = self.field
-            x = int(eternal["x"])
-            y = int(eternal["y"])
-            mine_or_other = int(fields[x][y]["mine_or_other"])
-            kind = fields[x][y]["kind"]
-            tmp = kind.split("_")
-            if mine_or_other != mine_or_other4 or eternal_places[1] not in tmp:
-                return
+        for eternal_monster_place in eternal_monster_place_ary:
+                
+            eternal_places = eternal_monster_place["det"].split("_")
+            if (effect_user == 1 and int(eternal_places[2]) == 1) or (
+                effect_user == 2 and int(eternal_places[2]) == 2
+            ):
+                mine_or_other4 = 1
+            elif (
+                effect_user == 2
+                and int(eternal_places[2]) == 1
+                or (effect_user == 2 and int(eternal_places[2]) == 1)
+            ):
+                mine_or_other4 = 2
             else:
-                det = fields[x][y]["det"]
-                if det is None:
-                    return
-                tmp2 = {}
-                tmp2["det"] = fields[x][y]["det"]
-                tmp2["mine_or_other"] = fields[x][y]["mine_or_other"]
-                tmp2["user"] = effect_user
-                tmp2["place"] = "field"
-                tmp2["deck_id"] = 0
-                tmp2["x"] = x
-                tmp2["y"] = y
-                tmp2["place_unique_id"] = fields[x][y]["det"]["place_unique_id"]
-                if not self.check_monster_condition_det(
-                        eternal_monster, fields[x][y]["det"], effect_user
-                ):
-                    return
+                mine_or_other4 = 3
+            eternal["mine_or_other"] = mine_or_other4
+            if eternal["place"] == "" or eternal["place"] is None:
+                flag = True
+                det = {}
+                det["place_unique_id"] = ""
+            elif eternal["place"] != eternal_places[0]:
+                continue
+            elif eternal["place"] == "field":
+                fields = self.field
+                x = int(eternal["x"])
+                y = int(eternal["y"])
+                mine_or_other = int(fields[x][y]["mine_or_other"])
+                kind = fields[x][y]["kind"]
+                tmp = kind.split("_")
+                if mine_or_other != mine_or_other4 or eternal_places[1] not in tmp:
+                    continue
+                else:
+                    det = fields[x][y]["det"]
+                    if det is None:
+                        continue
+                    tmp2 = {}
+                    tmp2["det"] = fields[x][y]["det"]
+                    tmp2["mine_or_other"] = fields[x][y]["mine_or_other"]
+                    tmp2["user"] = effect_user
+                    tmp2["place"] = "field"
+                    tmp2["deck_id"] = 0
+                    tmp2["x"] = x
+                    tmp2["y"] = y
+                    tmp2["place_unique_id"] = fields[x][y]["det"]["place_unique_id"]
+                    if not self.check_monster_condition_det(
+                            eternal_monster, fields[x][y]["det"], effect_user
+                    ):
+                        continue
 
-                eternal["place_unique_id"] = det["place_unique_id"]
-                eternal["relate_monster"] = []
-                eternal["mine_or_other"] = fields[x][y]["mine_or_other"]
-                if (
-                    invalid_monster != ""
-                    and len(invalid_monster["relation"]) != 0
-                    and "rel" in det
+                    eternal["place_unique_id"] = det["place_unique_id"]
+                    eternal["relate_monster"] = []
+                    eternal["mine_or_other"] = fields[x][y]["mine_or_other"]
+                    if (
+                        invalid_monster != ""
+                        and len(invalid_monster["relation"]) != 0
+                        and "rel" in det
+                    ):
+                        for index in range(len(invalid_monster["relation"])):
+                            relation_kind = invalid_monster["relation_kind"][index]
+                            relation_to = int(invalid_monster["relation_to"][index])
+                            relation = invalid_monster["relation"][index]
+                            if relation_kind in det["rel"]:
+                                for relation_det in det["rel"][relation_kind]:
+                                    if (
+                                        relation_det["name"] == relation
+                                        and int(relation_det["to"]) == relation_to
+                                    ):
+                                        eternal["relate_monster"].append(relation_det)
+                    if not self.check_eternal_invalid(
+                        det,
+                        effect_user,
+                        effect_kinds,
+                        "field",
+                        0,
+                        x,
+                        y,
+                        fields[x][y]["mine_or_other"],
+                    ):
+                        fields[x][y]["det"]["already"] = 1
+                        flag = True
+                        self.field = fields
+                    else:
+                        fields[x][y]["det"]["already"] = 0
+                        flag = False
+                        self.field = fields
+            elif eternal["place"] == "deck":
+                deck_id = int(eternal["deck_id"])
+                mine_or_other = eternal["mine_or_other"]
+                if (self.user == 1 and mine_or_other == 1) or (
+                    self.user == 2 and mine_or_other == 2
                 ):
-                    for index in range(len(invalid_monster["relation"])):
-                        relation_kind = invalid_monster["relation_kind"][index]
-                        relation_to = int(invalid_monster["relation_to"][index])
-                        relation = invalid_monster["relation"][index]
-                        if relation_kind in det["rel"]:
-                            for relation_det in det["rel"][relation_kind]:
-                                if (
-                                    relation_det["name"] == relation
-                                    and int(relation_det["to"]) == relation_to
-                                ):
-                                    eternal["relate_monster"].append(relation_det)
-                if not self.check_eternal_invalid(
-                    det,
-                    effect_user,
-                    effect_kinds,
-                    "field",
-                    0,
-                    x,
-                    y,
-                    fields[x][y]["mine_or_other"],
+                    mine_or_other2 = 1
+                elif (self.user == 2 and mine_or_other == 1) or (
+                    self.user == 1 and mine_or_other == 2
                 ):
-                    fields[x][y]["det"]["already"] = 1
-                    flag = True
-                    self.field = fields
+                    mine_or_other2 = 2
                 else:
-                    fields[x][y]["det"]["already"] = 0
-                    flag = False
-                    self.field = fields
-        elif eternal["place"] == "deck":
-            deck_id = int(eternal["deck_id"])
-            mine_or_other = eternal["mine_or_other"]
-            if (self.user == 1 and mine_or_other == 1) or (
-                self.user == 2 and mine_or_other == 2
-            ):
-                mine_or_other2 = 1
-            elif (self.user == 2 and mine_or_other == 1) or (
-                self.user == 1 and mine_or_other == 2
-            ):
-                mine_or_other2 = 2
-            else:
-                mine_or_other2 = 3
-            if mine_or_other4 != mine_or_other or deck_id != int(eternal_places[1]):
-                return
-            else:
-                if mine_or_other2 == 1:
-                    decks = self.decks[deck_id]["mydeck"]
-                elif mine_or_other2 == 2:
-                    decks = self.decks[deck_id]["otherdeck"]
-                elif mine_or_other2 == 3:
-                    decks = self.decks[deck_id]["commondeck"]
-                if "index" in eternal:
-                    i = eternal["index"]
+                    mine_or_other2 = 3
+                if mine_or_other4 != mine_or_other or deck_id != int(eternal_places[1]):
+                    continue
                 else:
-                    i = -1
-                    for deck_i in range(len(decks)):
-                        if (
-                            decks[deck_i]["place_unique_id"]
-                            == eternal["place_unique_id"]
-                        ):
-                            if not self.check_monster_condition_det(
-                                eternal_monster, decks[deck_i], effect_user
+                    if mine_or_other2 == 1:
+                        decks = self.decks[deck_id]["mydeck"]
+                    elif mine_or_other2 == 2:
+                        decks = self.decks[deck_id]["otherdeck"]
+                    elif mine_or_other2 == 3:
+                        decks = self.decks[deck_id]["commondeck"]
+                    if "index" in eternal:
+                        i = eternal["index"]
+                    else:
+                        i = -1
+                        for deck_i in range(len(decks)):
+                            if (
+                                decks[deck_i]["place_unique_id"]
+                                == eternal["place_unique_id"]
                             ):
-                                break
-                            i = deck_i
-                            break
-                    if i == -1:
-                        return
-                det = decks[i]
-                tmp2 = {}
-                tmp2["det"] = decks[i]
-                tmp2["mine_or_other"] = mine_or_other
-                tmp2["user"] = effect_user
-                tmp2["place"] = "deck"
-                tmp2["deck_id"] = deck_id
-                tmp2["x"] = 0
-                tmp2["y"] = 0
-                tmp2["place_unique_id"] = decks[i]["place_unique_id"]
-                eternal["place_unique_id"] = decks[i]["place_unique_id"]
-                if (
-                    invalid_monster != ""
-                    and len(invalid_monster["relation"]) != 0
-                    and "rel" in det
-                ):
-                    for index in range(len(invalid_monster["relation"])):
-                        relation_kind = invalid_monster["relation_kind"][index]
-                        relation_to = invalid_monster["relation_to"][index]
-                        relation = invalid_monster["relation"][index]
-                        if relation_kind in det["rel"]:
-                            for relation_det in det["rel"][relation_kind]:
-                                if (
-                                    relation_det["name"] == relation
-                                    and relation_det["to"] == relation_to
+                                if not self.check_monster_condition_det(
+                                    eternal_monster, decks[deck_i], effect_user
                                 ):
-                                    eternal["relate_monster"].append(
-                                        det["rel"][relation_kind]
-                                    )
-                if not self.check_eternal_invalid(
-                    decks[i],
-                    effect_user,
-                    effect_kinds,
-                    "deck",
-                    deck_id,
-                    0,
-                    0,
-                    mine_or_other2,
-                ):
-                    decks[i]["already"] = 1
-                    flag = True
-                else:
-                    flag = False
-                    decks[i]["already"] = 0
-                if mine_or_other2 == 1:
-                    self.decks[deck_id]["mydeck"] = decks
-                elif mine_or_other2 == 2:
-                    self.decks[deck_id]["otherdeck"] = decks
-                elif mine_or_other2 == 3:
-                    self.decks[deck_id]["commondeck"] = decks
-        elif eternal["place"] == "grave":
-            deck_id = int(eternal["deck_id"])
-            mine_or_other = eternal["mine_or_other"]
-            if (self.user == 1 and mine_or_other == 1) or (
-                self.user == 2 and mine_or_other == 2
-            ):
-                mine_or_other2 = 1
-            elif (self.user == 2 and mine_or_other == 1) or (
-                self.user == 1 and mine_or_other == 2
-            ):
-                mine_or_other2 = 2
-            else:
-                mine_or_other2 = 3
-            if mine_or_other4 != mine_or_other or deck_id != int(eternal_places[1]):
-                return
-            else:
-                if mine_or_other2 == 1:
-                    graves = self.graves[deck_id]["mygrave"]
-                elif mine_or_other2 == 2:
-                    graves = self.graves[deck_id]["othergrave"]
-                elif mine_or_other2 == 3:
-                    graves = self.graves[deck_id]["commongrave"]
-                if "index" in eternal:
-                    i = eternal["index"]
-                else:
-                    i = -1
-                    for grave_i in range(len(graves)):
-                        if (
-                            graves[grave_i]["place_unique_id"]
-                            == eternal["place_unique_id"]
-                        ):
-                            if not self.check_monster_condition_det(
-                                eternal_monster, graves[grave_i], effect_user
-                            ):
+                                    break
+                                i = deck_i
                                 break
-                            i = grave_i
-                            break
-                    if i == -1:
-                        return
-                det = graves[i]
-                tmp2 = {}
-                tmp2["det"] = det
-                tmp2["mine_or_other"] = mine_or_other
-                tmp2["user"] = effect_user
-                tmp2["place"] = "grave"
-                tmp2["deck_id"] = deck_id
-                tmp2["x"] = 0
-                tmp2["y"] = 0
-                tmp2["place_unique_id"] = det["place_unique_id"]
-                eternal["place_unique_id"] = det["place_unique_id"]
-                if (
-                    invalid_monster != ""
-                    and len(invalid_monster["relation"]) != 0
-                    and "rel" in det
+                        if i == -1:
+                            continue
+                    det = decks[i]
+                    tmp2 = {}
+                    tmp2["det"] = decks[i]
+                    tmp2["mine_or_other"] = mine_or_other
+                    tmp2["user"] = effect_user
+                    tmp2["place"] = "deck"
+                    tmp2["deck_id"] = deck_id
+                    tmp2["x"] = 0
+                    tmp2["y"] = 0
+                    tmp2["place_unique_id"] = decks[i]["place_unique_id"]
+                    eternal["place_unique_id"] = decks[i]["place_unique_id"]
+                    if (
+                        invalid_monster != ""
+                        and len(invalid_monster["relation"]) != 0
+                        and "rel" in det
+                    ):
+                        for index in range(len(invalid_monster["relation"])):
+                            relation_kind = invalid_monster["relation_kind"][index]
+                            relation_to = invalid_monster["relation_to"][index]
+                            relation = invalid_monster["relation"][index]
+                            if relation_kind in det["rel"]:
+                                for relation_det in det["rel"][relation_kind]:
+                                    if (
+                                        relation_det["name"] == relation
+                                        and relation_det["to"] == relation_to
+                                    ):
+                                        eternal["relate_monster"].append(
+                                            det["rel"][relation_kind]
+                                        )
+                    if not self.check_eternal_invalid(
+                        decks[i],
+                        effect_user,
+                        effect_kinds,
+                        "deck",
+                        deck_id,
+                        0,
+                        0,
+                        mine_or_other2,
+                    ):
+                        decks[i]["already"] = 1
+                        flag = True
+                    else:
+                        flag = False
+                        decks[i]["already"] = 0
+                    if mine_or_other2 == 1:
+                        self.decks[deck_id]["mydeck"] = decks
+                    elif mine_or_other2 == 2:
+                        self.decks[deck_id]["otherdeck"] = decks
+                    elif mine_or_other2 == 3:
+                        self.decks[deck_id]["commondeck"] = decks
+            elif eternal["place"] == "grave":
+                deck_id = int(eternal["deck_id"])
+                mine_or_other = eternal["mine_or_other"]
+                if (self.user == 1 and mine_or_other == 1) or (
+                    self.user == 2 and mine_or_other == 2
                 ):
-                    for index in range(len(invalid_monster["relation"])):
-                        relation_kind = invalid_monster["relation_kind"][index]
-                        relation_to = invalid_monster["relation_to"][index]
-                        relation = invalid_monster["relation"][index]
-                        if relation_kind in det["rel"]:
-                            for relation_det in det["rel"][relation_kind]:
-                                if (
-                                    relation_det["name"] == relation
-                                    and relation_det["to"] == relation_to
+                    mine_or_other2 = 1
+                elif (self.user == 2 and mine_or_other == 1) or (
+                    self.user == 1 and mine_or_other == 2
+                ):
+                    mine_or_other2 = 2
+                else:
+                    mine_or_other2 = 3
+                if mine_or_other4 != mine_or_other or deck_id != int(eternal_places[1]):
+                    continue
+                else:
+                    if mine_or_other2 == 1:
+                        graves = self.graves[deck_id]["mygrave"]
+                    elif mine_or_other2 == 2:
+                        graves = self.graves[deck_id]["othergrave"]
+                    elif mine_or_other2 == 3:
+                        graves = self.graves[deck_id]["commongrave"]
+                    if "index" in eternal:
+                        i = eternal["index"]
+                    else:
+                        i = -1
+                        for grave_i in range(len(graves)):
+                            if (
+                                graves[grave_i]["place_unique_id"]
+                                == eternal["place_unique_id"]
+                            ):
+                                if not self.check_monster_condition_det(
+                                    eternal_monster, graves[grave_i], effect_user
                                 ):
-                                    eternal["relate_monster"].append(
-                                        det["rel"][relation_kind]
-                                    )
-                if not self.check_eternal_invalid(
-                    graves[i],
-                    effect_user,
-                    effect_kinds,
-                    "grave",
-                    deck_id,
-                    0,
-                    0,
-                    mine_or_other2,
-                ):
-                    graves[i]["already"] = 1
-                    flag = True
-                else:
-                    flag = False
-                    graves[i]["already"] = 0
-                if mine_or_other2 == 1:
-                    self.graves[deck_id]["mygrave"] = graves
-                elif mine_or_other2 == 2:
-                    self.graves[deck_id]["othergrave"] = graves
-                elif mine_or_other2 == 3:
-                    self.graves[deck_id]["commongrave"] = graves
-        elif eternal["place"] == "hand":
-            deck_id = int(eternal["deck_id"])
-            mine_or_other = eternal["mine_or_other"]
-            if (self.user == 1 and mine_or_other == 1) or (
-                self.user == 2 and mine_or_other == 2
-            ):
-                mine_or_other2 = 1
-            elif (self.user == 2 and mine_or_other == 1) or (
-                self.user == 1 and mine_or_other == 2
-            ):
-                mine_or_other2 = 2
-            else:
-                mine_or_other2 = 3
-
-            if mine_or_other4 != mine_or_other or deck_id != int(eternal_places[1]):
-                return
-            else:
-                if mine_or_other2 == 1:
-                    hands = self.hands[deck_id]["myhand"]
-                elif mine_or_other2 == 2:
-                    hands = self.hands[deck_id]["otherhand"]
-                elif mine_or_other2 == 3:
-                    hands = self.hands[deck_id]["commonhand"]
-                if "index" in eternal:
-                    i = eternal["index"]
-                else:
-                    i = -1
-                    for hand_i in range(len(hands)):
-                        if (
-                            hands[hand_i]["place_unique_id"]
-                            == eternal["place_unique_id"]
-                        ):
-                            if not self.check_monster_condition_det(
-                                eternal_monster, hands[hand_i], effect_user
-                            ):
+                                    break
+                                i = grave_i
                                 break
-                            i = hand_i
-                            break
-                if i != -1:
-                    det = hands[i]
+                        if i == -1:
+                            continue
+                    det = graves[i]
                     tmp2 = {}
                     tmp2["det"] = det
                     tmp2["mine_or_other"] = mine_or_other
                     tmp2["user"] = effect_user
-                    tmp2["place"] = "hand"
+                    tmp2["place"] = "grave"
                     tmp2["deck_id"] = deck_id
                     tmp2["x"] = 0
                     tmp2["y"] = 0
                     tmp2["place_unique_id"] = det["place_unique_id"]
                     eternal["place_unique_id"] = det["place_unique_id"]
-                else:
-                    return
-                if (
-                    invalid_monster != ""
-                    and len(invalid_monster["relation"]) != 0
-                    and "rel" in det
+                    if (
+                        invalid_monster != ""
+                        and len(invalid_monster["relation"]) != 0
+                        and "rel" in det
+                    ):
+                        for index in range(len(invalid_monster["relation"])):
+                            relation_kind = invalid_monster["relation_kind"][index]
+                            relation_to = invalid_monster["relation_to"][index]
+                            relation = invalid_monster["relation"][index]
+                            if relation_kind in det["rel"]:
+                                for relation_det in det["rel"][relation_kind]:
+                                    if (
+                                        relation_det["name"] == relation
+                                        and relation_det["to"] == relation_to
+                                    ):
+                                        eternal["relate_monster"].append(
+                                            det["rel"][relation_kind]
+                                        )
+                    if not self.check_eternal_invalid(
+                        graves[i],
+                        effect_user,
+                        effect_kinds,
+                        "grave",
+                        deck_id,
+                        0,
+                        0,
+                        mine_or_other2,
+                    ):
+                        graves[i]["already"] = 1
+                        flag = True
+                    else:
+                        flag = False
+                        graves[i]["already"] = 0
+                    if mine_or_other2 == 1:
+                        self.graves[deck_id]["mygrave"] = graves
+                    elif mine_or_other2 == 2:
+                        self.graves[deck_id]["othergrave"] = graves
+                    elif mine_or_other2 == 3:
+                        self.graves[deck_id]["commongrave"] = graves
+            elif eternal["place"] == "hand":
+                deck_id = int(eternal["deck_id"])
+                mine_or_other = eternal["mine_or_other"]
+                if (self.user == 1 and mine_or_other == 1) or (
+                    self.user == 2 and mine_or_other == 2
                 ):
-                    eternal["relate_monster"] = []
-                    for index in range(len(invalid_monster["relation"])):
-                        relation_kind = invalid_monster["relation_kind"][index]
-                        relation_to = invalid_monster["relation_to"][index]
-                        relation = invalid_monster["relation"][index]
-                        if relation_kind in det["rel"]:
-                            for relation_det in det["rel"][relation_kind]:
-                                if (
-                                    relation_det["name"] == relation
-                                    and relation_det["to"] == relation_to
+                    mine_or_other2 = 1
+                elif (self.user == 2 and mine_or_other == 1) or (
+                    self.user == 1 and mine_or_other == 2
+                ):
+                    mine_or_other2 = 2
+                else:
+                    mine_or_other2 = 3
+
+                if mine_or_other4 != mine_or_other or deck_id != int(eternal_places[1]):
+                    continue
+                else:
+                    if mine_or_other2 == 1:
+                        hands = self.hands[deck_id]["myhand"]
+                    elif mine_or_other2 == 2:
+                        hands = self.hands[deck_id]["otherhand"]
+                    elif mine_or_other2 == 3:
+                        hands = self.hands[deck_id]["commonhand"]
+                    if "index" in eternal:
+                        i = eternal["index"]
+                    else:
+                        i = -1
+                        for hand_i in range(len(hands)):
+                            if (
+                                hands[hand_i]["place_unique_id"]
+                                == eternal["place_unique_id"]
+                            ):
+                                if not self.check_monster_condition_det(
+                                    eternal_monster, hands[hand_i], effect_user
                                 ):
-                                    eternal["relate_monster"].append(
-                                        det["rel"][relation_kind]
-                                    )
-                if not self.check_eternal_invalid(
-                    hands[i],
-                    effect_user,
-                    effect_kinds,
-                    "hand",
-                    deck_id,
-                    0,
-                    0,
-                    mine_or_other2,
-                ):
-                    hands[i]["already"] = 1
-                    flag = True
-                else:
-                    flag = False
-                    hands[i]["already"] = 0
-                if mine_or_other2 == 1:
-                    self.hands[deck_id]["myhand"] = hands
-                elif mine_or_other2 == 2:
-                    self.hands[deck_id]["otherhand"] = hands
-                elif mine_or_other2 == 3:
-                    self.hands[deck_id]["commonhand"] = hands
-        if tmp_val != "":
-            tmp_val = self.calculate_boland(tmp_val, tmp2)
-        if flag is True:
-            if val == 0:
-                if val2 == 0 or val2 == 2 or val2 == 4:
-                    self.no_eternal_effect(
+                                    break
+                                i = hand_i
+                                break
+                    if i != -1:
+                        det = hands[i]
+                        tmp2 = {}
+                        tmp2["det"] = det
+                        tmp2["mine_or_other"] = mine_or_other
+                        tmp2["user"] = effect_user
+                        tmp2["place"] = "hand"
+                        tmp2["deck_id"] = deck_id
+                        tmp2["x"] = 0
+                        tmp2["y"] = 0
+                        tmp2["place_unique_id"] = det["place_unique_id"]
+                        eternal["place_unique_id"] = det["place_unique_id"]
+                    else:
+                        continue
+                    if (
+                        invalid_monster != ""
+                        and len(invalid_monster["relation"]) != 0
+                        and "rel" in det
+                    ):
+                        eternal["relate_monster"] = []
+                        for index in range(len(invalid_monster["relation"])):
+                            relation_kind = invalid_monster["relation_kind"][index]
+                            relation_to = invalid_monster["relation_to"][index]
+                            relation = invalid_monster["relation"][index]
+                            if relation_kind in det["rel"]:
+                                for relation_det in det["rel"][relation_kind]:
+                                    if (
+                                        relation_det["name"] == relation
+                                        and relation_det["to"] == relation_to
+                                    ):
+                                        eternal["relate_monster"].append(
+                                            det["rel"][relation_kind]
+                                        )
+                    if not self.check_eternal_invalid(
+                        hands[i],
+                        effect_user,
+                        effect_kinds,
+                        "hand",
+                        deck_id,
+                        0,
+                        0,
+                        mine_or_other2,
+                    ):
+                        hands[i]["already"] = 1
+                        flag = True
+                    else:
+                        flag = False
+                        hands[i]["already"] = 0
+                    if mine_or_other2 == 1:
+                        self.hands[deck_id]["myhand"] = hands
+                    elif mine_or_other2 == 2:
+                        self.hands[deck_id]["otherhand"] = hands
+                    elif mine_or_other2 == 3:
+                        self.hands[deck_id]["commonhand"] = hands
+            if tmp_val != "" and val != 8 and val != 9:
+                tmp_val = self.calculate_boland(tmp_val, tmp2)
+            if flag is True:
+                if val == 0:
+                    if val2 == 0 or val2 == 2 or val2 == 4:
+                        self.no_eternal_effect(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            tmp_val,
+                            mine_or_other_effect,
+                        )
+                    if val2 == 1 or val2 == 2 or val2 == 4:
+                        self.invoke_invalid_effect(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            tmp_val,
+                            mine_or_other_effect,
+                        )
+                    if val2 == 3:
+                        self.not_effected_effect(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            tmp_val,
+                            cost_or_effect,
+                            mine_or_other_effect,
+                        )
+                if val == 1:
+                    self.change_variable_effect(
+                        eternal,
+                        invalid_kinds,
+                        det["place_unique_id"],
+                        global_id,
+                        val_name,
+                        change_val,
+                        tmp_val,
+                        mine_or_other_effect,
+                    )
+                if val == 2 or (val == 0 and val2 == 4):
+                    self.no_invoke_effect(
                         eternal,
                         invalid_kinds,
                         det["place_unique_id"],
@@ -9828,247 +10692,8 @@ class DuelObj:
                         tmp_val,
                         mine_or_other_effect,
                     )
-                if val2 == 1 or val2 == 2 or val2 == 4:
-                    self.invoke_invalid_effect(
-                        eternal,
-                        invalid_kinds,
-                        det["place_unique_id"],
-                        global_id,
-                        tmp_val,
-                        mine_or_other_effect,
-                    )
-                if val2 == 3:
-                    self.not_effected_effect(
-                        eternal,
-                        invalid_kinds,
-                        det["place_unique_id"],
-                        global_id,
-                        tmp_val,
-                        cost_or_effect,
-                        mine_or_other_effect,
-                    )
-            if val == 1:
-                self.change_variable_effect(
-                    eternal,
-                    invalid_kinds,
-                    det["place_unique_id"],
-                    global_id,
-                    val_name,
-                    change_val,
-                    tmp_val,
-                    mine_or_other_effect,
-                )
-            if val == 2 or (val == 0 and val2 == 4):
-                self.no_invoke_effect(
-                    eternal,
-                    invalid_kinds,
-                    det["place_unique_id"],
-                    global_id,
-                    tmp_val,
-                    mine_or_other_effect,
-                )
-            if val == 3:
-                self.no_choose_effect(
-                    eternal,
-                    invalid_kinds,
-                    det["place_unique_id"],
-                    global_id,
-                    tmp_val,
-                    cost_or_effect,
-                    mine_or_other_effect,
-                )
-            if val == 4:
-                self.change_destination_effect(
-                    eternal,
-                    invalid_kinds,
-                    det["place_unique_id"],
-                    global_id,
-                    val_name,
-                    change_val,
-                    tmp_val,
-                    mine_or_other_effect,
-                )
-            if val == 5:
-                self.swap_variable_effect(
-                    eternal,
-                    invalid_kinds,
-                    det["place_unique_id"],
-                    global_id,
-                    val_name,
-                    change_val,
-                    tmp_val,
-                    mine_or_other_effect,
-                )
-            if val == 8:
-                self.swap_init_variable_effect(
-                    eternal,
-                    invalid_kinds,
-                    det["place_unique_id"],
-                    global_id,
-                    val_name,
-                    change_val,
-                    tmp_val,
-                    mine_or_other_effect,
-                )
-            if val == 6:
-                if ignore == 1:
-                    self.check_chain(
-                        eternal,
-                        invalid_kinds,
-                        det["place_unique_id"],
-                        global_id,
-                        mine_or_other_effect,
-                    )
-                elif ignore == 2:
-                    self.check_chain_user(
-                        eternal,
-                        invalid_kinds,
-                        det["place_unique_id"],
-                        global_id,
-                        mine_or_other_effect,
-                    )
-                elif ignore == 3:
-                    self.check_chain_kind(
-                        eternal,
-                        invalid_kinds,
-                        det["place_unique_id"],
-                        global_id,
-                        eternal_effect.ignore_effect_kind,
-                        mine_or_other_effect,
-                    )
-                elif ignore == 4:
-                    self.check_same_chain(
-                        eternal,
-                        invalid_kinds,
-                        det["place_unique_id"],
-                        global_id,
-                        mine_or_other_effect,
-                    )
-                elif ignore == 5:
-                    self.check_same_monster_chain(
-                        eternal,
-                        invalid_kinds,
-                        det["place_unique_id"],
-                        global_id,
-                        mine_or_other_effect,
-                    )
-                elif ignore == 6:
-                    self.check_same_monster_exist_chain(
-                        eternal,
-                        invalid_kinds,
-                        det["place_unique_id"],
-                        global_id,
-                        mine_or_other_effect,
-                    )
-                elif ignore == 7:
-                    self.check_eternal_phase(
-                        eternal,
-                        invalid_kinds,
-                        det["place_unique_id"],
-                        global_id,
-                        eternal_effect.ignore_phase.all(),
-                        mine_or_other_effect,
-                    )
-                elif ignore == 8:
-                    self.check_eternal_mine_or_other(
-                        eternal,
-                        invalid_kinds,
-                        det["place_unique_id"],
-                        global_id,
-                        mine_or_other_effect,
-                    )
-                elif ignore == 9:
-                    self.check_eternal_no_invoke(
-                        eternal,
-                        invalid_kinds,
-                        det["place_unique_id"],
-                        global_id,
-                        mine_or_other_effect,
-                    )
-                elif ignore == 10:
-                    self.check_eternal_timing(
-                        eternal,
-                        invalid_kinds,
-                        det["place_unique_id"],
-                        global_id,
-                        eternal_effect.ignore_timing.all(),
-                        mine_or_other_effect,
-                    )
-                elif ignore == 11:
-                    self.check_eternal_monster_place(
-                        eternal,
-                        invalid_kinds,
-                        det["place_unique_id"],
-                        global_id,
-                        mine_or_other_effect,
-                    )
-                elif ignore == 12:
-                    self.check_eternal_monster_place_condition(
-                        eternal,
-                        invalid_kinds,
-                        det["place_unique_id"],
-                        global_id,
-                        mine_or_other_effect,
-                    )
-                elif ignore == 13:
-                    self.check_eternal_turn(
-                        eternal,
-                        invalid_kinds,
-                        det["place_unique_id"],
-                        global_id,
-                        mine_or_other_effect,
-                    )
-                elif ignore == 14:
-                    self.check_eternal_monster_condition(
-                        eternal,
-                        invalid_kinds,
-                        det["place_unique_id"],
-                        global_id,
-                        mine_or_other_effect,
-                    )
-                elif ignore == 15:
-                    self.check_eternal_monster_variable(
-                        eternal,
-                        invalid_kinds,
-                        det["place_unique_id"],
-                        global_id,
-                        eternal_effect.ignore_variable,
-                        mine_or_other_effect,
-                    )
-            elif val == 7:
-                self.take_variable_instead_func(
-                    eternal,
-                    invalid_kinds,
-                    det["place_unique_id"],
-                    global_id,
-                    val_name,
-                    change_val,
-                    tmp_val,
-                    cost_or_effect,
-                    mine_or_other_effect,
-                )
-        else:
-            if val == 0:
-                if val2 == 0 or val2 == 2 or val2 == 4:
-                    self.no_eternal_effect_remove(
-                        eternal,
-                        invalid_kinds,
-                        det["place_unique_id"],
-                        global_id,
-                        tmp_val,
-                        mine_or_other_effect,
-                    )
-                if val2 == 1 or val2 == 2 or val2 == 4:
-                    self.invoke_invalid_effect_remove(
-                        eternal,
-                        invalid_kinds,
-                        det["place_unique_id"],
-                        global_id,
-                        tmp_val,
-                        mine_or_other_effect,
-                    )
-                if val2 == 3:
-                    self.not_effected_effect_remove(
+                if val == 3:
+                    self.no_choose_effect(
                         eternal,
                         invalid_kinds,
                         det["place_unique_id"],
@@ -10077,207 +10702,455 @@ class DuelObj:
                         cost_or_effect,
                         mine_or_other_effect,
                     )
-            if val == 1:
-                self.change_variable_effect_remove(
-                    eternal,
-                    invalid_kinds,
-                    det["place_unique_id"],
-                    global_id,
-                    val_name,
-                    change_val,
-                    tmp_val,
-                    mine_or_other_effect,
-                )
-            if val == 2 or (val == 0 and val2 == 4):
-                self.no_invoke_effect_remove(
-                    eternal,
-                    invalid_kinds,
-                    det["place_unique_id"],
-                    global_id,
-                    tmp_val,
-                    mine_or_other_effect,
-                )
-            if val == 3:
-                self.no_choose_effect_remove(
-                    eternal,
-                    invalid_kinds,
-                    det["place_unique_id"],
-                    global_id,
-                    tmp_val,
-                    cost_or_effect,
-                    mine_or_other_effect,
-                )
-            if val == 4:
-                self.change_destination_effect_remove(
-                    eternal,
-                    invalid_kinds,
-                    det["place_unique_id"],
-                    global_id,
-                    val_name,
-                    change_val,
-                    tmp_val,
-                    mine_or_other_effect,
-                )
-            if val == 5:
-                self.swap_variable_effect_remove(
-                    eternal,
-                    invalid_kinds,
-                    None,
-                    global_id,
-                    val_name,
-                    change_val,
-                    tmp_val,
-                    mine_or_other_effect,
-                )
-            elif val == 8:
-                self.swap_init_variable_effect_remove(
-                    eternal,
-                    invalid_kinds,
-                    None,
-                    global_id,
-                    val_name,
-                    change_val,
-                    tmp_val,
-                    mine_or_other_effect,
-                )
-            if val == 6:
-                if ignore == 1:
-                    self.check_chain_remove(
+                if val == 4:
+                    self.change_destination_effect(
                         eternal,
                         invalid_kinds,
                         det["place_unique_id"],
                         global_id,
-                        mine_or_other_effect,
+                        val_name,
+                        change_val,
+                        tmp_val,
                         mine_or_other_effect,
                     )
-                elif ignore == 2:
-                    self.check_chain_user_remove(
+                if val == 5:
+                    self.swap_variable_effect(
                         eternal,
                         invalid_kinds,
                         det["place_unique_id"],
                         global_id,
+                        val_name,
+                        change_val,
+                        tmp_val,
                         mine_or_other_effect,
                     )
-                elif ignore == 3:
-                    self.check_chain_kind_remove(
+                if val == 8:
+                    self.swap_init_variable_effect(
                         eternal,
                         invalid_kinds,
                         det["place_unique_id"],
                         global_id,
-                        eternal_effect.ignore_effect_kind,
+                        val_name,
+                        change_val,
+                        tmp_val,
                         mine_or_other_effect,
                     )
-                elif ignore == 4:
-                    self.check_same_chain_remove(
+                if val == 6:
+                    if ignore == 1:
+                        self.check_chain(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            mine_or_other_effect,
+                        )
+                    elif ignore == 2:
+                        self.check_chain_user(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            mine_or_other_effect,
+                        )
+                    elif ignore == 3:
+                        self.check_chain_kind(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            eternal_effect.ignore_effect_kind,
+                            mine_or_other_effect,
+                        )
+                    elif ignore == 4:
+                        self.check_same_chain(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            mine_or_other_effect,
+                        )
+                    elif ignore == 5:
+                        self.check_same_monster_chain(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            mine_or_other_effect,
+                        )
+                    elif ignore == 6:
+                        self.check_same_monster_exist_chain(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            mine_or_other_effect,
+                        )
+                    elif ignore == 7:
+                        self.check_eternal_phase(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            eternal_effect.ignore_phase.all(),
+                            mine_or_other_effect,
+                        )
+                    elif ignore == 8:
+                        self.check_eternal_mine_or_other(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            mine_or_other_effect,
+                        )
+                    elif ignore == 9:
+                        self.check_eternal_no_invoke(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            mine_or_other_effect,
+                        )
+                    elif ignore == 10:
+                        self.check_eternal_timing(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            eternal_effect.ignore_timing.all(),
+                            mine_or_other_effect,
+                        )
+                    elif ignore == 11:
+                        self.check_eternal_monster_place(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            mine_or_other_effect,
+                        )
+                    elif ignore == 12:
+                        self.check_eternal_monster_place_condition(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            mine_or_other_effect,
+                        )
+                    elif ignore == 13:
+                        self.check_eternal_turn(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            mine_or_other_effect,
+                        )
+                    elif ignore == 14:
+                        self.check_eternal_monster_condition(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            mine_or_other_effect,
+                        )
+                    elif ignore == 15:
+                        self.check_eternal_monster_variable(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            eternal_effect.ignore_variable,
+                            mine_or_other_effect,
+                        )
+                elif val == 7:
+                    self.take_variable_instead_func(
                         eternal,
                         invalid_kinds,
                         det["place_unique_id"],
                         global_id,
+                        val_name,
+                        change_val,
+                        tmp_val,
+                        cost_or_effect,
                         mine_or_other_effect,
                     )
-                elif ignore == 5:
-                    self.check_same_monster_chain_remove(
+                elif val == 8:
+                    self.change_name_func(
                         eternal,
                         invalid_kinds,
                         det["place_unique_id"],
                         global_id,
+                        val_name,
+                        change_val,
+                        tmp_val,
+                        cost_or_effect,
                         mine_or_other_effect,
                     )
-                elif ignore == 6:
-                    self.check_same_monster_exist_chain_remove(
+                elif val == 9:
+                    self.change_name_add_func(
                         eternal,
                         invalid_kinds,
                         det["place_unique_id"],
                         global_id,
+                        val_name,
+                        change_val,
+                        tmp_val,
+                        cost_or_effect,
                         mine_or_other_effect,
                     )
-                elif ignore == 7:
-                    self.check_eternal_phase_remove(
+            else:
+                if val == 0:
+                    if val2 == 0 or val2 == 2 or val2 == 4:
+                        self.no_eternal_effect_remove(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            tmp_val,
+                            mine_or_other_effect,
+                        )
+                    if val2 == 1 or val2 == 2 or val2 == 4:
+                        self.invoke_invalid_effect_remove(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            tmp_val,
+                            mine_or_other_effect,
+                        )
+                    if val2 == 3:
+                        self.not_effected_effect_remove(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            tmp_val,
+                            cost_or_effect,
+                            mine_or_other_effect,
+                        )
+                if val == 1:
+                    self.change_variable_effect_remove(
                         eternal,
                         invalid_kinds,
                         det["place_unique_id"],
                         global_id,
-                        eternal_effect.ignore_phase.all(),
+                        val_name,
+                        change_val,
+                        tmp_val,
                         mine_or_other_effect,
                     )
-                elif ignore == 8:
-                    self.check_eternal_mine_or_other_remove(
+                if val == 2 or (val == 0 and val2 == 4):
+                    self.no_invoke_effect_remove(
                         eternal,
                         invalid_kinds,
                         det["place_unique_id"],
                         global_id,
+                        tmp_val,
                         mine_or_other_effect,
                     )
-                elif ignore == 9:
-                    self.check_eternal_no_invoke_remove(
+                if val == 3:
+                    self.no_choose_effect_remove(
                         eternal,
                         invalid_kinds,
                         det["place_unique_id"],
                         global_id,
+                        tmp_val,
+                        cost_or_effect,
                         mine_or_other_effect,
                     )
-                elif ignore == 10:
-                    self.check_eternal_timing_remove(
+                if val == 4:
+                    self.change_destination_effect_remove(
                         eternal,
                         invalid_kinds,
                         det["place_unique_id"],
                         global_id,
-                        eternal_effect.ignore_timing.all(),
+                        val_name,
+                        change_val,
+                        tmp_val,
                         mine_or_other_effect,
                     )
-                elif ignore == 11:
-                    self.check_eternal_monster_place_remove(
+                if val == 5:
+                    self.swap_variable_effect_remove(
+                        eternal,
+                        invalid_kinds,
+                        None,
+                        global_id,
+                        val_name,
+                        change_val,
+                        tmp_val,
+                        mine_or_other_effect,
+                    )
+                elif val == 8:
+                    self.swap_init_variable_effect_remove(
+                        eternal,
+                        invalid_kinds,
+                        None,
+                        global_id,
+                        val_name,
+                        change_val,
+                        tmp_val,
+                        mine_or_other_effect,
+                    )
+                if val == 6:
+                    if ignore == 1:
+                        self.check_chain_remove(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            mine_or_other_effect,
+                            mine_or_other_effect,
+                        )
+                    elif ignore == 2:
+                        self.check_chain_user_remove(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            mine_or_other_effect,
+                        )
+                    elif ignore == 3:
+                        self.check_chain_kind_remove(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            eternal_effect.ignore_effect_kind,
+                            mine_or_other_effect,
+                        )
+                    elif ignore == 4:
+                        self.check_same_chain_remove(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            mine_or_other_effect,
+                        )
+                    elif ignore == 5:
+                        self.check_same_monster_chain_remove(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            mine_or_other_effect,
+                        )
+                    elif ignore == 6:
+                        self.check_same_monster_exist_chain_remove(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            mine_or_other_effect,
+                        )
+                    elif ignore == 7:
+                        self.check_eternal_phase_remove(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            eternal_effect.ignore_phase.all(),
+                            mine_or_other_effect,
+                        )
+                    elif ignore == 8:
+                        self.check_eternal_mine_or_other_remove(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            mine_or_other_effect,
+                        )
+                    elif ignore == 9:
+                        self.check_eternal_no_invoke_remove(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            mine_or_other_effect,
+                        )
+                    elif ignore == 10:
+                        self.check_eternal_timing_remove(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            eternal_effect.ignore_timing.all(),
+                            mine_or_other_effect,
+                        )
+                    elif ignore == 11:
+                        self.check_eternal_monster_place_remove(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            mine_or_other_effect,
+                        )
+                    elif ignore == 12:
+                        self.check_eternal_monster_place_condition_remove(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            mine_or_other_effect,
+                        )
+                    elif ignore == 13:
+                        self.check_eternal_turn_remove(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            mine_or_other_effect,
+                        )
+                    elif ignore == 14:
+                        self.check_eternal_monster_condition_remove(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            mine_or_other_effect,
+                        )
+                    elif ignore == 15:
+                        self.check_eternal_monster_variable_remove(
+                            eternal,
+                            invalid_kinds,
+                            det["place_unique_id"],
+                            global_id,
+                            eternal_effect.ignore_variable,
+                            mine_or_other_effect,
+                        )
+                if val == 7:
+                    self.take_variable_instead_func_remove(
                         eternal,
                         invalid_kinds,
                         det["place_unique_id"],
                         global_id,
+                        val_name,
+                        change_val,
+                        tmp_val,
+                        cost_or_effect,
                         mine_or_other_effect,
                     )
-                elif ignore == 12:
-                    self.check_eternal_monster_place_condition_remove(
+                elif val == 8:
+                    self.change_name_func_remove(
                         eternal,
                         invalid_kinds,
                         det["place_unique_id"],
                         global_id,
+                        val_name,
+                        change_val,
+                        tmp_val,
+                        cost_or_effect,
                         mine_or_other_effect,
                     )
-                elif ignore == 13:
-                    self.check_eternal_turn_remove(
+                elif val == 9:
+                    self.change_name_add_func_remove(
                         eternal,
                         invalid_kinds,
                         det["place_unique_id"],
                         global_id,
+                        val_name,
+                        change_val,
+                        tmp_val,
+                        cost_or_effect,
                         mine_or_other_effect,
                     )
-                elif ignore == 14:
-                    self.check_eternal_monster_condition_remove(
-                        eternal,
-                        invalid_kinds,
-                        det["place_unique_id"],
-                        global_id,
-                        mine_or_other_effect,
-                    )
-                elif ignore == 15:
-                    self.check_eternal_monster_variable_remove(
-                        eternal,
-                        invalid_kinds,
-                        det["place_unique_id"],
-                        global_id,
-                        eternal_effect.ignore_variable,
-                        mine_or_other_effect,
-                    )
-            if val == 7:
-                self.take_variable_instead_func_remove(
-                    eternal,
-                    invalid_kinds,
-                    det["place_unique_id"],
-                    global_id,
-                    val_name,
-                    change_val,
-                    tmp_val,
-                    cost_or_effect,
-                    mine_or_other_effect,
-                )
         return
 
     def no_choose_effect_remove(
@@ -10748,6 +11621,82 @@ class DuelObj:
         if eternal in self.take_variable_instead:
             self.take_variable_instead.remove(eternal)
 
+    def change_name_add_func_remove(
+        self,
+        eternal,
+        invalid_kinds,
+        place_unique_id,
+        global_id,
+        val_name,
+        change_val,
+        tmp_val,
+        cost_or_effect,
+        mine_or_other_effect):
+        eternal["invalid_kinds"] = invalid_kinds
+        eternal["place_unique_id"] = place_unique_id
+        eternal["global_name"] = global_id
+        eternal["cost_or_effect"] = cost_or_effect
+        eternal["tmp_val"] = tmp_val
+        eternal["mine_or_other_effect"] = mine_or_other_effect
+        if eternal in self.change_name_add_eternal_effect:
+            self.change_name_add_eternal_effect.remove(eternal)
+    def change_name_add_func(
+        self,
+        eternal,
+        invalid_kinds,
+        place_unique_id,
+        global_id,
+        val_name,
+        change_val,
+        tmp_val,
+        cost_or_effect,
+        mine_or_other_effect):
+        eternal["invalid_kinds"] = invalid_kinds
+        eternal["place_unique_id"] = place_unique_id
+        eternal["global_name"] = global_id
+        eternal["cost_or_effect"] = cost_or_effect
+        eternal["tmp_val"] = tmp_val
+        eternal["mine_or_other_effect"] = mine_or_other_effect
+        if eternal not in self.change_name_add_eternal_effect:
+            self.change_name_add_eternal_effect.append(eternal)
+    def change_name_func(
+        self,
+        eternal,
+        invalid_kinds,
+        place_unique_id,
+        global_id,
+        val_name,
+        change_val,
+        tmp_val,
+        cost_or_effect,
+        mine_or_other_effect):
+        eternal["invalid_kinds"] = invalid_kinds
+        eternal["place_unique_id"] = place_unique_id
+        eternal["global_name"] = global_id
+        eternal["cost_or_effect"] = cost_or_effect
+        eternal["tmp_val"] = tmp_val
+        eternal["mine_or_other_effect"] = mine_or_other_effect
+        if eternal not in self.change_name_eternal_effect:
+            self.change_name_eternal_effect.append(eternal)
+    def change_name_func_remove(
+        self,
+        eternal,
+        invalid_kinds,
+        place_unique_id,
+        global_id,
+        val_name,
+        change_val,
+        tmp_val,
+        cost_or_effect,
+        mine_or_other_effect):
+        eternal["invalid_kinds"] = invalid_kinds
+        eternal["place_unique_id"] = place_unique_id
+        eternal["global_name"] = global_id
+        eternal["cost_or_effect"] = cost_or_effect
+        eternal["tmp_val"] = tmp_val
+        eternal["mine_or_other_effect"] = mine_or_other_effect
+        if eternal in self.change_name_eternal_effect:
+            self.change_name_eternal_effect.remove(eternal)
     def take_variable_instead_func(
         self,
         eternal,
@@ -11080,7 +12029,6 @@ class DuelObj:
                     tmp["user"] = other_user
                     tmp["mine_or_other"] = other_user
                     eternals.append(tmp)
-
         variable_eternal = EternalEffect.objects.filter(~Q(eternal_variable=""))
         deck_info = self.get_deck_info(decks, user, other_user, 0)
         grave_info = self.get_grave_info(graves, user, other_user, 0)
@@ -11118,6 +12066,8 @@ class DuelObj:
             check_turn = copy.deepcopy(self.check_turn)
             check_monster_condition_list = copy.deepcopy(self.check_monster_condition_list)
             check_monster_variable = copy.deepcopy(self.check_monster_variable)
+            change_name_eternal_effect = copy.deepcopy(self.change_name_eternal_effect)
+            change_name_add_eternal_effect = copy.deepcopy(self.change_name_add_eternal_effect)
             no_choose_eternal_effect = copy.deepcopy(self.no_choose_eternal_effect)
             change_val_eternal_effect = copy.deepcopy(self.change_val_eternal_effect)
             swap_val_eternal_effect = copy.deepcopy(self.swap_val_eternal_effect)
@@ -11144,6 +12094,8 @@ class DuelObj:
                 and self.swap_val_eternal_effect == swap_val_eternal_effect
                 and self.swap_init_val_eternal_effect == swap_init_val_eternal_effect
                 and self.change_val_eternal_effect == change_val_eternal_effect
+                and self.change_name_eternal_effect == change_name_eternal_effect
+                and self.change_name_add_eternal_effect == change_name_add_eternal_effect
                 and self.invoke_invalid_eternal_effect == invoke_invalid_eternal_effect
                 and self.not_effected_eternal_effect == not_effected_eternal_effect
                 and self.not_eternal_effect == not_eternal_effect
@@ -11173,6 +12125,8 @@ class DuelObj:
     def clear_eternal_effect(self, decks, graves, hands):
         self.no_choose_eternal_effect = []
         self.change_val_eternal_effect = []
+        self.change_name_eternal_effect = []
+        self.change_name_add_eternal_effect = []
         self.swap_val_eternal_effect = []
         self.swap_init_val_eternal_effect = []
         self.change_destination_eternal_effect = []
@@ -11200,6 +12154,7 @@ class DuelObj:
         none_chain_effect = EndChainEffect.objects.first()
         if none_chain_effect is not None:
             self.invoke_no_chain_effect(none_chain_effect, user, other_user, none_chain_effect.monster_effect_kind)
+        self.expire_chain()
 
     def check_eternal_effect(self, decks, graves, hands, phase, turn, user, other_user):
         self.clear_eternal_effect(decks, graves, hands)
@@ -11210,9 +12165,9 @@ class DuelObj:
         )
         eternal_effects = eternal_effects.filter(
             Q(chain__isnull=True)
-            | Q(chain=duel.chain, chain_kind=2)
-            | Q(chain__lte=duel.chain, chain_kind=0)
-            | Q(chain__gte=duel.chain, chain_kind=1)
+            | Q(chain=duel.virtual_chain, chain_kind=2)
+            | Q(chain__lte=duel.virtual_chain, chain_kind=0)
+            | Q(chain__gte=duel.virtual_chain, chain_kind=1)
         )
         eternal_effects = eternal_effects.filter(none_monster=True)
         if duel.timing is not None:
@@ -11370,7 +12325,7 @@ class DuelObj:
         monster_effect_next = self.invoke_monster_effect(
             monster_effect, decks, graves, kinds
         )
-        pprint(monster_effect_next)
+        pprint(monster_effect)
         if monster_effect_next == "copy":
             return "copy"
         if monster_effect_next is None:
@@ -11386,6 +12341,7 @@ class DuelObj:
         elif monster_effect_next == -2:
             monster_effect_next = None
         while monster_effect_next:
+            pprint(monster_effect_next)
             if monster_effect_next == "copy":
                 return "copy"
             if duel.winner != 0 or duel.winner_ai != 0:
@@ -11400,6 +12356,7 @@ class DuelObj:
                 strategy_up_or_down = monster_effect.strategy_up_or_down
                 monster_effect_unwrap = monster_effect.monster_effect
                 if monster_effect_unwrap.monster_effect_val == 5:
+                    duel.ask = 0
                     effect_kind = monster_effect.monster_effect_kind
                     pac = json.loads(duel.in_pac)
                     if (
@@ -11412,13 +12369,75 @@ class DuelObj:
                         if pac.monster_effect_kind != "":
                             effect_kind = pac.monster_effect_kind
                     self.duel.ask_kind = effect_kind
-                    if self.duel.is_ai is False:
-                        self.duel.ask = 3
-                    else:
-                        if duel.user_turn == 1:
-                            self.duel.ask = 1
+                    monster_effect_text = json.loads(
+                        monster_effect_unwrap.monster_effect
+                    )
+                    whether_monster = monster_effect_text["whether_monster"]
+                    exclude = monster_effect_text["exclude"]
+                    monster_effect_text = monster_effect_text["monster"][0]
+                    min = self.calculate_boland(
+                        monster_effect_text["min_equation_number"], None
+                    )
+                    max = self.calculate_boland(
+                        monster_effect_text["max_equation_number"], None
+                    )
+                    if self.check_monster_exists(
+                         monster_effect_text,
+                         min,
+                         max,
+                         chain_user,
+                         effect_kind,
+                         0,
+                         whether_monster,
+                         exclude,
+                     ):
+                        if duel.is_ai is False:
+                            if duel.user_turn == 1:
+                                self.duel.ask = 1
+                            else:
+                                self.duel.ask = 2
                         else:
-                            self.duel.ask = 2
+                            if duel.user_turn == 1:
+                                self.duel.ask = 1
+                            else:
+                                self.answer_ai(strategy,strategy_up_or_down)
+                    monster_effect_text = json.loads(
+                        monster_effect_unwrap.monster_effect
+                    )
+                    whether_monster = monster_effect_text["whether_monster"]
+                    exclude = monster_effect_text["exclude"]
+                    monster_effect_text = monster_effect_text["monster"][1]
+                    min = self.calculate_boland(
+                        monster_effect_text["min_equation_number"], None
+                    )
+                    max = self.calculate_boland(
+                        monster_effect_text["max_equation_number"], None
+                    )
+                    if chain_user == 1:
+                        tmp_user = 2
+                    else:
+                        tmp_user = 1
+                    if self.check_monster_exists(
+                         monster_effect_text,
+                         min,
+                         max,
+                         tmp_user,
+                         effect_kind,
+                         0,
+                         whether_monster,
+                         exclude,
+                     ):
+                        if duel.is_ai is False:
+                            if duel.user_turn == 1:
+                                self.duel.ask += 2
+                            else:
+                                self.duel.ask += 1
+                        else:
+                            if duel.user_turn == 2:
+                                self.duel.ask += 2
+                            else:
+                                self.answer_ai(strategy,strategy_up_or_down)
+                    
                 elif (
                     monster_effect_unwrap.monster_effect_val == 3
                     or monster_effect_unwrap.monster_effect_val == 44
@@ -11723,25 +12742,87 @@ class DuelObj:
             monster_effect = MonsterEffectWrapper.objects.get(id=current_chain)
             monster_effect_unwrap = monster_effect.monster_effect
             if monster_effect_unwrap.monster_effect_val == 5:
-                effect_kind = monster_effect.monster_effect_kind
-                pac = json.loads(duel.in_pac)
-                if (
-                    str(self.duel.chain - 1) in pac
-                    and len(pac[str(duel.chain - 1)]) > 0
-                ):
-                    pac = pac[str(self.duel.chain - 1)]
-                    pac_id = pac.pop()
-                    pac = PacWrapper.objects.get(id=pac_id)
-                    if pac.monster_effect_kind != "":
-                        effect_kind = pac.monster_effect_kind
-                self.duel.ask_kind = effect_kind
-                if self.duel.is_ai is False:
-                    self.duel.ask = 3
-                else:
-                    if duel.user_turn == 1:
-                        self.duel.ask = 1
+                    duel.ask = 0
+                    effect_kind = monster_effect.monster_effect_kind
+                    pac = json.loads(duel.in_pac)
+                    if (
+                        str(self.duel.chain - 1) in pac
+                        and len(pac[str(duel.chain - 1)]) > 0
+                    ):
+                        pac = pac[str(self.duel.chain - 1)]
+                        pac_id = pac.pop()
+                        pac = PacWrapper.objects.get(id=pac_id)
+                        if pac.monster_effect_kind != "":
+                            effect_kind = pac.monster_effect_kind
+                    self.duel.ask_kind = effect_kind
+                    monster_effect_text = json.loads(
+                        monster_effect_unwrap.monster_effect
+                    )
+                    whether_monster = monster_effect_text["whether_monster"]
+                    exclude = monster_effect_text["exclude"]
+                    monster_effect_text = monster_effect_text["monster"][0]
+                    min = self.calculate_boland(
+                        monster_effect_text["min_equation_number"], None
+                    )
+                    max = self.calculate_boland(
+                        monster_effect_text["max_equation_number"], None
+                    )
+                    if self.check_monster_exists(
+                         monster_effect_text,
+                         min,
+                         max,
+                         chain_user,
+                         effect_kind,
+                         0,
+                         whether_monster,
+                         exclude,
+                     ):
+                        if duel.is_ai is False:
+                            if duel.user_turn == 1:
+                                self.duel.ask = 1
+                            else:
+                                self.duel.ask = 2
+                        else:
+                            if duel.user_turn == 1:
+                                self.duel.ask = 1
+                            else:
+                                self.answer_ai(strategy,strategy_up_or_down)
+                    monster_effect_text = json.loads(
+                        monster_effect_unwrap.monster_effect
+                    )
+                    whether_monster = monster_effect_text["whether_monster"]
+                    exclude = monster_effect_text["exclude"]
+                    monster_effect_text = monster_effect_text["monster"][1]
+                    min = self.calculate_boland(
+                        monster_effect_text["min_equation_number"], None
+                    )
+                    max = self.calculate_boland(
+                        monster_effect_text["max_equation_number"], None
+                    )
+                    if chain_user == 1:
+                        tmp_user = 2
                     else:
-                        self.duel.ask = 2
+                        tmp_user = 1
+                    if self.check_monster_exists(
+                         monster_effect_text,
+                         min,
+                         max,
+                         tmp_user,
+                         effect_kind,
+                         0,
+                         whether_monster,
+                         exclude,
+                     ):
+                        if duel.is_ai is False:
+                            if duel.user_turn == 1:
+                                self.duel.ask += 2
+                            else:
+                                self.duel.ask += 1
+                        else:
+                            if duel.user_turn == 2:
+                                self.duel.ask += 2
+                            else:
+                                self.answer_ai(strategy,strategy_up_or_down)
             elif (
                 monster_effect_unwrap.monster_effect_val == 3
                 or monster_effect_unwrap.monster_effect_val == 44
@@ -11971,12 +13052,13 @@ class DuelObj:
             log_tmp = self.write_log(cost.log, user, data_tmp)
             duel.cost_log += log_tmp
             if cost.pac:
-                return self._pac(cost.pac)
+                return self._pac_cost(cost.pac)
             else:
                 if cost.cost_next:
                     return cost.cost_next
                 else:
-                    return self.pop_pac(user)
+                    return self.pop_pac_cost(user)
+
         elif cost_unwrap.cost_val == 48:
             return_value =  self.copy_special_effect(cost_unwrap, effect_kind)
             if isinstance(return_value,int):
@@ -11989,12 +13071,12 @@ class DuelObj:
         elif cost_unwrap.cost_val == 56:
             self.clear_cost_mess(cost_unwrap.cost)
             if cost.pac:
-                return self._pac(cost.pac)
+                return self._pac_cost(cost.pac)
             else:
                 if cost.cost_next:
                     return cost.cost_next
                 else:
-                    return self.pop_pac(user)
+                    return self.pop_pac_cost(user)
         elif cost_unwrap.cost_val == 33:
             log_tmp = self.write_log(cost.log, user)
             duel.cost_log += log_tmp
@@ -12002,12 +13084,12 @@ class DuelObj:
                 cost_unwrap.cost, effect_kind, cost_unwrap.cost_condition
             )
             if cost.pac:
-                return self._pac(cost.pac)
+                return self._pac_cost(cost.pac)
             else:
                 if cost.cost_next:
                     return cost.cost_next
                 else:
-                    return self.pop_pac(user)
+                    return self.pop_pac_cost(user)
         elif (
             cost_unwrap.cost_val == 5
             or cost_unwrap.cost_val == 4
@@ -12306,6 +13388,57 @@ class DuelObj:
                         user_point2.user = self.duel.user_1
                         user_point2.lose += 1
                         user_point2.save();
+    def win_the_game_user(self,user):
+        duel = self.duel
+        self.duel.end_time = time()
+        self.turn_changed = True
+        if self.duel.winner == 0 and duel.is_ai is False:
+            self.duel.winner = user
+            self.duel.save()
+            if user == 1:
+                if self.duel.user_1 is not None:
+                    user_point = UserPoint.objects.filter(user = self.duel.user_1).first()
+                    if user_point is None:
+                         user_point = UserPoint()
+                         user_point.user = self.duel.user_1
+                    user_point.win += 1
+                    user_point.point += 10
+                    user_point.save();
+                if self.duel.user_2 is not None:
+                    user_point2 = UserPoint.objects.filter(user = self.duel.user_2).first()
+                    if user_point2 is None:
+                        user_point2 = UserPoint()
+                        user_point2.user = self.duel.user_2
+                    user_point2.lose += 1
+                    user_point2.save();
+            elif user == 2:
+                if self.duel.user_2 is not None:
+                    user_point = UserPoint.objects.filter(user = self.duel.user_2).first()
+                    if user_point is None:
+                        user_point = UserPoint()
+                        user_point.user = self.duel.user_2
+                    user_point.win += 1
+                    user_point.point += 10
+                    user_point.save();
+                if self.duel.user_1 is not None:
+                    user_point2 = UserPoint.objects.filter(user = self.duel.user_1).first()
+                    if user_point2 is None:
+                        user_point2 = UserPoint()
+                        user_point2.user = self.duel.user_1
+                    user_point2.lose += 1
+                    user_point2.save();
+        elif self.duel.winner_ai == 0 and duel.is_ai is True:
+            self.duel.winner_ai = user
+            self.duel.save()
+            if duel.user_1 is not None:
+                user_point = UserPoint.objects.filter(user = self.duel.user_1).first()
+                if user_point is None:
+                    user_point = UserPoint()
+                    user_point.user = self.duel.user_1
+                user_point.point += 5
+                user_point.win_ai += 1
+                user_point.save();
+
     def win_the_game(self, cost=0):
         duel = self.duel
         self.duel.end_time = time()
@@ -12559,8 +13692,8 @@ class DuelObj:
         self.duel.tmponce_per_turn_relate1 = ""
         self.duel.tmponce_per_turn_relate2 = ""
         return
-
     def check_monster_effect_timing_and_phase_condition(self, monster_effect_condition):
+
         duel = self.duel
         if "check_phase" in monster_effect_condition:
             check_phases = str(monster_effect_condition["check_phase"]).split("_")
@@ -12574,7 +13707,9 @@ class DuelObj:
             check_timings = str(monster_effect_condition["check_timing"]).split("_")
             flag = False
             for check_timing in check_timings:
-                if duel.timing.id == int(check_timing):
+                if duel.timing is None:
+                    0 == int(check_timing)
+                elif duel.timing.id == int(check_timing):
                     flag = True
             if flag is False:
                 return False
@@ -13208,7 +14343,7 @@ class DuelObj:
                 duel.log_turn += log_tmp
                 duel.log += log_tmp
                 self.current_log += log_tmp
-                self.change_variable()
+                self.change_variable(2,monster_effect_unwrap)
                 monster_effect = monster_effect.monster_effect_next
             elif monster_effect_unwrap.monster_effect_val == 9:
                 log_tmp = self.write_log(monster_effect.log, user)
@@ -13221,7 +14356,8 @@ class DuelObj:
                     effect_kind,
                     monster_effect_unwrap.monster_condition,
                     monster_effect_unwrap.change_val_monster_flag,
-                    monster_effect_unwrap.accumulate_flag
+                    monster_effect_unwrap.accumulate_flag,
+                    
 
                 )
             elif monster_effect_unwrap.monster_effect_val == 29:
@@ -13386,7 +14522,6 @@ class DuelObj:
 
     def invoke_monster_effect(self, monster_effect, decks, graves, kinds):
 
-        pprint(monster_effect)
         duel = self.duel
         trigger_info = self.get_trigger_monster()
         chain_user = json.loads(duel.chain_user)
@@ -13427,6 +14562,7 @@ class DuelObj:
         strategy_up_or_down = monster_effect.strategy_up_or_down
         monster_effect_unwrap = monster_effect.monster_effect
         if monster_effect_unwrap.monster_effect_val == 22:
+            self.get_effect(monster_effect, user)
             log_tmp = self.write_log(monster_effect.log, user)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -13434,6 +14570,7 @@ class DuelObj:
             self.win_the_game(2)
             monster_effect = monster_effect.monster_effect_next
         elif monster_effect_unwrap.monster_effect_val == 23:
+            self.get_effect(monster_effect, user)
             log_tmp = self.write_log(monster_effect.log, user)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -13441,6 +14578,7 @@ class DuelObj:
             self.lose_the_game(2)
             monster_effect = monster_effect.monster_effect_next
         elif monster_effect_unwrap.monster_effect_val == 47:
+            self.get_effect(monster_effect, user)
             log_tmp = self.write_log(monster_effect.log, user)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -13465,7 +14603,11 @@ class DuelObj:
                         return self.pop_pac2(user)
                     else:
                         return monster_effect.monster_effect_next2
-        if monster_effect_unwrap.monster_effect_val == 45:
+        if monster_effect_unwrap.monster_effect_val == 79:
+            multiple_json = json.loads(monster_effect_unwrap.monster_effect)
+            rand_i = random.randrange(len((multiple_json["monster_effect_wrapper"])))
+            return MonsterEffectWrapper.objects.get(id=int(multiple_json["monster_effect_wrapper"][rand_i]))
+        elif monster_effect_unwrap.monster_effect_val == 45:
             rand_i = random.randrange(2)
             log_tmp = self.write_log(monster_effect.log, user)
             duel.log_turn += log_tmp
@@ -13522,6 +14664,7 @@ class DuelObj:
             data = {}
             data["val"] = change_val
             if change_val != 0:
+                self.get_effect(monster_effect, user,data)
                 log_tmp = self.write_log(monster_effect.log, user, data)
                 duel.log_turn += log_tmp
                 duel.log += log_tmp
@@ -13535,6 +14678,7 @@ class DuelObj:
                     return self.pop_pac(user)
         elif monster_effect_unwrap.monster_effect_val == 41:
             monster_effect_condition = json.loads(monster_effect_unwrap.monster_effect)
+            self.get_effect(monster_effect, user)
             log_tmp = self.write_log(monster_effect.log, user)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -13562,6 +14706,7 @@ class DuelObj:
             monster_effect_condition = json.loads(
                 monster_effect_unwrap.monster_condition
             )
+            self.get_effect(monster_effect, user)
             log_tmp = self.write_log(monster_effect.log, user)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -13584,6 +14729,7 @@ class DuelObj:
                     else:
                         return monster_effect.monster_effect_next2
         if monster_effect_unwrap.monster_effect_val == 43:
+            self.get_effect(monster_effect, user)
             log_tmp = self.write_log(monster_effect.log, user)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -13593,16 +14739,72 @@ class DuelObj:
             )
             return next_effect
         if monster_effect_unwrap.monster_effect_val == 5:
+            duel.ask = 0
             effect_kind = monster_effect.monster_effect_kind
-            if self.duel.is_ai is False:
-                self.duel.ask = 3
-            else:
-                if duel.user_turn == 1:
-                    self.duel.ask = 1
-                    self.answer_ai(strategy,strategy_up_or_down)
+            monster_effect_text = json.loads(monster_effect_unwrap.monster_effect)
+            whether_monster = monster_effect_text["whether_monster"]
+            exclude = monster_effect_text["exclude"]
+            monster_effect_text = monster_effect_text["monster"][0]
+            min = self.calculate_boland(monster_effect_text["min_equation_number"])
+            max = self.calculate_boland(monster_effect_text["max_equation_number"])
+            if min != 0 or max != 0:
+                if self.check_monster_exists(
+                    monster_effect_text,
+                    min,
+                    max,
+                    user,
+                    effect_kind,
+                    0,
+                    whether_monster,
+                    exclude,
+                ):
+                    self.duel.ask_kind = effect_kind
+                    if duel.is_ai is False:
+                        if duel.user_turn == user:
+                            self.duel.ask = 1
+                        else:
+                            self.duel.ask = 2
+                    else:
+                        if duel.user_turn == 1:
+                            self.duel.ask = 1
+                        else:
+                            self.answer_ai(strategy,strategy_up_or_down)
+            monster_effect_text = json.loads(monster_effect_unwrap.monster_effect)
+            whether_monster = monster_effect_text["whether_monster"]
+            exclude = monster_effect_text["exclude"]
+            monster_effect_text = monster_effect_text["monster"][1]
+            min = self.calculate_boland(monster_effect_text["min_equation_number"])
+            max = self.calculate_boland(monster_effect_text["max_equation_number"])
+            if min != 0 or max != 0:
+                if self.check_monster_exists(
+                    monster_effect_text,
+                    min,
+                    max,
+                    other_user,
+                    effect_kind,
+                    0,
+                    whether_monster,
+                    exclude,
+                ):
+                    self.duel.ask_kind = effect_kind
+                    if duel.is_ai is False :
+                        if duel.user_turn == user:
+                            self.duel.ask = 2
+                        else:
+                            self.duel.ask = 1
+                    else:
+                        if duel.user_turn == 2:
+                            self.duel.ask = 2
+                        else:
+                            self.answer_ai(strategy,strategy_up_or_down)
+            if duel.ask == 0:
+                if monster_effect.pac:
+                    return self._pac(monster_effect.pac)
                 else:
-                    self.duel.ask = 2
-                    self.answer_ai(strategy,strategy_up_or_down)
+                    if monster_effect.monster_effect_next is not None:
+                        return monster_effect.monster_effect_next
+                    else:
+                        return self.pop_pac(user)
         elif monster_effect_unwrap.monster_effect_val == 54:
             effect_kind = monster_effect.monster_effect_kind
         elif monster_effect_unwrap.monster_effect_val == 57 or monster_effect_unwrap.monster_effect_val == 65  :
@@ -13914,6 +15116,7 @@ class DuelObj:
             monster_effect_condition = json.loads(
                 monster_effect.monster_effect.monster_condition
             )
+            self.get_effect(monster_effect, user)
             log_tmp = self.write_log(monster_effect.log, user)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -13939,6 +15142,7 @@ class DuelObj:
                     else:
                         return monster_effect.monster_effect_next2
         elif monster_effect_unwrap.monster_effect_val == 43:
+            self.get_effect(monster_effect, user)
             log_tmp = self.write_log(monster_effect.log, user)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -13984,6 +15188,7 @@ class DuelObj:
             if move_to == []:
                 pass
             else:
+                self.get_effect(monster_effect, user,data)
                 log_tmp = self.write_log(monster_effect.log, user, data)
                 duel.log_turn += log_tmp
                 duel.log += log_tmp
@@ -13991,13 +15196,22 @@ class DuelObj:
 
             if move_to is not None:
                 self.move_to_monster(move_to, effect_kind)
-            if monster_effect.pac:
-                return self._pac(monster_effect.pac)
-            else:
-                if monster_effect.monster_effect_next:
-                    return monster_effect.monster_effect_next
+            if monster_effect.if_not_to_2 is False or move_to:
+                if monster_effect.pac:
+                    return self._pac(monster_effect.pac)
                 else:
-                    return self.pop_pac(user)
+                    if monster_effect.monster_effect_next:
+                        return monster_effect.monster_effect_next
+                    else:
+                        return self.pop_pac(user)
+            else:
+                if monster_effect.pac2:
+                    return self._pac(monster_effect.pac2)
+                else:
+                    if monster_effect.monster_effect_next2:
+                        return monster_effect.monster_effect_next2
+                    else:
+                        return self.pop_pac(user)
         elif monster_effect_unwrap.monster_effect_val == 17:
             effect_kind = self.get_pac_effect_kind()
             if effect_kind is None:
@@ -14008,6 +15222,7 @@ class DuelObj:
             if move_to == []:
                 pass
             else:
+                self.get_effect(monster_effect, user,data)
                 log_tmp = self.write_log(monster_effect.log, user, data)
                 duel.log_turn += log_tmp
                 duel.log += log_tmp
@@ -14015,13 +15230,22 @@ class DuelObj:
 
             if move_to is not None:
                 self.move_to_monster(move_to, effect_kind)
-            if monster_effect.pac:
-                return self._pac(monster_effect.pac)
-            else:
-                if monster_effect.monster_effect_next:
-                    return monster_effect.monster_effect_next
+            if monster_effect.if_not_to_2 is False or move_to:
+                if monster_effect.pac:
+                    return self._pac(monster_effect.pac)
                 else:
-                    return self.pop_pac(user)
+                    if monster_effect.monster_effect_next:
+                        return monster_effect.monster_effect_next
+                    else:
+                        return self.pop_pac(user)
+            else:
+                if monster_effect.pac2:
+                    return self._pac(monster_effect.pac2)
+                else:
+                    if monster_effect.monster_effect_next2:
+                        return monster_effect.monster_effect_next2
+                    else:
+                        return self.pop_pac(user)
         elif monster_effect_unwrap.monster_effect_val == 50:
             effect_kind = self.get_pac_effect_kind()
             if effect_kind is None:
@@ -14032,6 +15256,7 @@ class DuelObj:
             if move_to == []:
                 pass
             else:
+                self.get_effect(monster_effect, user,data)
                 log_tmp = self.write_log(monster_effect.log, user, data)
                 duel.log_turn += log_tmp
                 duel.log += log_tmp
@@ -14055,6 +15280,7 @@ class DuelObj:
             if move_to == []:
                 pass
             else:
+                self.get_effect(monster_effect, user,data)
                 log_tmp = self.write_log(monster_effect.log, user, data)
                 duel.log_turn += log_tmp
                 duel.log += log_tmp
@@ -14068,6 +15294,67 @@ class DuelObj:
                     return monster_effect.monster_effect_next
                 else:
                     return self.pop_pac(user)
+        elif monster_effect_unwrap.monster_effect_val == 6:
+                self.get_effect(monster_effect, user)
+                log_tmp = self.write_log(monster_effect.log, user)
+                duel.log_turn += log_tmp
+                duel.log += log_tmp
+                self.current_log += log_tmp
+                if monster_effect.pac:
+                    return self._pac(monster_effect.pac)
+                else:
+                    if monster_effect.monster_effect_next:
+                        return monster_effect.monster_effect_next
+                    else:
+                        return self.pop_pac(user)
+        elif monster_effect_unwrap.monster_effect_val == 76:
+            chain_det_ary = json.loads(self.duel.chain_det_trigger)
+            chain_det = chain_det_ary[str(self.duel.chain - 1)]
+            trigger = Trigger.objects.get(id=chain_det)
+            if self.get_fusion_monster(trigger.fusion_monster, user, trigger,1,1):
+                if duel.is_ai is False or user == 1:
+                    if duel.user_turn == user:
+                        self.duel.ask = 1
+                    else:
+                        self.duel.ask = 2
+                    return -1
+                else:
+                    if self.answer_ai(strategy,strategy_up_or_down):
+                        if monster_effect.pac:
+                            return self._pac(monster_effect.pac,None)
+                        else:
+                            if monster_effect.monster_effect_next is not None:
+                                return monster_effect.monster_effect_next
+                            else:
+                                return self.pop_pac(user)
+                    return self.do_next(monster_effect,user)
+            else:
+                return self.do_next(monster_effect,user)
+        elif monster_effect_unwrap.monster_effect_val == 78:
+            return self.unique_fusion_effect()
+        elif monster_effect_unwrap.monster_effect_val == 77:
+            chain_det_ary = json.loads(self.duel.chain_det_trigger)
+            chain_det = chain_det_ary[str(self.duel.chain - 1)]
+            trigger = Trigger.objects.get(id=chain_det)
+            if self.get_fusion_material(monster_effect_unwrap,user, trigger,1,1):
+                if duel.is_ai is False or user == 1:
+                    if duel.user_turn == user:
+                        self.duel.ask = 1
+                    else:
+                        self.duel.ask = 2
+                    return -1
+                else:
+                    if self.answer_ai(strategy,strategy_up_or_down):
+                        if monster_effect.pac:
+                            return self._pac(monster_effect.pac,None)
+                        else:
+                            if monster_effect.monster_effect_next is not None:
+                                return monster_effect.monster_effect_next
+                            else:
+                                return self.pop_pac(user)
+                    return self.do_next(monster_effect,user)
+            else:
+                return self.do_next(monster_effect,user)
         elif monster_effect_unwrap.monster_effect_val == 74:
             self.check_eternal_effect(
                 decks, graves, hands, duel.phase, duel.user_turn, user, other_user
@@ -14088,6 +15375,7 @@ class DuelObj:
             if move_to == []:
                 pass
             else:
+                self.get_effect(monster_effect, user)
                 log_tmp = self.write_log(monster_effect.log, user)
                 duel.log_turn += log_tmp
                 duel.log += log_tmp
@@ -14111,20 +15399,29 @@ class DuelObj:
             if move_to == []:
                 pass
             else:
+                self.get_effect(monster_effect, user,data)
                 log_tmp = self.write_log(monster_effect.log, user, data)
                 duel.log_turn += log_tmp
                 duel.log += log_tmp
                 self.current_log += log_tmp
-
             if move_to is not None:
                 self.move_to_monster(move_to, effect_kind)
-            if monster_effect.pac:
-                return self._pac(monster_effect.pac)
-            else:
-                if monster_effect.monster_effect_next:
-                    return monster_effect.monster_effect_next
+            if monster_effect.if_not_to_2 is False or move_to:
+                if monster_effect.pac:
+                    return self._pac(monster_effect.pac)
                 else:
-                    return self.pop_pac(user)
+                    if monster_effect.monster_effect_next:
+                        return monster_effect.monster_effect_next
+                    else:
+                        return self.pop_pac(user)
+            else:
+                if monster_effect.pac2:
+                    return self._pac(monster_effect.pac2)
+                else:
+                    if monster_effect.monster_effect_next2:
+                        return monster_effect.monster_effect_next2
+                    else:
+                        return self.pop_pac(user)
         elif monster_effect_unwrap.monster_effect_val == 40:
             effect_kind = self.get_pac_effect_kind()
             if effect_kind is None:
@@ -14136,6 +15433,7 @@ class DuelObj:
             if move_to == []:
                 pass
             else:
+                self.get_effect(monster_effect, user,data)
                 log_tmp = self.write_log(monster_effect.log, user, data)
                 duel.log_turn += log_tmp
                 duel.log += log_tmp
@@ -14143,14 +15441,24 @@ class DuelObj:
 
             if move_to is not None:
                 self.move_to_monster(move_to, effect_kind)
-            if monster_effect.pac:
-                return self._pac(monster_effect.pac)
-            else:
-                if monster_effect.monster_effect_next:
-                    return monster_effect.monster_effect_next
+            if monster_effect.if_not_to_2 is False or move_to:
+                if monster_effect.pac:
+                    return self._pac(monster_effect.pac)
                 else:
-                    return self.pop_pac(user)
+                    if monster_effect.monster_effect_next:
+                        return monster_effect.monster_effect_next
+                    else:
+                        return self.pop_pac(user)
+            else:
+                if monster_effect.pac2:
+                    return self._pac(monster_effect.pac2)
+                else:
+                    if monster_effect.monster_effect_next2:
+                        return monster_effect.monster_effect_next2
+                    else:
+                        return self.pop_pac(user)
         elif monster_effect_unwrap.monster_effect_val == 7:
+            self.get_effect(monster_effect, user)
             log_tmp = self.write_log(monster_effect.log, user)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -14164,6 +15472,7 @@ class DuelObj:
                 else:
                     return self.pop_pac(user)
         elif monster_effect_unwrap.monster_effect_val == 37:
+            self.get_effect(monster_effect, user)
             log_tmp = self.write_log(monster_effect.log, user)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -14171,6 +15480,7 @@ class DuelObj:
             effect_kind = monster_effect.monster_effect_kind
             return self.copy_effect(monster_effect_unwrap, effect_kind)
         elif monster_effect_unwrap.monster_effect_val == 46:
+            self.get_effect(monster_effect, user)
             log_tmp = self.write_log(monster_effect.log, user)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -14178,6 +15488,7 @@ class DuelObj:
             effect_kind = monster_effect.monster_effect_kind
             return self.copy_effect2(monster_effect_unwrap, effect_kind)
         elif monster_effect_unwrap.monster_effect_val == 8:
+            self.get_effect(monster_effect, user)
             log_tmp = self.write_log(monster_effect.log, user)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -14199,6 +15510,7 @@ class DuelObj:
                 monster_effect_unwrap.monster_condition,
                 effect_kind,
             )
+            self.get_effect(monster_effect, user,data_tmp)
             log_tmp = self.write_log(monster_effect.log, user, data_tmp)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -14220,17 +15532,27 @@ class DuelObj:
 
             data = {}
             data["monsters"] = move_to
+            self.get_effect(monster_effect, user,data)
             log_tmp = self.write_log(monster_effect.log, user, data)
             duel.log_turn += log_tmp
             duel.log += log_tmp
             self.current_log += log_tmp
-            if monster_effect.pac:
-                return self._pac(monster_effect.pac)
-            else:
-                if monster_effect.monster_effect_next:
-                    return monster_effect.monster_effect_next
+            if monster_effect.if_not_to_2 is False or move_to:
+                if monster_effect.pac:
+                    return self._pac(monster_effect.pac)
                 else:
-                    return self.pop_pac(user)
+                    if monster_effect.monster_effect_next:
+                        return monster_effect.monster_effect_next
+                    else:
+                        return self.pop_pac(user)
+            else:
+                if monster_effect.pac2:
+                    return self._pac(monster_effect.pac2)
+                else:
+                    if monster_effect.monster_effect_next2:
+                        return monster_effect.monster_effect_next2
+                    else:
+                        return self.pop_pac(user)
 
         elif monster_effect_unwrap.monster_effect_val == 71:
             effect_kind = self.get_pac_effect_kind()
@@ -14241,6 +15563,7 @@ class DuelObj:
                 monster_effect_unwrap.monster_condition,
                 effect_kind,
             )
+            self.get_effect(monster_effect, user,data_tmp)
             log_tmp = self.write_log(monster_effect.log, user, data_tmp)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -14259,6 +15582,7 @@ class DuelObj:
             data["monsters"] = data_tmp[0]
             data["val"] = data_tmp[1]
             if data["val"] != 0:
+                self.get_effect(monster_effect, user,data)
                 log_tmp = self.write_log(monster_effect.log, user, data)
                 duel.log_turn += log_tmp
                 duel.log += log_tmp
@@ -14270,11 +15594,27 @@ class DuelObj:
                     return monster_effect.monster_effect_next
                 else:
                     return self.pop_pac(user)
+        elif monster_effect_unwrap.monster_effect_val == 80:
+            change_show = self.change_show(0,monster_effect_unwrap)
+            data = {}
+            self.get_effect(monster_effect, user,data)
+            log_tmp = self.write_log(monster_effect.log, user, data)
+            duel.log_turn += log_tmp
+            duel.log += log_tmp
+            self.current_log += log_tmp
+            if monster_effect.pac:
+                return self._pac(monster_effect.pac)
+            else:
+                if monster_effect.monster_effect_next:
+                    return monster_effect.monster_effect_next
+                else:
+                    return self.pop_pac(user)
         elif monster_effect_unwrap.monster_effect_val == 2:
-            change_val = self.change_variable()
+            change_val = self.change_variable(0,monster_effect_unwrap)
             data = {}
             data["val"] = change_val
             if change_val != 0:
+                self.get_effect(monster_effect, user,data)
                 log_tmp = self.write_log(monster_effect.log, user, data)
                 duel.log_turn += log_tmp
                 duel.log += log_tmp
@@ -14291,6 +15631,7 @@ class DuelObj:
             data = {}
             data["val"] = change_val
             if change_val != 0:
+                self.get_effect(monster_effect, user,data)
                 log_tmp = self.write_log(monster_effect.log, user, data)
                 duel.log_turn += log_tmp
                 duel.log += log_tmp
@@ -14316,6 +15657,7 @@ class DuelObj:
                 data["monsters"] = data2[0]
                 data["val"] = data2[1]
                 if data:
+                    self.get_effect(monster_effect, user,data)
                     log_tmp = self.write_log(monster_effect.log, user, data)
                     duel.log_turn += log_tmp
                     duel.log += log_tmp
@@ -14328,6 +15670,7 @@ class DuelObj:
                 else:
                     return self.pop_pac(user)
         elif monster_effect_unwrap.monster_effect_val == 29:
+            self.get_effect(monster_effect, user)
             log_tmp = self.write_log(monster_effect.log, user)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -14347,6 +15690,7 @@ class DuelObj:
                 effect_kind,
                 monster_effect_unwrap.monster_condition,
             )
+            self.get_effect(monster_effect, user,return_value)
             log_tmp = self.write_log_change_monster_relation(
                 monster_effect.log, return_value
             )
@@ -14361,6 +15705,7 @@ class DuelObj:
                 else:
                     return self.pop_pac(user)
         elif monster_effect_unwrap.monster_effect_val == 39:
+            self.get_effect(monster_effect, user)
             log_tmp = self.write_log(monster_effect.log, user)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -14389,6 +15734,7 @@ class DuelObj:
                 monster_effect_unwrap.monster_condition,
                 specify
             )
+            self.get_effect(monster_effect, user,return_value)
             log_tmp = self.write_log_change_monster_relation(
                 monster_effect.log, return_value
             )
@@ -14404,6 +15750,7 @@ class DuelObj:
                     return self.pop_pac(user)
         elif monster_effect_unwrap.monster_effect_val == 38:
             # 対象クリア
+            self.get_effect(monster_effect, user)
             log_tmp = self.write_log(monster_effect.log, user)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -14422,6 +15769,7 @@ class DuelObj:
                 else:
                     return self.pop_pac(user)
         elif monster_effect_unwrap.monster_effect_val == 33:
+            self.get_effect(monster_effect, user)
             log_tmp = self.write_log(monster_effect.log, user)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -14448,6 +15796,7 @@ class DuelObj:
                 monster_effect_unwrap.monster_condition,
                 effect_kind_rel,
             )
+            self.get_effect(monster_effect, user,return_value)
             log_tmp = self.write_log(monster_effect.log, user, return_value)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -14460,6 +15809,7 @@ class DuelObj:
                 else:
                     return self.pop_pac(user)
         elif monster_effect_unwrap.monster_effect_val == 10:
+            self.get_effect(monster_effect, user)
             log_tmp = self.write_log(monster_effect.log, user)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -14473,6 +15823,7 @@ class DuelObj:
                 else:
                     return self.pop_pac(user)
         elif monster_effect_unwrap.monster_effect_val == 11:
+            self.get_effect(monster_effect, user)
             log_tmp = self.write_log(monster_effect.log, user)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -14486,6 +15837,7 @@ class DuelObj:
                 else:
                     return self.pop_pac(user)
         elif monster_effect_unwrap.monster_effect_val == 12:
+            self.get_effect(monster_effect, user)
             log_tmp = self.write_log(monster_effect.log, user)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -14499,6 +15851,7 @@ class DuelObj:
                 else:
                     return self.pop_pac(user)
         elif monster_effect_unwrap.monster_effect_val == 13:
+            self.get_effect(monster_effect, user)
             log_tmp = self.write_log(monster_effect.log, user)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -14512,6 +15865,7 @@ class DuelObj:
                 else:
                     return self.pop_pac(user)
         elif monster_effect_unwrap.monster_effect_val == 14:
+            self.get_effect(monster_effect, user)
             log_tmp = self.write_log(monster_effect.log, user)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -14519,12 +15873,11 @@ class DuelObj:
             monster_effect_text = json.loads(
                 monster_effect.monster_effect.monster_effect
             )
-            timing = Timing.objects.get(id=int(monster_effect_text["move_to_timing"]))
             if "timing_fresh" in monster_effect_text:
                 fresh= monster_effect_text["timing_fresh"]
             else:
                 fresh= True
-            self.change_timing(timing.id,fresh,int(monster_effect_text["t_num"]))
+            self.change_timing(int(monster_effect_text["move_to_timing"]),fresh,int(monster_effect_text["t_num"]))
             if monster_effect.pac:
                 return self._pac(monster_effect.pac)
             else:
@@ -14533,6 +15886,7 @@ class DuelObj:
                 else:
                     return self.pop_pac(user)
         elif monster_effect_unwrap.monster_effect_val == 19:
+            self.get_effect(monster_effect, user)
             log_tmp = self.write_log(monster_effect.log, user)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -14558,6 +15912,7 @@ class DuelObj:
                     return self.pop_pac(user)
 
         elif monster_effect_unwrap.monster_effect_val == 18:
+            self.get_effect(monster_effect, user)
             log_tmp = self.write_log(monster_effect.log, user)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -14571,6 +15926,7 @@ class DuelObj:
                 else:
                     return self.pop_pac(user)
         elif monster_effect_unwrap.monster_effect_val == 60:
+            self.get_effect(monster_effect, user)
             log_tmp = self.write_log(monster_effect.log, user)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -14593,6 +15949,7 @@ class DuelObj:
                 else:
                     return self.pop_pac(user)
         elif monster_effect_unwrap.monster_effect_val == 21:
+            self.get_effect(monster_effect, user)
             log_tmp = self.write_log(monster_effect.log, user)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -14606,6 +15963,7 @@ class DuelObj:
                 else:
                     return self.pop_pac(user)
         elif monster_effect_unwrap.monster_effect_val == 30:
+            self.get_effect(monster_effect, user)
             log_tmp = self.write_log(monster_effect.log, user)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -14619,6 +15977,7 @@ class DuelObj:
                 else:
                     return self.pop_pac(user)
         elif monster_effect_unwrap.monster_effect_val == 31:
+            self.get_effect(monster_effect, user)
             log_tmp = self.write_log(monster_effect.log, user)
             duel.log_turn += log_tmp
             duel.log += log_tmp
@@ -14666,6 +16025,73 @@ class DuelObj:
             result_log += log_text + "\n"
         return result_log
 
+    def write_prompt(self,prompt,user):
+        duel = self.duel
+        prompt_text = prompt
+        while 1:
+            log_calc = re.search("\(.*?\)", prompt_text)
+            if log_calc is None:
+               break
+            dummy = log_calc.group()
+            dummy = dummy[1:-1]
+            if(dummy == "@"):
+                break
+            if(dummy[0] == "{"):
+                tmp = self.get_name_all(dummy, 1)
+                tmp = tmp[0]
+            elif dummy[0] == "$":
+                tmp = self.get_place_name(dummy,user)
+            prompt_text = prompt_text.replace(log_calc.group(), tmp) + "\n"
+        return prompt_text
+
+    def get_effect(self,monster_effect,user,data=None):
+        flag = False
+        if data is None or "monsters" not in data:
+            if monster_effect.effect != "":
+                effect_ary = monster_effect.effect.split("|")
+                for effect in effect_ary:
+                    effect2 = effect.split(";") 
+                    if effect2[0] == "video" or effect2[0] == "background":
+                        if effect2[0] == "background":
+                            self.duel.background_image = effect2[1]
+                        self.effect += monster_effect.effect + "|"
+                        flag = True
+                    else:
+                        pass
+            return;
+        else:
+            if monster_effect.effect != "":
+                effect_ary = monster_effect.effect.split("|")
+                for effect in effect_ary:
+                    monster_i = 0;
+                    effect2 = effect.split(";") 
+                    if effect2[0] == "video" or effect2[0] == "background":
+                        if effect2[0] == "background":
+                            self.duel.background_image = effect2[1]
+                        self.effect += effect + "|"
+                        flag = True
+                    elif effect2[0] == "monster":
+                        for monster in data["monsters"]:
+                            if monster["deck_id"] != 0:
+                               monster_i += 1
+                               continue
+                            x = str(monster["x"])
+                            y = str(monster["y"])
+                            if(effect2[1] != "number"):
+                                self.effect += "monster;"+x+";"+y+";"+effect2[1]+"|"
+                                flag = True
+                            else:
+                                if isinstance(data["val"], list):
+                                    pprint(data["val"])
+                                    self.effect += "monster;"+x+";"+y+";"+effect2[1]+";"+str(abs(int(float(data["val"][monster_i]))))+"|"
+                                else:
+                                    self.effect += "monster;"+x+";"+y+";"+effect2[1]+";"+str(abs(int(float(data["val"]))))+"|"
+                                flag = True
+                            monster_i += 1
+            if flag is True:
+                self.duel.effect_flag += 1
+            return;
+
     def write_log(self, log, user, data=None):
         duel = self.duel
         if self.duel.guest_flag is False:
@@ -14699,6 +16125,8 @@ class DuelObj:
                 dummy = dummy[1:-1]
                 if dummy == "#":
                     tmp_log = ""
+                elif dummy[0] == "$":
+                    tmp_log = self.get_place_name(dummy,user)
                 elif dummy == "@":
                    tmp_log = data["monsters"][i]["det"]["monster_name"]
                 elif dummy == "%":
@@ -14728,6 +16156,8 @@ class DuelObj:
                         tmp_log = user2_name
                     else:
                         tmp_log = user1_name
+                elif dummy[1] == "$":
+                        tmp_log =  self.get_place_name(dummy,user)
                 log_text = log_text.replace(log_calc.group(), tmp_log) + "\n"
                 i += 1
             return html.escape(log_text)
@@ -14741,6 +16171,8 @@ class DuelObj:
                 dummy = dummy[1:-1]
                 if dummy == "#":
                     tmp_log = ""
+                elif dummy[0] == "$":
+                    tmp_log = self.get_place_name(dummy,user)
                 elif dummy == "^":
                     tmp_log = len(data["monsters"][i])
                 elif dummy == "@":
@@ -14770,6 +16202,8 @@ class DuelObj:
                         tmp_log = user2_name
                     else:
                         tmp_log = user1_name
+                elif dummy[1] == "$":
+                        tmp_log =  self.get_place_name(dummy,user)
                 log_text = log_text.replace(log_calc.group(), tmp_log)
 
             result_log += log_text + "\n"
@@ -14808,11 +16242,46 @@ class DuelObj:
             trigger_waitings.append(tmp)
         duel.trigger_waiting = json.dumps(trigger_waitings)
 
+    def expire_chain(self):
+        self.expire_deck_chain()
+        self.expire_grave_chain()
+        self.expire_hand_chain()
+        self.expire_field_chain()
     def expire_turn(self, turn):
         self.expire_deck_turn(turn)
         self.expire_grave_turn(turn)
         self.expire_hand_turn(turn)
         self.expire_field_turn(turn)
+
+    def expire_field_chain(self):
+        field = self.field
+        field_size = FieldSize.objects.get(id=1)
+        if self.field_free is False:
+            field_x = field_size.field_x
+        else:
+            field_x = 20
+        for x in range(field_x):
+            for y in range(field_size.field_y):
+                if field[x][y]["det"] is None:
+                    continue
+                if "eternal" not in field[x][y]["det"]:
+                    continue
+                index = 0
+                index_list = []
+                for eternal in field[x][y]["det"]["eternal"]:
+                    if eternal is None:
+                        index += 1
+                        continue
+                    life = eternal["monster_variable_change_life"].split("_")
+                    if life[0] != "chain":
+                        index += 1
+                        continue
+                    index_list.append(index)
+                    index += 1
+                for index3 in reversed(index_list):
+                    del field[x][y]["det"]["eternal"][index3]
+
+        self.field = field
 
     def expire_field_turn(self, turn):
         field = self.field
@@ -14896,9 +16365,10 @@ class DuelObj:
                                 life = 1
                         if (
                             life == 3
-                            or (life == 1 and self.user == 1)
-                            or (life == 2 and self.user == 2)
-                        ):
+                            or (turn == 1  and ((life == 1 and self.user == 1)
+                            or (life == 2 and self.user == 2)))
+                            or (turn == 2  and ((life == 1 and self.user == 2)
+                            or (life == 2 and self.user == 1)))):
                             myhand["eternal"][index][
                                 "monster_variable_change_life_length"
                             ] -= 1
@@ -14938,8 +16408,10 @@ class DuelObj:
                                 life = 1
                         if (
                             life == 3
-                            or (life == 1 and self.user == 2)
-                            or (life == 2 and self.user == 1)
+                            or (turn == 1 and ((life == 1 and self.user == 2)
+                            or (life == 2 and self.user == 1)))
+                            or (turn == 2 and ((life == 2 and self.user == 2)
+                            or (life == 1 and self.user == 1)))
                         ):
                             otherhand["eternal"][index][
                                 "monster_variable_change_life_length"
@@ -15026,8 +16498,10 @@ class DuelObj:
                                 life = 1
                         if (
                             life == 3
-                            or (life == 1 and self.user == 1)
-                            or (life == 2 and self.user == 2)
+                            or (turn == 1 and ((life == 1 and self.user == 1)
+                            or (life == 2 and self.user == 2)))
+                            or (turn == 2 and ((life == 1 and self.user == 2)
+                            or (life == 2 and self.user == 1)))
                         ):
                             mygrave["eternal"][index][
                                 "monster_variable_change_life_length"
@@ -15068,8 +16542,10 @@ class DuelObj:
                                 life = 1
                         if (
                             life == 3
-                            or (life == 1 and self.user == 2)
-                            or (life == 2 and self.user == 1)
+                            or (turn == 1 and ((life == 1 and self.user == 2)
+                            or (life == 2 and self.user == 1)))
+                            or (turn == 2 and ((life == 1 and self.user == 1)
+                            or (life == 1 and self.user == 1)))
                         ):
                             othergrave["eternal"][index][
                                 "monster_variable_change_life_length"
@@ -15122,6 +16598,220 @@ class DuelObj:
                     commongraves[index2] = commongrave
                 self.graves[i]["commongrave"] = commongraves
 
+    
+    def expire_hand_chain(self):
+
+        hands = self.hand_structure
+        i = 0
+        for hand in hands:
+            i += 1
+            if hand.mine_or_other == 0:
+                myhands = self.hands[i]["myhand"]
+                otherhands = self.hands[i]["otherhand"]
+                index2 = -1
+                for myhand in myhands:
+                    index2 += 1
+                    if "eternal" not in myhand:
+                        continue
+                    index = 0
+                    index_list = []
+                    for eternal in myhand["eternal"]:
+                        if eternal is None:
+                            index += 1
+                            continue
+                        life = eternal["monster_variable_change_life"].split("_")
+                        if life[0] != "chain":
+                            index += 1
+                        index_list.append(index)
+                index2 = -1
+                for otherhand in otherhands:
+                    index2 += 1
+                    if "eternal" not in otherhand:
+                        continue
+                    index = 0
+                    index_list = []
+                    for eternal in otherhand["eternal"]:
+                        if eternal is None:
+                            index += 1
+                            continue
+                        life = eternal["monster_variable_change_life"].split("_")
+                        if life[0] != "chain":
+                            index += 1
+                            continue
+                        index_list.append(index)
+                        index += 1
+                    for index3 in reversed(index_list):
+                        del otherhand["eternal"][index3]
+                    otherhands[index2] = otherhand
+                self.hands[i]["myhand"] = myhands
+                self.hands[i]["otherhand"] = otherhands
+
+            else:
+                commonhands = self.hands[i]["commonhand"]
+                index2 = -1
+                for commonhand in commonhands:
+                    index2 += 1
+                    if "eternal" not in commonhand:
+                        continue
+                    index = 0
+                    index_list = []
+                    for eternal in commonhand["eternal"]:
+                        if eternal is None:
+                            index += 1
+                            continue
+                        life = eternal["monster_variable_change_life"].split("_")
+                        if life[0] != "chain":
+                            index += 1
+                            continue
+                        index_list.append(index)
+                        index += 1
+                    for index3 in reversed(index_list):
+                        del commonhand["eternal"][index3]
+                    commonhands[index2] = commonhand
+                self.hands[i]["commonhand"] = commonhands
+
+    def expire_grave_chain(self):
+
+        graves = self.grave_structure
+        i = 0
+        for grave in graves:
+            i += 1
+            if grave.mine_or_other == 0:
+                mygraves = self.graves[i]["mygrave"]
+                othergraves = self.graves[i]["othergrave"]
+                index2 = -1
+                for mygrave in mygraves:
+                    index2 += 1
+                    if "eternal" not in mygrave:
+                        continue
+                    index = 0
+                    index_list = []
+                    for eternal in mygrave["eternal"]:
+                        if eternal is None:
+                            index += 1
+                            continue
+                        life = eternal["monster_variable_change_life"].split("_")
+                        if life[0] != "chain":
+                            index += 1
+                        index_list.append(index)
+                index2 = -1
+                for othergrave in othergraves:
+                    index2 += 1
+                    if "eternal" not in othergrave:
+                        continue
+                    index = 0
+                    index_list = []
+                    for eternal in othergrave["eternal"]:
+                        if eternal is None:
+                            index += 1
+                            continue
+                        life = eternal["monster_variable_change_life"].split("_")
+                        if life[0] != "chain":
+                            index += 1
+                            continue
+                        index_list.append(index)
+                        index += 1
+                    for index3 in reversed(index_list):
+                        del othergrave["eternal"][index3]
+                    othergraves[index2] = othergrave
+                self.graves[i]["mygrave"] = mygraves
+                self.graves[i]["othergrave"] = othergraves
+
+            else:
+                index2 = -1
+                commongraves = self.graves[i]["commongrave"]
+                for commongrave in commongraves:
+                    index2 += 1
+                    if "eternal" not in commongrave:
+                        continue
+                    index = 0
+                    index_list = []
+                    for eternal in commongrave["eternal"]:
+                        if eternal is None:
+                            index += 1
+                            continue
+                        life = eternal["monster_variable_change_life"].split("_")
+                        if life[0] != "chain":
+                            index += 1
+                            continue
+                        index_list.append(index)
+                        index += 1
+                    for index3 in reversed(index_list):
+                        del commongrave["eternal"][index3]
+                    commongraves[index2] = commongrave
+                self.graves[i]["commongrave"] = commongraves
+
+    def expire_deck_chain(self):
+
+        decks = self.deck_structure
+        i = 0
+        for deck in decks:
+            i += 1
+            if deck.mine_or_other == 0:
+                mydecks = self.decks[i]["mydeck"]
+                otherdecks = self.decks[i]["otherdeck"]
+                index2 = -1
+                for mydeck in mydecks:
+                    index2 += 1
+                    if "eternal" not in mydeck:
+                        continue
+                    index = 0
+                    index_list = []
+                    for eternal in mydeck["eternal"]:
+                        if eternal is None:
+                            index += 1
+                            continue
+                        life = eternal["monster_variable_change_life"].split("_")
+                        if life[0] != "chain":
+                            index += 1
+                        index_list.append(index)
+                index2 = -1
+                for otherdeck in otherdecks:
+                    index2 += 1
+                    if "eternal" not in otherdeck:
+                        continue
+                    index = 0
+                    index_list = []
+                    for eternal in otherdeck["eternal"]:
+                        if eternal is None:
+                            index += 1
+                            continue
+                        life = eternal["monster_variable_change_life"].split("_")
+                        if life[0] != "chain":
+                            index += 1
+                            continue
+                        index_list.append(index)
+                        index += 1
+                    for index3 in reversed(index_list):
+                        del otherdeck["eternal"][index3]
+                    otherdecks[index2] = otherdeck
+                self.decks[i]["mydeck"] = mydecks
+                self.decks[i]["otherdeck"] = otherdecks
+
+            else:
+                index2 = -1
+                commondecks = self.decks[i]["commondeck"]
+                for commondeck in commondecks:
+                    index2 += 1
+                    if "eternal" not in commondeck:
+                        continue
+                    index = 0
+                    index_list = []
+                    for eternal in commondeck["eternal"]:
+                        if eternal is None:
+                            index += 1
+                            continue
+                        life = eternal["monster_variable_change_life"].split("_")
+                        if life[0] != "chain":
+                            index += 1
+                            continue
+                        index_list.append(index)
+                        index += 1
+                    for index3 in reversed(index_list):
+                        del commondeck["eternal"][index3]
+                    commondecks[index2] = commondeck
+                self.decks[i]["commondeck"] = commondecks
+
     def expire_deck_turn(self, turn):
 
         decks = self.deck_structure
@@ -15155,9 +16845,11 @@ class DuelObj:
                             elif life == 2:
                                 life = 1
                         if (
-                            life == 3
-                            or (life == 1 and self.user == 1)
-                            or (life == 2 and self.user == 2)
+                                life == 3
+                                or (turn == 1  and (life == 1 and self.user == 1)
+                                or (life == 2 and self.user == 2))
+                                or (turn == 2  and (life == 1 and self.user == 2)
+                                or (life == 2 and self.user == 1))
                         ):
                             mydeck["eternal"][index][
                                 "monster_variable_change_life_length"
@@ -15198,8 +16890,10 @@ class DuelObj:
                                 life = 1
                         if (
                             life == 3
-                            or (life == 1 and self.user == 2)
-                            or (life == 2 and self.user == 1)
+                            or (turn == 1 and (life == 1 and self.user == 2)
+                            or (life == 2 and self.user == 1))
+                            or (turn == 2 and (life == 2 and self.user == 2)
+                            or (life == 2 and self.user == 1))
                         ):
                             otherdeck["eternal"][index][
                                 "monster_variable_change_life_length"
@@ -15220,6 +16914,7 @@ class DuelObj:
 
             else:
                 commondecks = self.decks[i]["commondeck"]
+                index2 = -1
                 for commondeck in commondecks:
                     index2 += 1
                     if "eternal" not in commondeck:
@@ -15861,7 +17556,7 @@ class DuelObj:
                             index += 1
                             continue
                         life = int(life[1])
-                        if self.user == 1:
+                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
                             pass
                         else:
                             if life == 1:
@@ -15906,7 +17601,7 @@ class DuelObj:
                             index += 1
                             continue
                         life = int(life[1])
-                        if self.user == 1:
+                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
                             pass
                         else:
                             if life == 1:
@@ -15951,7 +17646,7 @@ class DuelObj:
                             index += 1
                             continue
                         life = int(life[1])
-                        if self.user == 1:
+                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
                             pass
                         else:
                             if life == 1:
@@ -15996,7 +17691,7 @@ class DuelObj:
                             index += 1
                             continue
                         life = int(life[1])
-                        if self.user == 1:
+                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
                             pass
                         else:
                             if life == 1:
@@ -16214,7 +17909,7 @@ class DuelObj:
                             index += 1
                             continue
                         life = int(life[1])
-                        if self.user == 1:
+                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
                             pass
                         else:
                             if life == 1:
@@ -16259,7 +17954,7 @@ class DuelObj:
                             index += 1
                             continue
                         life = int(life[1])
-                        if self.user == 1:
+                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
                             pass
                         else:
                             if life == 1:
@@ -16304,7 +17999,7 @@ class DuelObj:
                             index += 1
                             continue
                         life = int(life[1])
-                        if self.user == 1:
+                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
                             pass
                         else:
                             if life == 1:
@@ -16349,7 +18044,7 @@ class DuelObj:
                             index += 1
                             continue
                         life = int(life[1])
-                        if self.user == 1:
+                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
                             pass
                         else:
                             if life == 1:
@@ -16399,7 +18094,7 @@ class DuelObj:
                             index += 1
                             continue
                         life = int(life[1])
-                        if self.user == 1:
+                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
                             pass
                         else:
                             if life == 1:
@@ -16440,7 +18135,7 @@ class DuelObj:
                             index += 1
                             continue
                         life = int(life[1])
-                        if self.user == 1:
+                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
                             pass
                         else:
                             if life == 1:
@@ -16492,7 +18187,7 @@ class DuelObj:
                             index += 1
                             continue
                         life = int(life[1])
-                        if self.user == 1:
+                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
                             pass
                         else:
                             if life == 1:
@@ -16537,7 +18232,7 @@ class DuelObj:
                             index += 1
                             continue
                         life = int(life[1])
-                        if self.user == 1:
+                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
                             pass
                         else:
                             if life == 1:
@@ -16582,7 +18277,7 @@ class DuelObj:
                             index += 1
                             continue
                         life = int(life[1])
-                        if self.user == 1:
+                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
                             pass
                         else:
                             if life == 1:
@@ -16627,7 +18322,7 @@ class DuelObj:
                             index += 1
                             continue
                         life = int(life[1])
-                        if self.user == 1:
+                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
                             pass
                         else:
                             if life == 1:
@@ -16756,7 +18451,7 @@ class DuelObj:
                             index += 1
                             continue
                         life = int(life[1])
-                        if self.user == 1:
+                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
                             pass
                         else:
                             if life == 1:
@@ -16801,7 +18496,7 @@ class DuelObj:
                             index += 1
                             continue
                         life = int(life[1])
-                        if self.user == 1:
+                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
                             pass
                         else:
                             if life == 1:
@@ -16846,7 +18541,7 @@ class DuelObj:
                             index += 1
                             continue
                         life = int(life[1])
-                        if self.user == 1:
+                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
                             pass
                         else:
                             if life == 1:
@@ -16891,7 +18586,7 @@ class DuelObj:
                             index += 1
                             continue
                         life = int(life[1])
-                        if self.user == 1:
+                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
                             pass
                         else:
                             if life == 1:
@@ -17151,7 +18846,10 @@ class DuelObj:
 
     def change_timing(self, timing_id,fresh=True,t_num= 1):
         duel = self.duel
-        next_timing = Timing.objects.get(id=timing_id)
+        if timing_id != 0:
+            next_timing = Timing.objects.get(id=timing_id)
+        else:
+            next_timing = None
         if int(t_num) == 1 :
             if duel.timing is not None: 
                 self.expire_timing(duel.timing,next_timing, duel.user_turn)
@@ -18220,7 +19918,52 @@ class DuelObj:
                         self.duel.alt_global = json.dumps(alt_global)
         return alt_val
 
-    def change_variable(self, cost=0):
+    def change_show(self, cost=0,monster_effect= None):
+        duel = self.duel
+        chain_det = json.loads(self.duel.chain_det)
+        chain_user = json.loads(self.duel.chain_user)
+        user = chain_user[str(duel.chain - 1)]
+        monster_effect_wrapper = MonsterEffectWrapper.objects.get(
+            id=int(chain_det[str(duel.chain - 1)])
+        )
+        monster_effect = monster_effect_wrapper.monster_effect
+        monster_effect_text = json.loads(monster_effect.monster_effect)
+        variable = json.loads(duel.global_variable)
+        variable_id = monster_effect_text["variable_name"].split("_")
+        mine_or_other = int(variable_id[2])
+        variable_id = variable_id[1]
+        global_name = {}
+        if (mine_or_other == 1 and user == 1) or (mine_or_other == 2 and user == 2):
+            global_name["mine_or_other"] = 1
+        elif (mine_or_other == 2 and user == 1) or (mine_or_other == 1 and user == 2):
+            global_name["mine_or_other"] = 2
+        else:
+            global_name["mine_or_other"] = 0
+        global_name["variable_id"] = variable_id
+        global_name["variable_how"] = monster_effect_text["variable_change_how"]
+        if mine_or_other == 0:
+            if monster_effect_text["variable_change_how"] == 0:
+                variable[str(variable_id)]["show"] = 0
+            elif monster_effect_text["variable_change_how"] == 1:
+                variable[str(variable_id)]["show"] = 1
+        elif (mine_or_other == 1 and user == 1) or (
+            mine_or_other == 2 and user == 2
+        ):
+            if monster_effect_text["variable_change_how"] == 0:
+                variable[str(variable_id)]["1_show"] = 0 
+            elif monster_effect_text["variable_change_how"] == 1:
+                variable[str(variable_id)]["1_show"] = 1
+        elif (mine_or_other == 2 and user == 1) or (
+            mine_or_other == 1 and user == 2
+        ):
+            if monster_effect_text["variable_change_how"] == 0:
+                variable[str(variable_id)]["2_show"] = 0
+            elif monster_effect_text["variable_change_how"] == 1:
+                variable[str(variable_id)]["2_show"] = 1
+        duel.global_variable = json.dumps(variable)
+        return  monster_effect_text["variable_change_how"] 
+    def change_variable(self, cost=0,monster_effect= None):
+
         duel = self.duel
         chain_det = json.loads(self.duel.chain_det)
         chain_user = json.loads(self.duel.chain_user)
@@ -18234,13 +19977,19 @@ class DuelObj:
             effect_kind = monster_effect_wrapper.monster_effect_kind
             change_val_flag = monster_effect.change_val_monster_flag
             accumulate_flag = monster_effect.accumulate_flag
-        else:
+        elif cost ==1:
             user = chain_user[str(self.tmp_chain)]
             cost_det = duel.cost_det
             cost_wrapper = CostWrapper.objects.get(id=cost_det)
             effect_kind = cost_wrapper.cost_kind
             cost_unwrap = cost_wrapper.cost
             monster_effect_text = json.loads(cost_unwrap.cost)
+            change_val_flag = False
+            accumulate_flag = False
+        else:
+            user  = self.user
+            monster_effect_text = json.loads(monster_effect.monster_effect)
+            effect_kind = ""
             change_val_flag = False
             accumulate_flag = False
         variable_id = monster_effect_text["variable_name"].split("_")
@@ -18464,6 +20213,10 @@ class DuelObj:
                     ini = monster_effect["monster_variable_change_initial"][index]
                 else:
                     ini = False
+                if "monster_variable_change_add" in monster_effect:
+                    add = monster_effect["monster_variable_change_add"][index]
+                else:
+                    add = 0
                 change_val_eternal["variables"][variable_name] = {}
                 change_val_eternal["variables"][variable_name]["value"] = str(
                     self.calculate_boland(
@@ -18474,6 +20227,7 @@ class DuelObj:
                     )
                 )
                 change_val_eternal["variables"][variable_name]["ini"] = ini
+                change_val_eternal["variables"][variable_name]["add"] = add
         else:
             change_val_eternal = None
         for monster_effect_det in monster_effect_monster:
@@ -19609,6 +21363,10 @@ class DuelObj:
                     ini = monster_effect["monster_variable_change_initial"][index]
                 else:
                     ini = False
+                if "monster_variable_change_add" in monster_effect:
+                    add = monster_effect["monster_variable_change_add"][index]
+                else:
+                    add = 0
                 change_val_eternal["variables"][variable_name] = {}
                 change_val_eternal["variables"][variable_name]["value"] = str(
                     self.calculate_boland(
@@ -19619,6 +21377,7 @@ class DuelObj:
                     )
                 )
                 change_val_eternal["variables"][variable_name]["ini"] = ini
+                change_val_eternal["variables"][variable_name]["add"] = add
         else:
             change_val_eternal = None
         for monster_effect_det in monster_effect_monster:
@@ -21339,6 +23098,10 @@ class DuelObj:
                     ini = monster_effect["monster_variable_change_initial"][index]
                 else:
                     ini = False
+                if "monster_variable_change_add" in monster_effect:
+                    add = monster_effect["monster_variable_change_add"][index]
+                else:
+                    add = 0
                 change_val_eternal["variables"][variable_name] = {}
                 change_val_eternal["variables"][variable_name]["value"] = str(
                     self.calculate_boland(
@@ -21349,6 +23112,7 @@ class DuelObj:
                     )
                 )
                 change_val_eternal["variables"][variable_name]["ini"] = ini
+                change_val_eternal["variables"][variable_name]["add"] = add
         else:
             change_val_eternal = None
         for monster_effect_det in monster_effect_monster:
@@ -23011,6 +24775,10 @@ class DuelObj:
                     ini = monster_effect["monster_variable_change_initial"][index]
                 else:
                     ini = False
+                if "monster_variable_change_add" in monster_effect:
+                    add = monster_effect["monster_variable_change_add"][index]
+                else:
+                    add = 0
                 change_val_eternal["variables"][variable_name] = {}
                 change_val_eternal["variables"][variable_name]["value"] = str(
                     self.calculate_boland(
@@ -23021,6 +24789,7 @@ class DuelObj:
                     )
                 )
                 change_val_eternal["variables"][variable_name]["ini"] = ini
+                change_val_eternal["variables"][variable_name]["add"] = add
         else:
             change_val_eternal = None
         for monster_effect_det in monster_effect_monster:
@@ -23880,6 +25649,10 @@ class DuelObj:
                     ini = monster_effect["monster_variable_change_initial"][index]
                 else:
                     ini = False
+                if "monster_variable_change_add" in monster_effect:
+                    add = monster_effect["monster_variable_change_add"][index]
+                else:
+                    add = 0
                 change_val_eternal["variables"][variable_name] = {}
                 change_val_eternal["variables"][variable_name]["value"] = str(
                     self.calculate_boland(
@@ -23890,6 +25663,7 @@ class DuelObj:
                     )
                 )
                 change_val_eternal["variables"][variable_name]["ini"] = ini
+                change_val_eternal["variables"][variable_name]["add"] = add
         else:
             change_val_eternal = None
         for monster_effect_det in monster_effect_monster:
@@ -24137,12 +25911,12 @@ class DuelObj:
                     mine_or_other = place2["mine_or_other"]
                     deck_id = place2["deck_id"]
                     place_unique_id = place2["place_unique_id"]
-                    if (self.user == chain_user and mine_or_other == "1") or (
-                        chain_user != self.user and mine_or_other == "2"
+                    if (self.user == chain_user and int(mine_or_other) == 1) or (
+                        chain_user != self.user and int(mine_or_other) == 2
                     ):
                         mine_or_other2 = 1
-                    elif (self.user != chain_user and mine_or_other == "1") or (
-                        chain_user == self.user and mine_or_other == "2"
+                    elif (self.user != chain_user and int(mine_or_other) == "1") or (
+                        chain_user == self.user and int(mine_or_other) == "2"
                     ):
                         mine_or_other2 = 2
                     else:
@@ -24155,7 +25929,7 @@ class DuelObj:
                         elif mine_or_other2 == 2:
                             mine_or_other3 = 1
                         else:
-                            mine_or_other3 = mine_or_other2
+                            mine_or_other3 = mine_orother2
                     if place == "deck":
                         if mine_or_other2 == 1:
                             tmp = self.decks[deck_id]["mydeck"]
@@ -27164,6 +28938,10 @@ class DuelObj:
                                     ][index]
                                 else:
                                     ini = False
+                                if "monster_variable_change_add" in monster_effect:
+                                    add = monster_effect["monster_variable_change_add"][index]
+                                else:
+                                    add = 0
                                 change_val_eternal["variables"][variable_name] = {}
                                 change_value = str(
                                     self.calculate_boland(
@@ -27182,6 +28960,7 @@ class DuelObj:
                                 change_val_eternal["variables"][variable_name][
                                     "ini"
                                 ] = ini
+                                change_val_eternal["variables"][variable_name]["add"] = add
                         else:
                             change_val_eternal = None
                         if change_val_eternal is not None:
@@ -27229,6 +29008,10 @@ class DuelObj:
                                 ]
                             else:
                                 ini = False
+                            if "monster_variable_change_add" in monster_effect:
+                                add = monster_effect["monster_variable_change_add"][index]
+                            else:
+                                add = 0
                             change_val_eternal["variables"][variable_name] = {}
                             change_value = str(
                                 self.calculate_boland(
@@ -27245,6 +29028,7 @@ class DuelObj:
                             ] = change_value
                             change_val.append(change_value)
                             change_val_eternal["variables"][variable_name]["ini"] = ini
+                            change_val_eternal["variables"][variable_name]["add"] = add
                     else:
                         change_val_eternal = None
                     cost_result = self.cost_result
@@ -27382,6 +29166,10 @@ class DuelObj:
                                             ][index]
                                         else:
                                             ini = False
+                                        if "monster_variable_change_add" in monster_effect:
+                                            add = monster_effect["monster_variable_change_add"][index]
+                                        else:
+                                            add = 0
                                         change_val_eternal["variables"][
                                             variable_name
                                         ] = {}
@@ -27402,6 +29190,7 @@ class DuelObj:
                                         change_val_eternal["variables"][variable_name][
                                             "ini"
                                         ] = ini
+                                        change_val_eternal["variables"][variable_name]["add"] = add
                                 else:
                                     change_val_eternal = None
                                 if change_val_eternal is not None:
@@ -27469,6 +29258,10 @@ class DuelObj:
                                         ][index]
                                     else:
                                         ini = False
+                                    if "monster_variable_change_add" in monster_effect:
+                                        add = monster_effect["monster_variable_change_add"][index]
+                                    else:
+                                        add = 0
                                     change_val_eternal["variables"][variable_name] = {}
                                     change_value = str(
                                         self.calculate_boland(
@@ -27487,6 +29280,7 @@ class DuelObj:
                                     change_val_eternal["variables"][variable_name][
                                         "ini"
                                     ] = ini
+                                    change_val_eternal["variables"][variable_name]["add"] = add
                             else:
                                 change_val_eternal = None
                             cost_result_tmp = {}
@@ -27603,6 +29397,10 @@ class DuelObj:
                                             ][index]
                                         else:
                                             ini = False
+                                        if "monster_variable_change_add" in monster_effect:
+                                            add = monster_effect["monster_variable_change_add"][index]
+                                        else:
+                                            add = 0
                                         change_val_eternal["variables"][
                                             variable_name
                                         ] = {}
@@ -27623,6 +29421,7 @@ class DuelObj:
                                         change_val_eternal["variables"][variable_name][
                                             "ini"
                                         ] = ini
+                                        change_val_eternal["variables"][variable_name]["add"] = add
                                 else:
                                     change_val_eternal = None
                                 if change_val_eternal is not None:
@@ -27690,6 +29489,10 @@ class DuelObj:
                                         ][index]
                                     else:
                                         ini = False
+                                    if "monster_variable_change_add" in monster_effect:
+                                        add = monster_effect["monster_variable_change_add"][index]
+                                    else:
+                                        add = 0
                                     change_val_eternal["variables"][variable_name] = {}
                                     change_value = str(
                                         self.calculate_boland(
@@ -27708,6 +29511,7 @@ class DuelObj:
                                     change_val_eternal["variables"][variable_name][
                                         "ini"
                                     ] = ini
+                                    change_val_eternal["variables"][variable_name]["add"] = add
                             else:
                                 change_val_eternal = None
                             cost_result_tmp = {}
@@ -27821,6 +29625,10 @@ class DuelObj:
                                             ][index]
                                         else:
                                             ini = False
+                                        if "monster_variable_change_add" in monster_effect:
+                                            add = monster_effect["monster_variable_change_add"][index]
+                                        else:
+                                            add = 0
                                         change_val_eternal["variables"][
                                             variable_name
                                         ] = {}
@@ -27841,6 +29649,7 @@ class DuelObj:
                                         change_val_eternal["variables"][variable_name][
                                             "ini"
                                         ] = ini
+                                        change_val_eternal["variables"][variable_name]["add"] = add
                                 else:
                                     change_val_eternal = None
                                 if change_val_eternal is not None:
@@ -27908,6 +29717,10 @@ class DuelObj:
                                         ][index]
                                     else:
                                         ini = False
+                                    if "monster_variable_change_add" in monster_effect:
+                                        add = monster_effect["monster_variable_change_add"][index]
+                                    else:
+                                        add = 0
                                     change_val_eternal["variables"][variable_name] = {}
                                     change_value = str(
                                         self.calculate_boland(
@@ -27926,6 +29739,7 @@ class DuelObj:
                                     change_val_eternal["variables"][variable_name][
                                         "ini"
                                     ] = ini
+                                    change_val_eternal["variables"][variable_name]["add"] = add
                             else:
                                 change_val_eternal = None
                             cost_result_tmp = {}
@@ -27989,9 +29803,14 @@ class DuelObj:
                     ini = monster_effect["monster_variable_change_initial"][index]
                 else:
                     ini = False
+                if "monster_variable_change_add" in monster_effect:
+                    add = monster_effect["monster_variable_change_add"][index]
+                else:
+                    add = 0
                 change_val_eternal["variables"][variable_name] = {}
                 # change_val_eternal["variables"][variable_name]["value"] = str(self.calculate_boland(monster_effect["monster_variable_change_val"][index] ,None,False,1))
                 change_val_eternal["variables"][variable_name]["ini"] = ini
+                change_val_eternal["variables"][variable_name]["add"] = add
         else:
             change_val_eternal = None
         for monster_effect_det in monster_effect_monster:
@@ -28132,18 +29951,13 @@ class DuelObj:
                                     != place_unique_id
                                 ):
                                     continue
-                                if self.check_not_effected(
-                                    field[x][y]["det"],
-                                    chain_user,
-                                    effect_kind,
-                                    "field",
-                                    0,
-                                    x,
-                                    y,
-                                    field[x][y]["mine_or_other"],
-                                    cost,
-                                ):
-                                    continue
+                                variable_name = monster_effect[
+                                            "monster_variable_change_name"
+                                        ][0]
+                                if "minus" in monster_effect:
+                                    minus = monster_effect["minus"][0]
+                                else:
+                                    minus = False
                                 tmp2 = {}
                                 tmp2["det"] = field[x][y]["det"]
                                 tmp2["mine_or_other"] = field[x][y]["mine_or_other"]
@@ -28155,6 +29969,29 @@ class DuelObj:
                                 tmp2["place_unique_id"] = field[x][y]["det"][
                                     "place_unique_id"
                                 ]
+                                change_val_tmp = str(
+                                    self.calculate_boland(
+                                        monster_effect[
+                                            "monster_variable_change_val"
+                                        ][0],
+                                        tmp2,
+                                        minus,
+                                        1,
+                                    )
+                                )
+                                if self.check_not_effected(
+                                    field[x][y]["det"],
+                                    chain_user,
+                                    effect_kind,
+                                    "field",
+                                    0,
+                                    x,
+                                    y,
+                                    field[x][y]["mine_or_other"],
+                                    cost,
+                                    change_val_tmp
+                                ):
+                                    continue
                                 if monster_condition != "":
                                     if not self.validate_answer(
                                         tmp2, monster_condition, "", duel
@@ -30584,18 +32421,6 @@ class DuelObj:
                                 continue
                             if field[x][y]["det"] is None:
                                 continue
-                            if self.check_not_effected(
-                                field[x][y]["det"],
-                                chain_user,
-                                effect_kind,
-                                "field",
-                                0,
-                                x,
-                                y,
-                                field[x][y]["mine_or_other"],
-                                cost,
-                            ):
-                                continue
                             tmp2 = {}
                             tmp2["det"] = field[x][y]["det"]
                             tmp2["mine_or_other"] = field[x][y]["mine_or_other"]
@@ -30607,6 +32432,59 @@ class DuelObj:
                             tmp2["place_unique_id"] = field[x][y]["det"][
                                 "place_unique_id"
                             ]
+                            for index2 in range(
+                                len(change_val_eternal["variables"])
+                            ):
+                                if "minus" in monster_effect:
+                                    minus = monster_effect["minus"][index2]
+                                else:
+                                    minus = False
+                                variable_name = monster_effect[
+                                    "monster_variable_change_name"
+                                ][index2]
+                                change_val_tmp = str(
+                                    self.calculate_boland(
+                                        monster_effect[
+                                            "monster_variable_change_val"
+                                        ][index2],
+                                        tmp2,
+                                        minus,
+                                        1,
+                                    )
+                                )
+                                change_val_eternal["variables"][
+                                    variable_name
+                                ]["value"] = change_val_tmp
+                                change_val_eternal["variables"][variable_name][
+                                    "effect_kind"
+                                ] =  monster_effect[
+                                    "monster_variable_change_effect_kind"
+                                ][0]
+                                if index2 == 0:
+                                    return_change_val.append(change_val_tmp)
+                            change_val_tmp = str(
+                                        self.calculate_boland(
+                                            monster_effect[
+                                                "monster_variable_change_val"
+                                            ][index2],
+                                            tmp2,
+                                            minus,
+                                            1,
+                                        )
+                                    )
+                            if self.check_not_effected(
+                                field[x][y]["det"],
+                                chain_user,
+                                effect_kind,
+                                "field",
+                                0,
+                                x,
+                                y,
+                                field[x][y]["mine_or_other"],
+                                cost,
+                                change_val_tmp
+                            ):
+                                continue
                             place_unique_id = field[x][y]["det"][
                                 "place_unique_id"
                             ]
@@ -30619,10 +32497,6 @@ class DuelObj:
                                     variable_name = monster_effect[
                                         "monster_variable_change_name"
                                     ][index2]
-                                    if "minus" in monster_effect:
-                                        minus = monster_effect["minus"][index2]
-                                    else:
-                                        minus = False
                                     change_val_tmp = str(
                                         self.calculate_boland(
                                             monster_effect[
@@ -34658,6 +36532,7 @@ class DuelObj:
                                         field[x][y]["mine_or_other"],
                                     )
                                     return_value.append(return_tmp)
+                                    self.effect += "field_move;"+str(x)+";"+str(y)+"|"
                                     field[x][y]["det"] = None
                                     if self.config.sort is True:
                                         field = self.sortField(field,y)
@@ -35063,6 +36938,7 @@ class DuelObj:
                                         org_det = copy.deepcopy(field[x][y]["det"])
                                         det = field[x][y]["det"].copy()
                                         field[x][y]["det"] = None
+                                        self.effect += "field_move;"+str(x)+";"+str(y)+"|"
                                         if self.config.sort is True:
                                             field = self.sortField(field,y)
                                         det = self.copy_monster_from_field(
@@ -36241,6 +38117,10 @@ class DuelObj:
                     ini = monster_effect["monster_variable_change_initial"][index]
                 else:
                     ini = False
+                if "monster_variable_change_add" in monster_effect:
+                    add = monster_effect["monster_variable_change_add"][index]
+                else:
+                    add = 0
                 change_val_eternal["variables"][variable_name] = {}
                 change_val_eternal["variables"][variable_name]["value"] = str(
                     self.calculate_boland(
@@ -36250,6 +38130,7 @@ class DuelObj:
                     )
                 )
                 change_val_eternal["variables"][variable_name]["ini"] = ini
+                change_val_eternal["variables"][variable_name]["add"] = add
         else:
             change_val_eternal = None
         if (
@@ -36324,7 +38205,7 @@ class DuelObj:
                             check_cost = self.cost
                             tmp2 = {}
                             org_trigger = tmp[str(duel.chain - 1)]["trigger"][0]
-                            if org_trigger["det_from"] is not None:
+                            if "det_from" in org_trigger and org_trigger["det_from"] is not None:
                                 tmp2["from_x"] = org_trigger["from_x"]
                                 tmp2["from_y"] = org_trigger["from_y"]
                                 tmp2["det_from"] = org_trigger["det_from"]
@@ -36406,7 +38287,7 @@ class DuelObj:
                     place,
                     move_to["mine_or_other"]
                 )
-                if tmp_dest is True:
+                if tmp_dest:
                     place = tmp_dest
                 org_move_to = move_to["org_det"]
                 move_to_org = move_to
@@ -36479,11 +38360,11 @@ class DuelObj:
                     elif mine_or_other2 == 3:
                         deck = self.decks[deck_id]["commondeck"]
                     user_decks = deck
-                    move_to_tmp = copy.deepcopy(move_to)
                     move_to = copy.deepcopy(move_to)
                     move_to = self.copy_monster_to_deck(
                         move_to, deck_id, mine_or_other3, variable_names
                     )
+                    move_to_tmp = copy.deepcopy(move_to)
                     if cost == 1:
                         cost_result = self.cost_result
                         if "under" not in cost_result:
@@ -36509,7 +38390,7 @@ class DuelObj:
                         ):
                             check_cost = self.cost
                             tmp2 = {}
-                            if org_trigger["det_from"] is not None:
+                            if "det_from" in org_trigger and org_trigger["det_from"] is not None:
                                 tmp2["from_x"] = org_trigger["from_x"]
                                 tmp2["from_y"] = org_trigger["from_y"]
                                 tmp2["det_from"] = org_trigger["det_from"]
@@ -36617,7 +38498,7 @@ class DuelObj:
                         ):
                             check_cost = self.cost
                             tmp2 = {}
-                            if org_trigger["det_from"] is not None:
+                            if "det_from" in org_trigger and org_trigger["det_from"] is not None:
                                 tmp2["from_x"] = org_trigger["from_x"]
                                 tmp2["from_y"] = org_trigger["from_y"]
                                 tmp2["det_from"] = org_trigger["det_from"]
@@ -36708,7 +38589,7 @@ class DuelObj:
                         ):
                             check_cost = self.cost
                             tmp2 = {}
-                            if org_trigger["det_from"] is not None:
+                            if "det_from" in org_trigger and org_trigger["det_from"] is not None:
                                 tmp2["from_x"] = org_trigger["from_x"]
                                 tmp2["from_y"] = org_trigger["from_y"]
                                 tmp2["det_from"] = org_trigger["det_from"]
@@ -36810,7 +38691,7 @@ class DuelObj:
                             ):
                                 check_cost = self.cost
                                 tmp2 = {}
-                                if org_trigger["det_from"] is not None:
+                                if "det_from" in org_trigger and org_trigger["det_from"] is not None:
                                     tmp2["from_x"] = org_trigger["from_x"]
                                     tmp2["from_y"] = org_trigger["from_y"]
                                     tmp2["det_from"] = org_trigger["det_from"]
@@ -36938,6 +38819,10 @@ class DuelObj:
                     ini = monster_effect_det["monster_variable_change_initial"][index]
                 else:
                     ini = False
+                if "monster_variable_change_add" in monster_effect_det:
+                    add = monster_effect_det["monster_variable_change_add"][index]
+                else:
+                    add = 0
                 change_val_eternal["variables"][variable_name] = {}
                 change_val_eternal["variables"][variable_name]["value"] = str(
                     self.calculate_boland(
@@ -36947,6 +38832,7 @@ class DuelObj:
                     )
                 )
                 change_val_eternal["variables"][variable_name]["ini"] = ini
+                change_val_eternal["variables"][variable_name]["add"] = add
         else:
             change_val_eternal = None
         if (
@@ -37021,7 +38907,7 @@ class DuelObj:
                             check_cost = self.cost
                             tmp2 = {}
                             org_trigger = tmp[str(duel.chain - 1)]["trigger"][0]
-                            if org_trigger["det_from"] is not None:
+                            if "det_from" in org_trigger and org_trigger["det_from"] is not None:
                                 tmp2["from_x"] = org_trigger["from_x"]
                                 tmp2["from_y"] = org_trigger["from_y"]
                                 tmp2["det_from"] = org_trigger["det_from"]
@@ -37169,7 +39055,7 @@ class DuelObj:
                             ):
                                 check_cost = self.cost
                                 tmp2 = {}
-                                if org_trigger["det_from"] is not None:
+                                if "det_from" in org_trigger and org_trigger["det_from"] is not None:
                                     tmp2["from_x"] = org_trigger["from_x"]
                                     tmp2["from_y"] = org_trigger["from_y"]
                                     tmp2["det_from"] = org_trigger["det_from"]
@@ -37325,6 +39211,10 @@ class DuelObj:
                     ini = monster_effect_det["monster_variable_change_initial"][index]
                 else:
                     ini = False
+                if "monster_variable_change_add" in monster_effect_det:
+                    add = monster_effect_det["monster_variable_change_add"][index]
+                else:
+                    add = 0
                 change_val_eternal["variables"][variable_name] = {}
                 change_val_eternal["variables"][variable_name]["value"] = str(
                     self.calculate_boland(
@@ -37334,6 +39224,7 @@ class DuelObj:
                     )
                 )
                 change_val_eternal["variables"][variable_name]["ini"] = ini
+                change_val_eternal["variables"][variable_name]["add"] = add
         else:
             change_val_eternal = None
         if (
@@ -37356,8 +39247,10 @@ class DuelObj:
             else:
                 place1 = tmp[str(duel.chain - 1)][as_monster_effect]
             for place2 in place1:
+                if len(move_tos) <= i:
+                    continue
                 move_to = move_tos[i]
-                move_to_org = move_to
+                move_to_org = copy.deepcopy(move_to)
                 org_move_to = move_to["org_det"]
                 move_to = move_to["det"]
                 if move_to is None:
@@ -37382,6 +39275,7 @@ class DuelObj:
                             cost_result["add"]["field"] = []
                         cost_result_tmp = {}
                         cost_result_tmp["user_det"] = user
+                        cost_result_tmp["user"] = user
                         cost_result_tmp["x"] = x
                         cost_result_tmp["y"] = y
                         cost_result_tmp["kind"] = effect_kind
@@ -37391,6 +39285,12 @@ class DuelObj:
                         cost_result["add"]["field"].append(cost_result_tmp)
                         self.cost_result = cost_result
                     else:
+                        move_to = self.copy_monster_to_field(
+                            move_to, x, y, field[x][y]["mine_or_other"], variable_names
+                        )
+                        move_to = self.move_to_flag(
+                            flag_change_how, move_to, flag_change_val
+                        )
                         move_to_tmp = move_to.copy()
                         if (
                             "trigger" in tmp[str(duel.chain - 1)]
@@ -37400,7 +39300,7 @@ class DuelObj:
                             check_cost = self.cost
                             tmp2 = {}
                             org_trigger = tmp[str(duel.chain - 1)]["trigger"][0]
-                            if org_trigger["det_from"] is not None:
+                            if "det_from" in org_trigger and org_trigger["det_from"] is not None:
                                 tmp2["from_x"] = org_trigger["from_x"]
                                 tmp2["from_y"] = org_trigger["from_y"]
                                 tmp2["det_from"] = org_trigger["det_from"]
@@ -37468,13 +39368,8 @@ class DuelObj:
                         if change_val_eternal is not None:
                             move_to["eternal"] = []
                             move_to["eternal"].append(change_val_eternal)
-                        move_to = self.copy_monster_to_field(
-                            move_to, x, y, field[x][y]["mine_or_other"], variable_names
-                        )
-                        move_to = self.move_to_flag(
-                            flag_change_how, move_to, flag_change_val
-                        )
                         field[x][y]["det"] = move_to
+                        self.effect += "field_move_to;"+str(x)+";"+str(y)+";"+field[x][y]["det"]["img"]+"|"
                         self.raise_trigger(
                             field[x][y]["det"],
                             move_to_org,
@@ -37511,7 +39406,7 @@ class DuelObj:
                     move_to["mine_or_other"]
                 )
                 if tmp_dest:
-                    place = tmp_dest
+                    place = tmp_dest[0]["det"]
                 move_to_org = move_to
                 org_move_to = move_to["org_det"]
                 move_to = move_to["det"]
@@ -37584,11 +39479,14 @@ class DuelObj:
                     elif mine_or_other2 == 3:
                         deck = self.decks[deck_id]["commondeck"]
                     user_decks = deck
-                    move_to_tmp = copy.deepcopy(move_to)
                     move_to = copy.deepcopy(move_to)
                     move_to = self.copy_monster_to_deck(
                         move_to, deck_id, mine_or_other3, variable_names
                     )
+                    if change_val_eternal is not None:
+                        move_to["eternal"] = []
+                        move_to["eternal"].append(change_val_eternal)
+                    move_to_tmp = copy.deepcopy(move_to)
                     move_to = self.move_to_flag(
                         flag_change_how, move_to, flag_change_val
                     )
@@ -37622,7 +39520,7 @@ class DuelObj:
                             check_cost = self.cost
                             tmp2 = {}
                             org_trigger = tmp[str(duel.chain - 1)]["trigger"][0]
-                            if org_trigger["det_from"] is not None:
+                            if "det_from" in org_trigger and org_trigger["det_from"] is not None:
                                 tmp2["from_x"] = org_trigger["from_x"]
                                 tmp2["from_y"] = org_trigger["from_y"]
                                 tmp2["det_from"] = org_trigger["det_from"]
@@ -37723,11 +39621,11 @@ class DuelObj:
                     elif mine_or_other2 == 3:
                         grave = self.graves[deck_id]["commongrave"]
                     user_graves = grave
-                    move_to_tmp = copy.deepcopy(move_to)
                     move_to = copy.deepcopy(move_to)
                     move_to = self.copy_monster_to_grave(
                         move_to, deck_id, mine_or_other3, variable_names
                     )
+                    move_to_tmp = copy.deepcopy(move_to)
                     move_to = self.move_to_flag(
                         flag_change_how, move_to, flag_change_val
                     )
@@ -37761,7 +39659,7 @@ class DuelObj:
                             check_cost = self.cost
                             tmp2 = {}
                             org_trigger = tmp[str(duel.chain - 1)]["trigger"][0]
-                            if org_trigger["det_from"] is not None:
+                            if "det_from" in org_trigger and org_trigger["det_from"] is not None:
                                 tmp2["from_x"] = org_trigger["from_x"]
                                 tmp2["from_y"] = org_trigger["from_y"]
                                 tmp2["det_from"] = org_trigger["det_from"]
@@ -37862,11 +39760,11 @@ class DuelObj:
                     elif mine_or_other2 == 3:
                         hand = self.hands[deck_id]["commonhand"]
                     user_hands = hand
-                    move_to_tmp = copy.deepcopy(move_to)
                     move_to = copy.deepcopy(move_to)
                     move_to = self.copy_monster_to_hand(
                         move_to, deck_id, mine_or_other3, variable_names
                     )
+                    move_to_tmp = copy.deepcopy(move_to)
                     move_to = self.move_to_flag(
                         flag_change_how, move_to, flag_change_val
                     )
@@ -37881,7 +39779,7 @@ class DuelObj:
                             check_cost = self.cost
                             tmp2 = {}
                             org_trigger = tmp[str(duel.chain - 1)]["trigger"][0]
-                            if org_trigger["det_from"] is not None:
+                            if "det_from" in org_trigger and org_trigger["det_from"] is not None:
                                 tmp2["from_x"] = org_trigger["from_x"]
                                 tmp2["from_y"] = org_trigger["from_y"]
                                 tmp2["det_from"] = org_trigger["det_from"]
@@ -38024,6 +39922,20 @@ class DuelObj:
                         field = self.field
                         x = int(monster_effect_det["field_x_to"])
                         y = int(monster_effect_det["field_y_to"])
+                        move_to = copy.deepcopy(move_to)
+                        if change_val_eternal is not None:
+                            move_to["eternal"] = []
+                            move_to["eternal"].append(change_val_eternal)
+                        move_to = self.copy_monster_to_field(
+                            move_to,
+                            x,
+                            y,
+                            field[x][y]["mine_or_other"],
+                            variable_names,
+                        )
+                        move_to = self.move_to_flag(
+                            flag_change_how, move_to, flag_change_val
+                        )
                         move_to_tmp = move_to.copy()
                         if cost == 1:
                             if (
@@ -38035,7 +39947,7 @@ class DuelObj:
                                 check_cost = self.cost
                                 tmp2 = {}
                                 org_trigger = tmp[str(duel.chain - 1)]["trigger"][0]
-                                if org_trigger["det_from"] is not None:
+                                if "det_from" in org_trigger and org_trigger["det_from"] is not None:
                                     tmp2["from_x"] = org_trigger["from_x"]
                                     tmp2["from_y"] = org_trigger["from_y"]
                                     tmp2["det_from"] = org_trigger["det_from"]
@@ -38120,20 +40032,6 @@ class DuelObj:
                             cost_result["add"]["field"].append(cost_result_tmp)
                             self.cost_result = cost_result
                         else:
-                            move_to = copy.deepcopy(move_to)
-                            if change_val_eternal is not None:
-                                move_to["eternal"] = []
-                                move_to["eternal"].append(change_val_eternal)
-                            move_to = self.copy_monster_to_field(
-                                move_to,
-                                x,
-                                y,
-                                field[x][y]["mine_or_other"],
-                                variable_names,
-                            )
-                            move_to = self.move_to_flag(
-                                flag_change_how, move_to, flag_change_val
-                            )
                             field[x][y]["det"] = move_to
                             self.raise_trigger(
                                 field[x][y]["det"],
@@ -38222,13 +40120,15 @@ class DuelObj:
                             self.cost_result = cost_result
                             return
                         else:
-                            field[x][y]["det"] = self.copy_monster_to_field(
+                            move_to = self.copy_monster_to_field(
                                 move_to,
                                 x,
                                 y,
                                 field[x][y]["mine_or_other"],
                                 variable_names,
                             )
+                            field[x][y]["det"] = move_to
+                            self.effect += "field_move_to;"+str(x)+";"+str(y)+";"+field[x][y]["det"]["img"]+"|"
                             self.field = field
                             move_to_tmp = move_to.copy()
                             self.raise_trigger(
@@ -38255,7 +40155,7 @@ class DuelObj:
                                 check_cost = self.cost
                                 tmp2 = {}
                                 org_trigger = mess[str(duel.chain - 1)]["trigger"][0]
-                                if org_trigger["det_from"] is not None:
+                                if "det_from" in org_trigger and org_trigger["det_from"] is not None:
                                     tmp2["from_x"] = org_trigger["from_x"]
                                     tmp2["from_y"] = org_trigger["from_y"]
                                     tmp2["det_from"] = org_trigger["det_from"]
@@ -38412,6 +40312,11 @@ class DuelObj:
                         if add_variable in field[x][y]["det"]["variables"]:
                             if "add_variable" not in field[x][y]["det"]:
                                 field[x][y]["det"]["add_variable"] ={}
+                            if( not field[x][y]["det"]["variables"][add_variable]["value"].isnumeric()):
+                                tmp_value = 0
+                            else:
+                                tmp_value = int(field[x][y]["det"]["variables"][add_variable]["value"])
+
                             field[x][y]["det"]["add_variable"][add_variable] = int(self.check_change_val(
                                 field[x][y]["det"],
                                 field[x][y]["mine_or_other"],
@@ -38421,7 +40326,7 @@ class DuelObj:
                                 y,
                                 add_variable,
                                 field[x][y]["mine_or_other"],
-                                int(field[x][y]["det"]["variables"][add_variable]["value"])
+                                tmp_value
                             )) - minus
                     field[x][y]["det"]["trigger"] = result_triggers
         if mode == 1 and flag_trigger is False :
@@ -39072,10 +40977,10 @@ class DuelObj:
 
         return return_eternal
 
-    def modify_deck_info(self, deck_info, count, user, other_user, priority, mode=0):
+    def modify_deck_info(self, deck_info, count, user, other_user, priority, mode=0,mode2=0):
         for i in range(count):
             flag = self.modify_deck_info_det(
-                deck_info[i], i, user, other_user, priority, mode
+                deck_info[i], i, user, other_user, priority, mode,mode2
             )
             if mode == 1 and flag:
                 return True
@@ -39084,14 +40989,14 @@ class DuelObj:
         return deck_info
 
     def modify_deck_info_det(
-        self, deck_info, deck_number, user, other_user, priority, mode=0
+        self, deck_info, deck_number, user, other_user, priority, mode=0,mode2 = 0
     ):
         if deck_info["invoke"] is False:
             if mode == 1:
                 return False
             else:
                 return deck_info
-        if "mydeck" in deck_info:
+        if "mydeck" in deck_info and (user == self.user or mode2 == 0):
             if self.user == 1:
                 mine_or_other = 1
             else:
@@ -39111,7 +41016,7 @@ class DuelObj:
                     return True
                 elif mode == 0:
                     deck_info["mydeck"][i] = tmp
-        if "otherdeck" in deck_info:
+        if "otherdeck" in deck_info and (other_user == self.user or mode2 == 0):
             if self.user == 1:
                 mine_or_other = 2
             else:
@@ -39120,8 +41025,8 @@ class DuelObj:
                 tmp = self.check_deck_trigger(
                     deck_info["otherdeck"][i],
                     deck_number,
-                    other_user,
                     user,
+                    other_user,
                     mine_or_other,
                     deck_number + 1,
                     priority,
@@ -39189,7 +41094,7 @@ class DuelObj:
                 return False
             else:
                 return grave_info
-        if "mygrave" in grave_info and user == self.user or mode2 == 0:
+        if "mygrave" in grave_info and (user == self.user or mode2 == 0):
             if self.user == 1:
                 mine_or_other = 1
             else:
@@ -39210,7 +41115,7 @@ class DuelObj:
                     return True
                 else:
                     grave_info["mygrave"][i] = tmp
-        if "othergrave" in grave_info and mode2 == 0 or other_user == self.user:
+        if "othergrave" in grave_info and (mode2 == 0 or other_user == self.user):
             if self.user == 1:
                 mine_or_other = 2
             else:
@@ -39326,30 +41231,12 @@ class DuelObj:
     ):
         id = self.get_monster_id(monster, "field", user, 0, x, y, mine_or_other)
         monster_det = Monster.objects.get(id=id)
+        field = self.field
         eternals = monster_det.eternal_effect.all()
         return_eternal = []
         place_unique_id = monster["place_unique_id"]
-        for eternal in eternals:
-            tmps = json.loads(eternal.eternal_monster)
-            tmps = tmps["monster"]
-            tmp = {}
-            tmp["eternal"] = copy.deepcopy(eternal)
-            tmp["monster"] = monster
-            tmp["effect_val"] = eternal.eternal_effect_val
-            tmp["priority"] = eternal.priority
-            tmp["kind"] = eternal.eternal_kind
-            tmp["place"] = "field"
-            tmp["user"] = mine_or_other
-            tmp["deck_id"] = 0
-            tmp["x"] = x
-            tmp["y"] = y
-            tmp["place_unique_id"] = place_unique_id
-            if "already" in monster:
-                tmp["already"] = monster["already"]
-            else:
-                tmp["already"] = 0
-            return_eternal.append(tmp)
         for val_eternal in v_e:
+            eternal = val_eternal
             eternal_name = val_eternal.eternal_variable
             val_equation = val_eternal.eternal_variable_equation
             tmp2 = monster["variables"]
@@ -39382,6 +41269,17 @@ class DuelObj:
                         tmp["already"] = monster["already"]
                     else:
                         tmp["already"] = 0
+                    if self.check_eternal_invalid(
+                        field[x][y]["det"],
+                        field[x][y]["mine_or_other"],
+                        eternal.eternal_kind,
+                        "field",
+                        0,
+                        x,
+                        y,
+                        field[x][y]["mine_or_other"],
+                    ):
+                        continue
                     return_eternal.append(tmp)
             elif val_equation == 1:
                 if val <= val_eternal.eternal_variable_val:
@@ -39400,6 +41298,17 @@ class DuelObj:
                         tmp["already"] = monster["already"]
                     else:
                         tmp["already"] = 0
+                    if self.check_eternal_invalid(
+                        field[x][y]["det"],
+                        field[x][y]["mine_or_other"],
+                        eternal.eternal_kind,
+                        "field",
+                        0,
+                        x,
+                        y,
+                        field[x][y]["mine_or_other"],
+                    ):
+                        continue
                     return_eternal.append(tmp)
             elif val_equation == 2:
                 if val >= val_eternal.eternal_variable_val:
@@ -39418,6 +41327,17 @@ class DuelObj:
                         tmp["already"] = monster["already"]
                     else:
                         tmp["already"] = 0
+                    if self.check_eternal_invalid(
+                        field[x][y]["det"],
+                        field[x][y]["mine_or_other"],
+                        eternal.eternal_kind,
+                        "field",
+                        0,
+                        x,
+                        y,
+                        field[x][y]["mine_or_other"],
+                    ):
+                        continue
                     return_eternal.append(tmp)
             elif val_equation == 3:
                 if val != val_eternal.eternal_variable_val:
@@ -39436,7 +41356,49 @@ class DuelObj:
                         tmp["already"] = monster["already"]
                     else:
                         tmp["already"] = 0
+                    if self.check_eternal_invalid(
+                        field[x][y]["det"],
+                        field[x][y]["mine_or_other"],
+                        eternal.eternal_kind,
+                        "field",
+                        0,
+                        x,
+                        y,
+                        field[x][y]["mine_or_other"],
+                    ):
+                        continue
                     return_eternal.append(tmp)
+        for eternal in eternals:
+            tmps = json.loads(eternal.eternal_monster)
+            tmps = tmps["monster"]
+            tmp = {}
+            tmp["eternal"] = copy.deepcopy(eternal)
+            tmp["monster"] = monster
+            tmp["effect_val"] = eternal.eternal_effect_val
+            tmp["priority"] = eternal.priority
+            tmp["kind"] = eternal.eternal_kind
+            tmp["place"] = "field"
+            tmp["user"] = mine_or_other
+            tmp["deck_id"] = 0
+            tmp["x"] = x
+            tmp["y"] = y
+            tmp["place_unique_id"] = place_unique_id
+            if "already" in monster:
+                tmp["already"] = monster["already"]
+            else:
+                tmp["already"] = 0
+            if self.check_eternal_invalid(
+                field[x][y]["det"],
+                field[x][y]["mine_or_other"],
+                eternal.eternal_kind,
+                "field",
+                0,
+                x,
+                y,
+                field[x][y]["mine_or_other"],
+            ):
+                continue
+            return_eternal.append(tmp)
         return return_eternal
 
     def check_field_trigger(
@@ -39568,6 +41530,10 @@ class DuelObj:
         phase = duel.phase
         turn = duel.user_turn
         place_unique_id = monster["place_unique_id"]
+        if duel.trigger_waiting == "":
+            trigger_waiting = []
+        else:
+            trigger_waiting = json.loads(duel.trigger_waiting)
         for trigger in triggers:
             if self.check_launch_trigger(
                 trigger,
@@ -39581,6 +41547,39 @@ class DuelObj:
                 deck_id,
             ):
                 if mode == 1:
+                    if trigger.force == 1 or (duel.is_ai is True and user == 2):
+                        if trigger.strategy != "":
+                            if trigger.strategy in monster["variables"]:
+                               tmp_variable = monster["variables"][trigger.strategy]
+                               if not tmp_variable["value"].isnumeric():
+                                   tmp_variable["value"] = 0
+                            else:
+                               tmp_variable = {}
+                               tmp_variable["value"] = 0
+                            value = self.check_change_val(
+                                monster, user, "deck", deck_id, 0, 0, trigger.strategy, mine_or_other, int(tmp_variable["value"])
+                            )
+                        else:
+                            value = 0
+                        tmp = {}
+                        tmp["monster"] = monster
+                        tmp["move_from"] = None
+                        tmp["trigger"] = trigger.id
+                        tmp["priority"] = trigger.priority
+                        tmp["storategy_priority"] = trigger.storategy_priority
+                        tmp["mine_or_other"] = mine_or_other
+                        tmp["user"] = user
+                        tmp["place"] = "deck"
+                        tmp["deck_id"] = deck_id
+                        tmp["place_from"] = ""
+                        tmp["deck_id_from"] = ""
+                        tmp["x"] = 0
+                        tmp["y"] = 0
+                        tmp["from_x"] = 0
+                        tmp["from_y"] = 0
+                        tmp["strategy_value"] = value if trigger.strategy_up_or_down == 0 else -value
+                        trigger_waiting.append(tmp)
+                        duel.trigger_waiting = json.dumps(trigger_waiting)
                     return True
                 tmp = {}
                 tmp["id"] = trigger.id
@@ -39731,6 +41730,7 @@ class DuelObj:
             trigger_waiting = []
         else:
             trigger_waiting = json.loads(duel.trigger_waiting)
+        flag = False
         for trigger in triggers:
             if self.check_launch_trigger(
                 trigger,
@@ -39777,14 +41777,14 @@ class DuelObj:
                         tmp["strategy_value"] = value if trigger.strategy_up_or_down == 0 else -value
                         trigger_waiting.append(tmp)
                         duel.trigger_waiting = json.dumps(trigger_waiting)
-                    return True
+                    flag = True
                 tmp = {}
                 tmp["id"] = trigger.id
                 tmp["name"] = trigger.trigger_sentence
                 return_trigger.append(tmp)
 
         if mode == 1:
-            return False
+            return flag
         monster["trigger"] = return_trigger
         return monster
 
@@ -39982,9 +41982,13 @@ class DuelObj:
         org_monster=None,
         place_unique_id_exist=None,
         ignore_chain = 0,
-        ignore_timing = None
+        ignore_timing = None,
+        fusion = 0
     ):
         duel = self.duel
+        if(trigger.once_per_duel):
+            if not self.check_once_per_duel(trigger,user):
+                return False
         if(trigger.once_per_turn):
             if not self.check_once_per_turn(trigger,user):
                 return False
@@ -39992,7 +41996,7 @@ class DuelObj:
             if not self.check_once_per_turn_group(trigger,user):
                 return False
         chain = duel.chain
-        virtuall_chain = duel.virtual_chain
+        virtual_chain = duel.virtual_chain
         mine_or_other = int(mine_or_other)
         effect_kind = trigger.trigger_kind
         if trigger is None:
@@ -40028,6 +42032,9 @@ class DuelObj:
                     if(trigger.once_per_turn_monster):
                         if not self.check_once_per_turn_monster(trigger,user,monster):
                             return False
+                    if(trigger.once_per_turn_monster_group):
+                        if not self.check_once_per_turn_monster_group(trigger,user,monster):
+                            return False
                     if self.check_no_invoke(
                         monster["det"], user, effect_kind, place, deck_id, x, y, mine_or_other, 0
                     ):
@@ -40035,6 +42042,9 @@ class DuelObj:
                 else:
                     if(trigger.once_per_turn_monster):
                         if not self.check_once_per_turn_monster(trigger,user,org_monster):
+                            return False
+                    if(trigger.once_per_turn_monster_group):
+                        if not self.check_once_per_turn_monster_group(trigger,user,org_monster):
                             return False
                     if self.check_no_invoke(
                         org_monster, user, effect_kind, place, deck_id, x, y, user, 0
@@ -40054,6 +42064,9 @@ class DuelObj:
                 return False
             monster = {}
             monster["det"] = None
+
+
+        chain = duel.chain
         if not self.check_ignore_turn_func(
             monster["det"], user, effect_kind, place, deck_id, x, y, user, 0
         ):
@@ -40089,12 +42102,12 @@ class DuelObj:
                 if user == 2:
                     if chain_user == 1:
                         chain_user2 = 2
-                    if chain_user == 2:
+                    elif chain_user == 2:
                         chain_user2 = 1
                 if trigger.chain_mine_or_other != chain_user2:
                     return False
         if not self.check_ignore_chain_kind_func(
-            monster["det"], user, effect_kind, place, deck_id, x, y, user, 0
+            monster["det"], user, effect_kind, place, deck_id, y, user, 0
         ):
             if trigger.can_chain_kind != "" and duel.chain > 0:
                 can_chain_kinds = trigger.can_chain_kind
@@ -40181,12 +42194,1076 @@ class DuelObj:
         elif trigger.none_timing3 is False:
             return False
         if self.check_trigger_condition(trigger, user, monster):
-            return True
+            if fusion == 1 :
+                return self.check_fusion(trigger,user,monster)
+            elif duel.is_ai == False:
+                return True
+            elif user ==1:
+                return True
+            else:
+                return self.check_fusion(trigger,user,monster)
         else:
             return False
 
         return False
 
+    def check_fusion(self,trigger,user,monster):
+        if trigger.fusion_flag is False:
+            return True
+        if self.get_fusion_monster(trigger.fusion_monster, user, trigger,1,0):
+            return True
+    def check_fusion_monster(self,fusion_monster,trigger,user,effect_flag = 0,strategy = "",strategy_up_or_down = ""):
+        if trigger.instead_condition:
+            instead_condition = json.loads(trigger.instead_condition)
+            if self.check_monster_effect_condition(
+                    instead_condition, 0, 2):
+                instead = True
+            else:
+                instead = False
+        else:
+            instead = True
+        trigger_fusion1 = json.loads(trigger.fusion1)
+        if(trigger.instead1 and instead):
+            instead1 = json.loads(trigger.instead1)
+            instead_exclude1 = instead1["exclude"]
+            min_equation_number1_instead = instead_fusion1["monster"][0]["min_equation_number"]
+            max_equation_number1_instead = instead1["monster"][0]["max_equation_number"]
+        else:
+            min_equation_number1_instead = 0
+            max_equation_number1_instead = 10000
+            instead1 = None
+            instead_exclude1 = None
+        exclude1 = trigger_fusion1["exclude"]
+        min_equation_number1 = 0
+        min_equation_number2 = 0
+        min_equation_number3 = 0
+        max_equation_number1 = 0
+        max_equation_number2 = 0
+        max_equation_number3 = 0
+        min_equation_number1 = trigger_fusion1["monster"][0]["min_equation_number"]
+        max_equation_number1 = trigger_fusion1["monster"][0]["max_equation_number"]
+        if(trigger.fusion2):
+            trigger_fusion2 = json.loads(trigger.fusion2)
+            exclude2 = trigger_fusion2["exclude"]
+            min_equation_number2 = trigger_fusion2["monster"][0]["min_equation_number"]
+            max_equation_number2 = trigger_fusion2["monster"][0]["max_equation_number"]
+
+        else:
+            trigger_fusion2 = None
+        if(trigger.instead2 and instead):
+            instead2 = json.loads(trigger.instead2)
+            instead_exclude2 = instead2["exclude"]
+            min_equation_number2_instead = instead2["monster"][0]["min_equation_number"]
+            max_equation_number2_instead = instead2["monster"][0]["max_equation_number"]
+        else:
+            instead2 = None
+            instead_exclude2 = None
+            min_equation_number2_instead = 0
+            max_equation_number2_instead = 10000
+        if(trigger.fusion3):
+            trigger_fusion3 = json.loads(trigger.fusion3)
+            exclude3 = trigger_fusion3["exclude"]
+            min_equation_number3 = trigger_fusion3["monster"][0]["min_equation_number"]
+            max_equation_number3 = trigger_fusion3["monster"][0]["max_equation_number"]
+
+        else:
+            trigger_fusion3 = None
+            min_equation_number3_instead = 0
+            max_equation_number3_instead = 10000
+        if(trigger.instead3 and instead):
+            instead3 = json.loads(trigger.instead3)
+            min_equation_number3_instead = instead3["monster"][0]["min_equation_number"]
+            max_equation_number3_instead = instead3["monster"][0]["max_equation_number"]
+            instead_exclude3 = instead3["exclude"]
+        else:
+            min_equation_number3_instead = 0
+            max_equation_number3_instead = 10000
+            instead3 = None
+            instead_exclude3 = None
+        monster_id = self.get_monster_id(
+            fusion_monster["det"], fusion_monster["place"], fusion_monster["det"]["owner"],fusion_monster["deck_id"],fusion_monster["x"], fusion_monster["y"], fusion_monster["mine_or_other"])
+        fusions = Fusion.objects.filter(monster__id=monster_id).all()
+        if fusions is None:
+            return False
+        return_fusion = []
+        for fusion in fusions:
+            fusion1 = json.loads(fusion.fusion1)
+            exclude2_1 = fusion1["exclude"]
+
+            min_equation_number1 = max(min_equation_number1,fusion1["monster"][0]["min_equation_number"])
+            max_equation_number1 = min(max_equation_number1,fusion1["monster"][0]["max_equation_number"])
+            if(fusion.fusion2):
+                fusion2 = json.loads(fusion.fusion2)
+                exclude2_2 = fusion2["exclude"]
+
+                min_equation_number2 = max(min_equation_number2,fusion2["monster"][0]["min_equation_number"])
+                max_equation_number2 = min(max_equation_number2,fusion2["monster"][0]["max_equation_number"])
+            else:
+                fusion2 = None
+                exclude2_2 = None
+            if(fusion.fusion3):
+                fusion3 = json.loads(fusion.fusion3)
+                exclude2_3 = fusion3["exclude"]
+
+                min_equation_number3 = max(min_equation_number3,fusion3["monster"][0]["min_equation_number"])
+                max_equation_number3 = min(max_equation_number3,fusion3["monster"][0]["max_equation_number"])
+            else:
+                fusion3 = None
+                exclude2_3 = None
+            if not fusion1 or not trigger_fusion1:
+                fusion_monster1 =[]
+            else:
+                fusion_monster1 = self.check_fusion_monster_det(trigger_fusion1,fusion1,instead1,
+                        fusion_monster,user,
+                        exclude1 = exclude1,
+                        instead_exclude = instead_exclude1,
+                        exclude2 = exclude2_1,effect_flag = effect_flag)
+                if fusion_monster1 is False:
+                    continue
+            if int(min_equation_number1) > int(max_equation_number1):
+                    continue
+            if int(min_equation_number2) > int(max_equation_number2):
+                    continue
+            if int(min_equation_number3) > int(max_equation_number3):
+                    continue
+            if fusion_monster1 is False:
+                    continue
+            if not fusion2 or not trigger_fusion2:
+                fusion_monster2 = []
+            else: 
+                fusion_monster2 = self.check_fusion_monster_det(trigger_fusion2,fusion2,instead2,
+                        fusion_monster,user,
+                        exclude1 = exclude2,
+                        instead_exclude = instead_exclude2,
+                        exclude2 = exclude2_2,effect_flag = effect_flag)
+                if fusion_monster2 is False:
+                    continue
+            if not fusion3 or not trigger_fusion3:
+                fusion_monster3 = []
+            else:
+                fusion_monster3 = self.check_fusion_monster_det(trigger_fusion3,fusion3,instead3,
+                        fusion_monster,user,
+                        exclude1 = exclude3,
+                        instead_exclude = instead_exclude3,
+                        exclude2 = exclude2_3,effect_flag = effect_flag)
+                if fusion_monster3 is False:
+                    continue
+            if self.fusion_cross_check(fusion_monster1,fusion_monster2,fusion_monster3,min_equation_number1,min_equation_number2,min_equation_number3,0,min_equation_number1_instead,min_equation_number2_instead,min_equation_number3_instead,max_equation_number1_instead,max_equation_number2_instead,max_equation_number3_instead):
+                ary = {}
+                ary["id"] = fusion.id
+                ary["sentence"] = fusion.fusion_sentence
+                return_fusion.append(ary)
+        return return_fusion
+    def     fusion_cross_check(self,fusion_monster1,fusion_monster2,fusion_monster3,min_equation_number1,min_equation_number2,min_equation_number3,mode=0,min_equation_number1_instead = 0,min_equation_number2_instead = 0,min_equation_number3_instead = 0,max_equation_number1_instead = 0,max_equation_number2_instead = 0,max_equation_number3_instead = 0):
+            min_equation_number1 = int(min_equation_number1)
+            min_equation_number2 = int(min_equation_number2)
+            min_equation_number3 = int(min_equation_number3)
+            ary_1 = []
+            ary_2 = []
+            ary_3 = []
+            if fusion_monster1  != [] and fusion_monster1["monster"] != []:
+                max_equation_number1 = fusion_monster1["max"]
+                fusion_monster1 = fusion_monster1["monster"]
+                flag1 = False
+            else:
+                max_equation_number1 = 100000
+                fusion_monster1 = []
+                flag1 = True
+            if fusion_monster2  != [] and fusion_monster2["monster"] != []:
+                max_equation_number2 = fusion_monster2["max"]
+                fusion_monster2 = fusion_monster2["monster"]
+                flag2 = False
+            else:
+                max_equation_number2 = 100000
+                fusion_monster2 = []
+                flag2 = True
+            
+            if fusion_monster3  != [] and fusion_monster3["monster"] != []:
+                max_equation_number3 = fusion_monster3["max"]
+                fusion_monster3 = fusion_monster3["monster"]
+                flag3 = False
+            else:
+                max_equation_number3 = 100000
+                fusion_monster3 = []
+                flag3 = True
+            tmp_fusion_monster1 = []
+            tmp_fusion_monster2 = []
+            tmp_fusion_monster3 = []
+            instead_val1 = 0
+            instead_val2 = 0
+            instead_val3 = 0
+            for  monster1 in fusion_monster1 :
+                if monster1["instead"] == 1 and instead_val1 >= int(max_equation_number1_instead):
+                    continue
+                elif monster1["instead"] == 1 :
+                    instead_val1 += 1
+                tmp_fusion_monster1.append(monster1)
+                if len(tmp_fusion_monster1) >= min_equation_number1:
+                    flag1 = True
+                    break
+            for  monster2 in fusion_monster2 :
+                if monster2["instead"] == 1 and instead_val2 >= int(max_equation_number2_instead):
+                    continue
+                elif monster2["instead"] == 1:
+                    instead_val2 += 1
+                if monster2 in tmp_fusion_monster1:
+                    continue
+                tmp_fusion_monster2.append(monster2)
+                if len(tmp_fusion_monster2) >= min_equation_number2:
+                    flag2 = True
+                    break
+            for  monster3 in fusion_monster3 :
+                if monster3["instead"] == 1 and instead_val3 >= int(max_equation_number3_instead):
+                    continue
+                elif monster3["instead"] == 1:
+                    instead_val3 += 1
+                if monster3 in tmp_fusion_monster1:
+                    continue
+                if monster3 in tmp_fusion_monster2:
+                    continue
+                tmp_fusion_monster2.append(monster2)
+                tmp_fusion_monster3.append(monster3)
+                if len(tmp_fusion_monster3) >= min_equation_number3:
+                    flag3 =True
+                    break
+            if flag1 is False or flag2 is False or flag3 is False:
+               return False
+            return [tmp_fusion_monster1,tmp_fusion_monster2,tmp_fusion_monster3]
+    def is_last(self,length,ary):
+        if length == 0:
+            return True
+        if(ary[0] == length - len(ary)):
+            return True
+        return False
+    def next_ary(self,ary,length):
+        k = 0
+        for i in reversed(range(len(ary))):
+            if ary[i] + k == length: 
+                continue
+            else:
+                j = i
+                while j < len(ary):
+                    ary[j] +=1
+                    j+=1
+                return  ary
+            k+=1
+        return ary
+
+
+
+
+    def check_fusion_material(self,monsters,trigger_fusion_condition,fusion_condition,instead):
+        duel = self.duel
+        user = self.user
+        if(fusion_condition is not None):
+            exclude = fusion_condition["exclude"]
+            min_equation_number = int(fusion_condition["monster"][0]["min_equation_number"])
+            max_equation_number = int(fusion_condition["monster"][0]["max_equation_number"])
+            if fusion_condition["monster"][0]["as_monster_condition"] == "trigger":
+                    trigger = fusion_monster
+                    trigger_flag = False
+            place1 = fusion_condition["monster"][0]["monster"]["place"]
+        else:
+            min_equation_number = -1
+            max_equation_number = 10000
+        if(trigger_fusion_condition is not None):
+            exclude2 = trigger_fusion_condition["exclude"]
+            min_equation_number2 = int(trigger_fusion_condition["monster"][0]["min_equation_number"])
+            max_equation_number2 = int(trigger_fusion_condition["monster"][0]["max_equation_number"])
+            if trigger_fusion_condition["monster"][0]["as_monster_condition"] == "trigger":
+                    trigger = trigger_fusion_monster
+                    trigger_flag = False
+            place2 = trigger_fusion_condition["monster"][0]["monster"]["place"]
+        else:
+            min_equation_number2 = -1
+            max_equation_number2 = 10000
+        if min_equation_number < min_equation_number2:
+            min_equation_number = min_equation_number2
+        if max_equation_number > max_equation_number2:
+            max_equation_number = max_equation_number2
+        if len(monsters) < min_equation_number or len(monsters) > max_equation_number:
+            return False
+        instead_val = 0
+        for monster in monsters:
+            if not self.validate_place(fusion_condition,monster,user) or  not self.validate_answer( monster, fusion_condition["monster"][0]["monster"], exclude, duel
+                ):
+                return False
+            if not self.validate_place(trigger_fusion_condition,monster,user) or not self.validate_answer(
+                    monster, trigger_fusion_condition["monster"][0]["monster"], exclude2, duel
+                    ):
+                if instead and self.validate_place(instead,monster,user) and self.validate_answer( monster, instead["monster"][0]["monster"], exclude2, duel
+                        ):
+                    instead_val += 1
+                else:
+                    return False
+        if instead:
+            min_equation_number_instead = int(instead["monster"][0]["min_equation_number"])
+            max_equation_number_instead = int(instead["monster"][0]["max_equation_number"])
+            if instead_val < min_equation_number_instead:
+                return False
+            if instead_val > max_equation_number_instead:
+                return False
+
+        return True
+
+    def check_fusion_monster_det(self,trigger_fusion_condition,fusion_condition,instead_condition,fusion_monster,user,already_monsters = [],mode = 0,exclude1 = "",exclude2="",instead_exclude = "",effect_kind = None,effect_flag = 0,strategy = "",strategy_up_or_down = 0):
+        duel = self.duel
+        trigger_flag = True
+        return_monster = []
+        trigger = None
+        place1 = None
+        place2 = None
+        instead_place = None
+        if effect_flag == 1:
+            minus_chain =  -1
+        else:
+            minus_chain = 0 
+        if(fusion_condition is not None):
+            min_equation_number = int(fusion_condition["monster"][0]["min_equation_number"])
+            max_equation_number = int(fusion_condition["monster"][0]["max_equation_number"])
+            if fusion_condition["monster"][0]["as_monster_condition"] == "trigger":
+                    trigger = fusion_monster
+                    trigger_flag = False
+            place1 = fusion_condition["monster"][0]["monster"]["place"]
+            monster_effect_det2 = fusion_condition
+        else:
+            min_equation_number = -1
+            max_equation_number = 10000
+        if(trigger_fusion_condition is not None):
+            min_equation_number2 = int(trigger_fusion_condition["monster"][0]["min_equation_number"])
+            max_equation_number2 = int(trigger_fusion_condition["monster"][0]["max_equation_number"])
+            if trigger_fusion_condition["monster"][0]["as_monster_condition"] == "trigger":
+                    trigger = trigger_fusion_monster
+                    trigger_flag = False
+            place2 = trigger_fusion_condition["monster"][0]["monster"]["place"]
+        else:
+            min_equation_number2 = -1
+            max_equation_number2 = 10000
+        if min_equation_number < min_equation_number2:
+            min_equation_number = min_equation_number2
+        if max_equation_number > max_equation_number2:
+            max_equation_number = max_equation_number2
+        place3 = []
+        if place1 and place2:
+            for place_tmp in place1:
+                if place_tmp in place2:
+                    place3.append(place_tmp)
+        elif place1:
+            place3 = place1
+        elif place2:
+            place3 = place2
+        else:
+            place3 = []
+        if instead_condition:
+            instead_place_tmp = instead_condition["monster"][0]["monster"]["place"]
+            instead_place = []
+            max_equation_number_instead = int(instead_condition["monster"][0]["max_equation_number"])
+            if place1 and instead_place_tmp:
+                for place_tmp in place1:
+                    if place_tmp in instead_place_tmp:
+                        instead_place.append(place_tmp)
+            elif place1:
+                instead_place = place1
+            elif place2:
+                instead_place = instead_place_tmp
+            else:
+                instead_place = []
+                    
+        field_tmp = []
+        if trigger_fusion_condition is not None:
+            trigger_fusion_condition = trigger_fusion_condition["monster"][0]
+        if fusion_condition is not None:
+            fusion_condition = fusion_condition["monster"][0]
+        monster_effect_det2 = trigger_fusion_condition
+        instead_val = 0
+        if instead_condition:
+            for place in instead_place:
+                place_tmp = place["det"].split("_")
+                deck_id = int(place_tmp[1])
+                tmp_deck = None
+                if place_tmp[0] == "deck":
+                    chain_user2 = json.loads(duel.chain_user)
+                    effect_user = chain_user2[str(duel.chain+minus_chain )]
+                    if tmp_deck is None:
+                        if (place_tmp[2] == "1" and effect_user == 1) or (
+                            place_tmp[2] == "2" and effect_user != 1
+                        ):
+                            mine_or_other = 1
+                        elif (place_tmp[2] == "1" and effect_user != 1) or (
+                            place_tmp[2] == "2" and effect_user == 1
+                        ):
+                            mine_or_other = 2
+                        else:
+                            mine_or_other = 3
+                        if (place_tmp[2] == "1" and effect_user == self.user) or (
+                            place_tmp[2] == "2" and effect_user != self.user
+                        ):
+                            mine_or_other2 = 1
+                        elif (place_tmp[2] == "1" and effect_user != self.user) or (
+                            place_tmp[2] == "2" and effect_user == self.user
+                        ):
+                            mine_or_other2 = 2
+                        else:
+                            mine_or_other2 = 3
+
+                        if mine_or_other2 == 1:
+                            tmp_deck = self.get_deck_with_effect(
+                                self.decks[deck_id]["mydeck"],
+                                monster_effect_det2,
+                                effect_kind,
+                                instead_exclude,
+                                effect_user,
+                                "deck",
+                                deck_id,
+                                0,
+                                0,
+                                mine_or_other,
+                                0,
+                            )
+                            org_deck = self.decks[deck_id]["mydeck"]
+                        elif mine_or_other2 == 2:
+                            tmp_deck = self.get_deck_with_effect(
+                                self.decks[deck_id]["otherdeck"],
+                                monster_effect_det2,
+                                effect_kind,
+                                instead_exclude,
+                                effect_user,
+                                "deck",
+                                deck_id,
+                                0,
+                                0,
+                                mine_or_other,
+                                0,
+                            )
+                            org_deck = self.decks[deck_id]["otherdeck"]
+                        else:
+                            tmp_deck = self.get_deck_with_effect(
+                                self.decks[deck_id]["commondeck"],
+                                monster_effect_det2,
+                                effect_kind,
+                                instead_exclude,
+                                effect_user,
+                                "deck",
+                                deck_id,
+                                0,
+                                0,
+                                mine_or_other,
+                                0,
+                            )
+                            org_deck = self.decks[deck_id]["commondeck"]
+                        deck_name = self.decks[deck_id]["deck_name"]
+                        user_decks = org_deck
+                elif place_tmp[0] == "grave":
+                    chain_user2 = json.loads(duel.chain_user)
+                    effect_user = chain_user2[str(duel.chain+minus_chain  )]
+                    if tmp_deck is None:
+                        if (place_tmp[2] == "1" and effect_user == 1) or (
+                            place_tmp[2] == "2" and effect_user != 1
+                        ):
+                            mine_or_other = 1
+                        elif (place_tmp[2] == "1" and effect_user != 1) or (
+                            place_tmp[2] == "2" and effect_user == 1
+                        ):
+                            mine_or_other = 2
+                        else:
+                            mine_or_other = 3
+                        if (place_tmp[2] == "1" and effect_user == self.user) or (
+                            place_tmp[2] == "2" and effect_user != self.user
+                        ):
+                            mine_or_other2 = 1
+                        elif (place_tmp[2] == "1" and effect_user != self.user) or (
+                            place_tmp[2] == "2" and effect_user == self.user
+                        ):
+                            mine_or_other2 = 2
+                        else:
+                            mine_or_other2 = 3
+                        if mine_or_other2 == 1:
+                            tmp_deck = self.get_grave_with_effect(
+                                self.graves[deck_id]["mygrave"],
+                                monster_effect_det2,
+                                effect_kind,
+                                instead_exclude,
+                                effect_user,
+                                "grave",
+                                deck_id,
+                                0,
+                                0,
+                                mine_or_other,
+                                0,
+                            )
+                            org_deck = self.graves[deck_id]["mygrave"]
+                        elif mine_or_other2 == 2:
+                            tmp_deck = self.get_grave_with_effect(
+                                self.graves[deck_id]["othergrave"],
+                                monster_effect_det2,
+                                effect_kind,
+                                instead_exclude,
+                                effect_user,
+                                "grave",
+                                deck_id,
+                                0,
+                                0,
+                                mine_or_other,
+                                0,
+                            )
+                            org_deck = self.graves[deck_id]["othergrave"]
+                        else:
+                            tmp_deck = self.get_grave_with_effect(
+                                self.decks[grave_id]["commondeck"],
+                                monster_effect_det2,
+                                effect_kind,
+                                instead_exclude,
+                                effect_user,
+                                "grave",
+                                deck_id,
+                                0,
+                                0,
+                                mine_or_other,
+                                0,
+                            )
+                            org_deck = self.graves[deck_id]["commongrave"]
+                        deck_name = self.graves[deck_id]["grave_name"]
+                        user_decks = org_deck
+                elif place_tmp[0] == "hand":
+                    chain_user2 = json.loads(duel.chain_user)
+                    effect_user = chain_user2[str(duel.chain+minus_chain   )]
+                    if tmp_deck is None:
+                        if (place_tmp[2] == "1" and effect_user == 1) or (
+                            place_tmp[2] == "2" and effect_user != 1
+                        ):
+                            mine_or_other = 1
+                        elif (place_tmp[2] == "1" and effect_user != 1) or (
+                            place_tmp[2] == "2" and effect_user == 1
+                        ):
+                            mine_or_other = 2
+                        else:
+                            mine_or_other = 3
+                        if (place_tmp[2] == "1" and effect_user == self.user) or (
+                            place_tmp[2] == "2" and effect_user != self.user
+                        ):
+                            mine_or_other2 = 1
+                        elif (place_tmp[2] == "1" and effect_user != self.user) or (
+                            place_tmp[2] == "2" and effect_user == self.user
+                        ):
+                            mine_or_other2 = 2
+                        else:
+                            mine_or_other2 = 3
+                        if mine_or_other2 == 1:
+                            tmp_deck = self.get_hand_with_effect(
+                                self.hands[deck_id]["myhand"],
+                                monster_effect_det2,
+                                effect_kind,
+                                instead_exclude,
+                                effect_user,
+                                "hand",
+                                deck_id,
+                                0,
+                                0,
+                                mine_or_other,
+                                0,
+                            )
+                            org_deck = self.hands[deck_id]["myhand"]
+                        elif mine_or_other2 == 2:
+                            tmp_deck = self.get_hand_with_effect(
+                                self.hands[deck_id]["otherhand"],
+                                monster_effect_det2,
+                                effect_kind,
+                                instead_exclude,
+                                effect_user,
+                                "hand",
+                                deck_id,
+                                0,
+                                0,
+                                mine_or_other,
+                                0,
+                            )
+                            org_deck = self.hands[deck_id]["otherhand"]
+                        else:
+                            tmp_deck = self.get_hand_with_effect(
+                                self.decks[hand_id]["commondeck"],
+                                monster_effect_det2,
+                                effect_kind,
+                                instead_exclude,
+                                effect_user,
+                                "hand",
+                                deck_id,
+                                0,
+                                0,
+                                mine_or_other,
+                                0,
+                            )
+                            org_deck = self.hands[deck_id]["commonhand"]
+                        deck_name = self.hands[deck_id]["hand_name"]
+                        user_decks = org_deck
+                elif place_tmp[0] == "field":
+                    field = self.field
+                    tmp_deck = False
+                    field_tmp.append(place_tmp[1])
+                    if place["and_or"] == "and":
+                        continue
+                    else:
+                        field_tmp2 = field_tmp
+                        field_tmp = []
+                    effect_user = user
+                    if (place_tmp[2] == "1" and effect_user == 1) or (
+                        place_tmp[2] == "2" and effect_user == 2
+                    ):
+                        mine_or_other2 = 1
+                    elif (place_tmp[2] == "1" and effect_user == 2) or (
+                        place_tmp[2] == "2" and effect_user == 1
+                    ):
+                        mine_or_other2 = 2
+                    else:
+                        mine_or_other2 = 3
+                    for x in range(len(field)):
+                        for y in range(len(field[x])):
+                            exclude = ""
+                            field_kind_flag = True
+                            if self.field_free is False:
+                                kind = field[x][y]["kind"]
+                            else:
+                                kind = field[0][y]["kind"]
+                            if kind != "":
+                                tmp = kind.split("_")
+                                for kind in field_tmp2:
+                                    if kind not in tmp:
+                                        field_kind_flag = False
+                                        break
+
+                            if field_kind_flag is False:
+                                continue
+                            if field[x][y]["mine_or_other"] != mine_or_other2:
+                                continue
+                            if field[x][y]["det"] is None:
+                                continue
+                            if strategy != "": 
+                                if strategy in field[x][y]["det"]["variables"]:
+                                    tmp_variable = field[x][y]["det"]["variables"][strategy]
+                                    if not tmp_variable["value"].isnumeric():
+                                         tmp_variable["value"] = 0
+                                else:
+                                    tmp_variable = {}
+                                    tmp_variable["value"] = 0
+                                value = self.check_change_val(
+                        field[x][y]["det"], user, "field", 0, x, y, strategy, mine_or_other, int(tmp_variable["value"])
+                    )
+                            else: 
+                                value = 0
+                            fusion_monster = {}
+                            fusion_monster["det"] = field[x][y]["det"]
+                            fusion_monster["instead"] = 1
+                            fusion_monster["mine_or_other"] = field[x][y]["mine_or_other"]
+                            fusion_monster["user"] = user
+                            fusion_monster["place"] = "field"
+                            fusion_monster["deck_id"] = 0
+                            fusion_monster["x"] = x
+                            fusion_monster["y"] = y
+                            fusion_monster["strategy_value"] = value
+                            fusion_monster["place_unique_id"] = field[x][y]["det"][
+                                "place_unique_id"
+                            ]
+                            if self.validate_answer(
+                                fusion_monster, fusion_condition["monster"], instead_exclude, duel
+                                ):
+                                if self.validate_answer(
+                                    fusion_monster, instead_condition["monster"][0]["monster"], instead_exclude, duel
+                                    ):
+                                    if fusion_monster not in already_monsters:
+                                        if fusion_monster == trigger:
+                                            trigger_flag = True
+                                        return_monster.append(fusion_monster)
+                                        instead_val += 1
+                if not tmp_deck:
+                    continue
+                for tmp_fusion_monster in tmp_deck:
+                        if strategy != "": 
+                            tmptmpdeck = org_deck[tmp_fjusion_monster]
+                            if strategy in tmptmpdeck["variables"]:
+                                tmp_variable = tmptmpdeck["variables"][strategy]
+                                if not tmp_variable["value"].isnumeric():
+                                    tmp_variable["value"] = 0
+                            else:
+                                tmp_variable = {}
+                                tmp_variable["value"] = 0
+                            value = self.check_change_val(
+                                tmptmpdeck, user, place_tmp[0], deck_id, 0, 0, strategy, mine_or_other, int(tmp_variable["value"])
+                            )
+                        else:
+                            value = 0
+                        fusion_monster = {}
+                        fusion_monster["det"] = user_decks[tmp_fusion_monster]
+                        fusion_monster["mine_or_other"] = mine_or_other
+                        fusion_monster["user"] = user
+                        fusion_monster["place"] = place_tmp[0]
+                        fusion_monster["deck_id"] = deck_id
+                        fusion_monster["deck_name"] = deck_name
+                        fusion_monster["x"] = 0
+                        fusion_monster["instead"] = 1
+                        fusion_monster["y"] = 0
+                        fusion_monster["strategy_value"] = value
+                        fusion_monster["place_unique_id"] = user_decks[tmp_fusion_monster][
+                            "place_unique_id"
+                        ]
+                        if self.validate_answer(
+                            fusion_monster, fusion_condition["monster"], exclude1, duel
+                            ):
+                            if self.validate_answer(
+                                fusion_monster, instead_condition["monster"][0]["monster"], instead_exclude, duel
+                                ):
+                               if fusion_monster == trigger:
+                                   trigger_flag = True
+                               return_monster.append(fusion_monster)
+                               instead_val += 1
+        for place in place3:
+                
+                place_tmp = place["det"].split("_")
+                deck_id = int(place_tmp[1])
+                tmp_deck = None
+                if place_tmp[0] == "deck":
+                    chain_user2 = json.loads(duel.chain_user)
+                    effect_user = chain_user2[str(duel.chain+minus_chain )]
+                    if tmp_deck is None:
+                        if (place_tmp[2] == "1" and effect_user == 1) or (
+                            place_tmp[2] == "2" and effect_user != 1
+                        ):
+                            mine_or_other = 1
+                        elif (place_tmp[2] == "1" and effect_user != 1) or (
+                            place_tmp[2] == "2" and effect_user == 1
+                        ):
+                            mine_or_other = 2
+                        else:
+                            mine_or_other = 3
+                        if (place_tmp[2] == "1" and effect_user == self.user) or (
+                            place_tmp[2] == "2" and effect_user != self.user
+                        ):
+                            mine_or_other2 = 1
+                        elif (place_tmp[2] == "1" and effect_user != self.user) or (
+                            place_tmp[2] == "2" and effect_user == self.user
+                        ):
+                            mine_or_other2 = 2
+                        else:
+                            mine_or_other2 = 3
+                        if mine_or_other2 == 1:
+                            tmp_deck = self.get_deck_with_effect(
+                                self.decks[deck_id]["mydeck"],
+                                monster_effect_det2,
+                                effect_kind,
+                                exclude,
+                                effect_user,
+                                "deck",
+                                deck_id,
+                                0,
+                                0,
+                                mine_or_other,
+                                0,
+                            )
+                            org_deck = self.decks[deck_id]["mydeck"]
+                        elif mine_or_other2 == 2:
+                            tmp_deck = self.get_deck_with_effect(
+                                self.decks[deck_id]["otherdeck"],
+                                monster_effect_det2,
+                                effect_kind,
+                                exclude,
+                                effect_user,
+                                "deck",
+                                deck_id,
+                                0,
+                                0,
+                                mine_or_other,
+                                0,
+                            )
+                            org_deck = self.decks[deck_id]["otherdeck"]
+                        else:
+                            tmp_deck = self.get_deck_with_effect(
+                                self.decks[deck_id]["commondeck"],
+                                monster_effect_det2,
+                                effect_kind,
+                                exclude,
+                                effect_user,
+                                "deck",
+                                deck_id,
+                                0,
+                                0,
+                                mine_or_other,
+                                0,
+                            )
+                            org_deck = self.decks[deck_id]["commondeck"]
+                        deck_name = self.decks[deck_id]["deck_name"]
+                        user_decks = org_deck
+                elif place_tmp[0] == "grave":
+                    chain_user2 = json.loads(duel.chain_user)
+                    effect_user = chain_user2[str(duel.chain+minus_chain  )]
+                    if tmp_deck is None:
+                        if (place_tmp[2] == "1" and effect_user == 1) or (
+                            place_tmp[2] == "2" and effect_user != 1
+                        ):
+                            mine_or_other = 1
+                        elif (place_tmp[2] == "1" and effect_user != 1) or (
+                            place_tmp[2] == "2" and effect_user == 1
+                        ):
+                            mine_or_other = 2
+                        else:
+                            mine_or_other = 3
+                        if (place_tmp[2] == "1" and effect_user == self.user) or (
+                            place_tmp[2] == "2" and effect_user != self.user
+                        ):
+                            mine_or_other2 = 1
+                        elif (place_tmp[2] == "1" and effect_user != self.user) or (
+                            place_tmp[2] == "2" and effect_user == self.user
+                        ):
+                            mine_or_other2 = 2
+                        else:
+                            mine_or_other2 = 3
+                        if mine_or_other2 == 1:
+                            tmp_deck = self.get_grave_with_effect(
+                                self.graves[deck_id]["mygrave"],
+                                monster_effect_det2,
+                                effect_kind,
+                                exclude,
+                                effect_user,
+                                "grave",
+                                deck_id,
+                                0,
+                                0,
+                                mine_or_other,
+                                0,
+                            )
+                            org_deck = self.graves[deck_id]["mygrave"]
+                        elif mine_or_other2 == 2:
+                            tmp_deck = self.get_grave_with_effect(
+                                self.graves[deck_id]["othergrave"],
+                                monster_effect_det2,
+                                effect_kind,
+                                exclude,
+                                effect_user,
+                                "grave",
+                                deck_id,
+                                0,
+                                0,
+                                mine_or_other,
+                                0,
+                            )
+                            org_deck = self.graves[deck_id]["othergrave"]
+                        else:
+                            tmp_deck = self.get_grave_with_effect(
+                                self.decks[grave_id]["commondeck"],
+                                monster_effect_det2,
+                                effect_kind,
+                                exclude,
+                                effect_user,
+                                "grave",
+                                deck_id,
+                                0,
+                                0,
+                                mine_or_other,
+                                0,
+                            )
+                            org_deck = self.graves[deck_id]["commongrave"]
+                        deck_name = self.graves[deck_id]["grave_name"]
+                        user_decks = org_deck
+                elif place_tmp[0] == "hand":
+                    chain_user2 = json.loads(duel.chain_user)
+                    effect_user = chain_user2[str(duel.chain+minus_chain   )]
+                    if tmp_deck is None:
+                        if (place_tmp[2] == "1" and effect_user == 1) or (
+                            place_tmp[2] == "2" and effect_user != 1
+                        ):
+                            mine_or_other = 1
+                        elif (place_tmp[2] == "1" and effect_user != 1) or (
+                            place_tmp[2] == "2" and effect_user == 1
+                        ):
+                            mine_or_other = 2
+                        else:
+                            mine_or_other = 3
+                        if (place_tmp[2] == "1" and effect_user == self.user) or (
+                            place_tmp[2] == "2" and effect_user != self.user
+                        ):
+                            mine_or_other2 = 1
+                        elif (place_tmp[2] == "1" and effect_user != self.user) or (
+                            place_tmp[2] == "2" and effect_user == self.user
+                        ):
+                            mine_or_other2 = 2
+                        else:
+                            mine_or_other2 = 3
+                        if mine_or_other2 == 1:
+                            tmp_deck = self.get_hand_with_effect(
+                                self.hands[deck_id]["myhand"],
+                                monster_effect_det2,
+                                effect_kind,
+                                exclude,
+                                effect_user,
+                                "hand",
+                                deck_id,
+                                0,
+                                0,
+                                mine_or_other,
+                                0,
+                            )
+                            org_deck = self.hands[deck_id]["myhand"]
+                        elif mine_or_other2 == 2:
+                            tmp_deck = self.get_hand_with_effect(
+                                self.hands[deck_id]["otherhand"],
+                                monster_effect_det2,
+                                effect_kind,
+                                exclude,
+                                effect_user,
+                                "hand",
+                                deck_id,
+                                0,
+                                0,
+                                mine_or_other,
+                                0,
+                            )
+                            org_deck = self.hands[deck_id]["otherhand"]
+                        else:
+                            tmp_deck = self.get_hand_with_effect(
+                                self.decks[hand_id]["commondeck"],
+                                monster_effect_det2,
+                                effect_kind,
+                                exclude,
+                                effect_user,
+                                "hand",
+                                deck_id,
+                                0,
+                                0,
+                                mine_or_other,
+                                0,
+                            )
+                            org_deck = self.hands[deck_id]["commonhand"]
+                        deck_name = self.hands[deck_id]["hand_name"]
+                        user_decks = org_deck
+                elif place_tmp[0] == "field":
+                    field = self.field
+                    tmp_deck = False
+                    field_tmp.append(place_tmp[1])
+                    if place["and_or"] == "and":
+                        continue
+                    else:
+                        field_tmp2 = field_tmp
+                        field_tmp = []
+                    effect_user = user
+                    if (place_tmp[2] == "1" and effect_user == 1) or (
+                        place_tmp[2] == "2" and effect_user == 2
+                    ):
+                        mine_or_other2 = 1
+                    elif (place_tmp[2] == "1" and effect_user == 2) or (
+                        place_tmp[2] == "2" and effect_user == 1
+                    ):
+                        mine_or_other2 = 2
+                    else:
+                        mine_or_other2 = 3
+                    for x in range(len(field)):
+                        for y in range(len(field[x])):
+                            exclude = ""
+                            field_kind_flag = True
+                            if self.field_free is False:
+                                kind = field[x][y]["kind"]
+                            else:
+                                kind = field[0][y]["kind"]
+                            if kind != "":
+                                tmp = kind.split("_")
+                                for kind in field_tmp2:
+                                    if kind not in tmp:
+                                        field_kind_flag = False
+                                        break
+
+                            if field_kind_flag is False:
+                                continue
+                            if field[x][y]["mine_or_other"] != mine_or_other2:
+                                continue
+                            if field[x][y]["det"] is None:
+                                continue
+                            if strategy != "": 
+                                if strategy in field[x][y]["det"]["variables"]:
+                                    tmp_variable = field[x][y]["det"]["variables"][strategy]
+                                    if not tmp_variable["value"].isnumeric():
+                                         tmp_variable["value"] = 0
+                                else:
+                                    tmp_variable = {}
+                                    tmp_variable["value"] = 0
+                                value = self.check_change_val(
+                        field[x][y]["det"], user, "field", 0, x, y, strategy, mine_or_other, int(tmp_variable["value"])
+                    )
+                            else: 
+                                value = 0
+                            fusion_monster = {}
+                            fusion_monster["det"] = field[x][y]["det"]
+                            fusion_monster["mine_or_other"] = field[x][y]["mine_or_other"]
+                            fusion_monster["user"] = user
+                            fusion_monster["instead"] = 0
+                            fusion_monster["place"] = "field"
+                            fusion_monster["deck_id"] = 0
+                            fusion_monster["x"] = x
+                            fusion_monster["y"] = y
+                            fusion_monster["strategy_value"] = value
+                            fusion_monster["place_unique_id"] = field[x][y]["det"][
+                                "place_unique_id"
+                            ]
+                            if self.validate_answer(
+                                fusion_monster, fusion_condition["monster"], exclude, duel
+                                ):
+                                if self.validate_answer(
+                                    fusion_monster, trigger_fusion_condition["monster"], exclude2, duel
+                                    ):
+                                    if fusion_monster not in already_monsters:
+                                        if fusion_monster == trigger:
+                                            trigger_flag = True
+                                        return_monster.append(fusion_monster)
+                if not tmp_deck:
+                    continue
+                for tmp_fusion_monster in tmp_deck:
+                        if strategy != "": 
+                            tmptmpdeck = org_deck[tmp_fjusion_monster]
+                            if strategy in tmptmpdeck["variables"]:
+                                tmp_variable = tmptmpdeck["variables"][strategy]
+                                if not tmp_variable["value"].isnumeric():
+                                    tmp_variable["value"] = 0
+                            else:
+                                tmp_variable = {}
+                                tmp_variable["value"] = 0
+                            value = self.check_change_val(
+                                tmptmpdeck, user, place_tmp[0], deck_id, 0, 0, strategy, mine_or_other, int(tmp_variable["value"])
+                            )
+                        else:
+                            value = 0
+                        fusion_monster = {}
+                        fusion_monster["det"] = user_decks[tmp_fusion_monster]
+                        fusion_monster["mine_or_other"] = mine_or_other
+                        fusion_monster["instead"] = 0
+                        fusion_monster["user"] = user
+                        fusion_monster["place"] = place_tmp[0]
+                        fusion_monster["deck_id"] = deck_id
+                        fusion_monster["deck_name"] = deck_name
+                        fusion_monster["x"] = 0
+                        fusion_monster["y"] = 0
+                        fusion_monster["strategy_value"] = value
+                        fusion_monster["place_unique_id"] = user_decks[tmp_fusion_monster][
+                            "place_unique_id"
+                        ]
+                        if self.validate_answer(
+                            fusion_monster, fusion_condition["monster"], exclude, duel
+                            ):
+                            if self.validate_answer(
+                                fusion_monster, trigger_fusion_condition["monster"], exclude2, duel
+                                ):
+                               if fusion_monster == trigger:
+                                   trigger_flag = True
+                               return_monster.append(fusion_monster)
+
+        if instead_condition:
+            instead_val_negative = min(0,max_equation_number_instead  - instead_val)
+        else:
+            instead_val_negative = 0
+        if len(return_monster) + instead_val_negative < int(min_equation_number):             
+            return False
+        if trigger_flag is False:
+            return False
+        else:
+            ret = {}
+            ret["monster"] = return_monster
+            ret["min"] = min_equation_number
+            ret["max"] = max_equation_number
+            return ret
     def get_monster(self, place, place_unique_id, mine_or_other, user, deck_id, x, y):
         tmp2 = {}
         flag = True
@@ -40427,7 +43504,7 @@ class DuelObj:
         current_and_or = "and"
         monster_name_kind = effect_det["monster_name_kind"]
         name_flag = True
-        monster_name = self.check_change_name(
+        monster_names = self.check_change_name(
             monster,
             monster2["mine_or_other"],
             monster2["place"],
@@ -40436,45 +43513,52 @@ class DuelObj:
             monster2["y"],
             monster2["mine_or_other"],
         )
+        name_flag2 = True
         for name_kind in monster_name_kind:
-            if name_kind != "":
-                if name_kind["operator"] == "=":
-                    if monster_name != self.get_name(
-                        name_kind["monster_name"], 0, monster
-                    ):
-                        if current_and_or == "and":
-                            name_flag = False
-                    else:
-                        if current_and_or == "or":
+            if name_kind["monster_name"] != "":
+                name_flag = False
+                for monster_name in monster_names:
+                    if name_kind["operator"] == "=":
+                        if monster_name == self.get_name(
+                            name_kind["monster_name"], 0, monster
+                        ):
                             name_flag = True
-                    current_and_or = name_kind["and_or"]
-                elif name_kind["operator"] == "!=":
-                    if monster_name == self.get_name(
-                        name_kind["monster_name"], 0, monster
-                    ):
-                        if current_and_or == "and":
-                            name_flag = False
-                    else:
-                        if current_and_or == "or":
+                            break
+                    elif name_kind["operator"] == "!=":
+                        if monster_name != self.get_name(
+                            name_kind["monster_name"], 0, monster
+                        ):
                             name_flag = True
-                    current_and_or = name_kind["and_or"]
+                            break
 
-                elif name_kind["operator"] == "like":
-                    if (
-                        monster_name.find(
-                            self.get_name(name_kind["monster_name"], 0, monster)
-                        )
-                        == -1
-                    ):
-                        if current_and_or == "and":
-                            name_flag = False
-                    else:
-                        if current_and_or == "or":
+                    elif name_kind["operator"] == "like":
+                        if (
+                            monster_name.find(
+                                self.get_name(name_kind["monster_name"], 0, monster)
+                            )
+                            != -1
+                        ):
                             name_flag = True
-                    current_and_or = name_kind["and_or"]
+                            break
+                    elif name_kind["operator"] == "notlike":
+                        if (
+                            monster_name.find(
+                                self.get_name(name_kind["monster_name"], 0, monster)
+                            )
+                            == -1
+                        ):
+                           name_flag = True
+                           break
+                if current_and_or == "or":
+                    if name_flag is True:
+                        name_flag2 = True
+                if current_and_or == "and":
+                    if name_flag is False:
+                        name_flag2 = False
+                current_and_or = name_kind["and_or"]
 
-            if name_flag is False:
-                return False
+        if name_flag2 is False:
+            return False
         monster_condition_val = effect_det["monster_condition"]
         for cond_det in monster_condition_val:
             cond_flag = True
@@ -40506,11 +43590,23 @@ class DuelObj:
                 tmp = monster["variables"][name2]
                 tmp_flag = True
                 if not cond_val["num"].isnumeric() and not self.special_val(cond_val["num"][0]):
-                    if tmp["value"].isnumeric():
+                    value = self.check_change_val(
+                        monster,
+                        monster2["mine_or_other"],
+                        monster2["place"],
+                        monster2["deck_id"],
+                        monster2["x"],
+                        monster2["y"],
+                        name,
+                        monster2["mine_or_other"],
+                        tmp["value"]
+                    )
+                    if value.isnumeric():
                         if cond_val["operator"] == "!=":
-                            tmp_flag = True
-                        else:
-                            tmp_flag = False
+                            if value == cond_val["num"]:
+                                tmp_flag = False
+                            else:
+                                tmp_flag = True
                         if current_and_or == "and":
                             if cond_flag is True:
                                 cond_flag = tmp_flag
@@ -40525,10 +43621,15 @@ class DuelObj:
                         continue
                     else:
                         if cond_val["operator"] == "=":
-                            if tmp["value"] == cond_val["num"]:
+                            if value == cond_val["num"]:
                                 tmp_flag = True
                             else:
                                 tmp_flag = False
+                        elif cond_val["operator"] == "!=":
+                            if value == cond_val["num"]:
+                                tmp_flag = False
+                            else:
+                                tmp_flag = True
                         if current_and_or == "and":
                             if cond_flag is True:
                                 cond_flag = tmp_flag
@@ -40542,15 +43643,32 @@ class DuelObj:
                         current_and_or = cond_val["and_or"]
                         continue
                 if not tmp["value"].isnumeric():
+                    value = self.check_change_val(
+                        monster,
+                        monster2["mine_or_other"],
+                        monster2["place"],
+                        monster2["deck_id"],
+                        monster2["x"],
+                        monster2["y"],
+                        name,
+                        monster2["mine_or_other"],
+                        tmp["value"]
+                    )
                     if cond_val["operator"] == "!=":
-                        if cond_val["num"] == tmp["value"]:
+                        if cond_val["num"] == value:
                             tmp_flag = False
                         else:
                             tmp_flag = True
-                    elif cond_val["operator"] != "=" and cond_val["operator"] != "":
+                    elif cond_val["operator"] == "":
+                        values = value.split("_")
+                        if cond_val["num"] in values:
+                            tmp_flag = True
+                        else:
+                            tmp_flag = False
+                    elif cond_val["operator"] != "=" :
                         tmp_flag = False
                     else:
-                        if cond_val["num"] == tmp["value"]:
+                        if cond_val["num"] == value:
                             tmp_flag = True
                         else:
                             tmp_flag = False
@@ -40584,13 +43702,23 @@ class DuelObj:
                     value = tmp["i_val"]
                 elif cond_val["init"] == 2:
                     value = tmp["i_i_val"]
+                if self.is_float(value):
+                    value = float(value)
                 if tmp["minus"] is False and int(value) < 0:
                     value = 0
-                if cond_val["operator"] == "=" or cond_val["operator"] == "":
+                if cond_val["operator"] == "=" : 
                     if int(value) != int(
                         self.calculate_boland(cond_val["num"], monster2, False)
                     ):
                         tmp_flag = False
+                elif cond_val["operator"] == "":
+                        cond_ary = cond_val["num"].split("_")
+                        if str(int(value)) not in cond_ary:
+                            tmp_flag = False
+                elif cond_val["operator"] == "!==":
+                        cond_ary = cond_val["num"].split("_")
+                        if str(int(value)) in cond_ary:
+                            tmp_flag = False
                 elif cond_val["operator"] == "<=":
                     if int(value) > self.calculate_boland(
                         cond_val["num"], monster2, False
@@ -40618,6 +43746,8 @@ class DuelObj:
                     else:
                         cond_flag = True
                 current_and_or = cond_val["and_or"]
+                if current_and_or == "":
+                    current_and_or = "and"
             if cond_flag is False:
                 return False
         relations = effect_det["relation"]
@@ -40663,8 +43793,9 @@ class DuelObj:
                     name,
                     monster["mine_or_other"],
                 )
+                value = float(value)
                 if cond_val["operator"] == "=" or cond_val["operator"] == "":
-                    if value != self.calculate_boland(cond_val["num"], monster2, False,mode=1):
+                    if str(value) != str(self.calculate_boland(cond_val["num"], monster2, False,mode=1)):
                         tmp_flag = False
                 elif cond_val["operator"] == "<=":
                     if int(value) > self.calculate_boland(
@@ -41045,7 +44176,7 @@ class DuelObj:
                             ):
                                 continue
                             del_key = []
-                            for key in range(len(det["rel"][kind].keys)):
+                            for key in range(len(det["rel"][kind])):
                                 relation_name = det["rel"][kind][key]["name"]
                                 if (
                                     det["rel"][kind][key]["monster"]["place_unique_id"]
@@ -41392,6 +44523,513 @@ class DuelObj:
         self.acc_global = []
         return change_val_all
 
+    def raise_trigger_not_effected(
+            self, monster, change_val, cost_or_effect, effect_kind, chain_user, org,variable_name = ""
+    ):
+        field = self.field
+        change_val = int(float(change_val))
+        duel = self.duel    
+        virtual_chain = duel.virtual_chain
+        owner = monster["det"]["owner"]
+        if cost_or_effect == "effect":
+            cost_or_effect = 2
+        elif cost_or_effect == "cost":
+            cost_or_effect = 1
+        else:
+            cost_or_effect = 0
+        timing = TriggerTimingNotEffected.objects.filter(
+            (Q(change_val__gte=change_val) & Q(change_val_operator=">="))
+            | (Q(change_val__lte=change_val) & Q(change_val_operator="<="))
+            | (Q(change_val=change_val) & Q(change_val_operator="="))
+            | (~Q(change_val=change_val) & Q(change_val_operator="!="))
+        )
+        if duel.is_ai is False:
+            timing = timing.filter(
+                Q(enemy = 0) | Q(enemy = 1)
+            )
+        else:
+            timing = timing.filter(
+                Q(enemy = 1) | Q(enemy = 2)
+            )
+        timing3 = TriggerTimingNotEffected.objects.filter(
+            (Q(change_val__gte=change_val) & Q(change_val_operator=">="))
+            | (Q(change_val__lte=change_val) & Q(change_val_operator="<="))
+            | (Q(change_val=change_val) & Q(change_val_operator="="))
+            | (~Q(change_val=change_val) & Q(change_val_operator="!="))
+        )
+        if duel.is_ai is False:
+            timing3 = timing3.filter(
+                Q(enemy = 0) | Q(enemy = 1)
+            )
+        else:
+            timing3 = timing3.filter(
+                Q(enemy = 1) | Q(enemy = 2)
+            )
+        timing = timing.filter(
+            (Q(chain__lte=virtual_chain) & Q(chain_kind=0)) | 
+            (Q(chain__gte=virtual_chain) & Q(chain_kind=1)) | 
+            (Q(chain=virtual_chain) & Q(chain_kind=2))  
+        )
+        timing3 = timing3.filter(
+            (Q(chain__lte=virtual_chain) & Q(chain_kind=0)) | 
+            (Q(chain__gte=virtual_chain) & Q(chain_kind=1)) | 
+            (Q(chain=virtual_chain) & Q(chain_kind=2))  
+        )
+        org_monster_id = monster["det"]["id"]
+        monster_id = self.get_monster_id_easy(monster["det"])
+        mine_or_other = monster["mine_or_other"]
+        timing = timing.filter(
+            Q(monster_specify_flag=False) | (Q(monster__id=org_monster_id) & Q(org=True)) | (Q(monster__id=monster_id) & Q(org=False))
+        )
+        timing = timing.filter(org=org)
+        timing = timing.filter(relation=False)
+        timing3 = timing3.filter(org=org)
+        timing3 = timing3.filter(relation=True)
+        timing = timing.filter(Q(cost_or_effect=cost_or_effect) | Q(cost_or_effect=0))
+        timing3 = timing3.filter(Q(cost_or_effect=cost_or_effect) | Q(cost_or_effect=0))
+        timings = timing.all()
+        timings3 = timing3.all()
+        if duel.trigger_waiting == "":
+            trigger_waiting = []
+        else:
+            trigger_waiting = json.loads(duel.trigger_waiting)
+        if effect_kind:
+            from_kinds = effect_kind
+        else:
+            from_kinds = ""
+        for timing in timings:
+            if timing.who == 0:
+                user = owner
+            elif timing.who == 1:
+                user = chain_user
+            elif timing.who == 2:
+                if chain_user == 1:
+                    user = 2
+                elif chain_user == 2:
+                    user = 1
+            elif timing.who == 3:
+                user = mine_or_other
+            else:
+                user = -1
+            if timing.chain_user == 2:
+                if user == 1:
+                    user = 2
+                else:
+                    user = 1
+
+            if duel.is_ai is True:
+                if user == 1:
+                    if timing.enemy_own == 2:
+                        continue
+                elif user == 2:
+                    if timing.enemy_own == 0:
+                        continue
+            else:
+                if timing.enemy_own == 2:
+                    continue
+            if timing.monster_exist_specify_flag:
+                num = []
+                if timing.exist_place_kind == 4:
+                    for t_monster in timing.monster_exist.all():
+                        tmp = self.checkMonsterExistField(
+                            t_monster.id,
+                            timing.exist_field.id,
+                            user,
+                            timing.exist_kinds,
+                            timing.exist_mine_or_other,
+                            timing.once_per_turn_exist
+                        )
+                        if tmp:
+                            num.extend(tmp)
+                elif timing.exist_place_kind == 1:
+                    for t_monster in timing.monster_exist.all():
+                        tmp = self.checkMonsterExistDeck(
+                            t_monster.id,
+                            timing.exist_deck.id,
+                            user,
+                            timing.exist_kinds,
+                            timing.exist_mine_or_other,
+                            timing.once_per_turn_exist
+                        )
+                        if tmp:
+                            num.extend(tmp)
+                elif timing.exist_place_kind == 2:
+                    for t_monster in timing.monster_exist.all():
+                        tmp = self.checkMonsterExistGrave(
+                            t_monster.id,
+                            timing.exist_grave.id,
+                            user,
+                            timing.exist_kinds,
+                            timing.exist_mine_or_other,
+                            timing.once_per_turn_exist
+                        )
+                        if tmp:
+                            num.extend(tmp)
+                elif timing.exist_place_kind == 3:
+                    for t_monster in timing.monster_exist.all():
+                        tmp = self.checkMonsterExistHand(
+                            t_monster.id,
+                            timing.exist_hand.id,
+                            user,
+                            user,
+                            timing.exist_kinds,
+                            timing.exist_mine_or_other,
+                            timing.once_per_turn_exist
+                        )
+                        if tmp:
+                            num.extend(tmp)
+                if not num:
+                    continue
+                for num2 in num:
+                    if timing.relation is True:
+                        if (
+                                "rel" in monster["det"]
+                                and timing.relation_kind in monster["det"]["rel"]
+                        ):
+                            for rel_card in monster["det"]["rel"][timing.relation_kind]:
+                                if int(rel_card["to"]) == int(timing.relation_to) and (
+                                        rel_card["name"] == timing.relation_name
+                                        or timing.relation_name == ""
+                                ):
+                                    if not timing.monster.all().filter(
+                                            id=rel_card["monster"]["det"]["id"]
+                                    ):
+                                        continue
+                                    r_monster = rel_card["monster"]
+                                    if timing.trigger.strategy != "":
+                                        if timing.trigger.strategy in r_monster["variables"]:
+                                            tmp_variable = r_monster["variables"][timing.trigger.strategy]
+                                            if not tmp_variable["value"].isnumeric():
+                                                tmp_variable["value"] = 0
+                                        else:
+                                            tmp_variable = {}
+                                            tmp_variable["value"] = 0
+                                        value = self.check_change_val(
+                                            monster, user, r_monster["place"], r_monster["deck_id"], 0, 0, timing.trigger.strategy, mine_or_other,
+                                            int(tmp_variable["value"])
+                                        )
+                                    else:
+                                        value = 0
+                                    tmp = num2
+                                    tmp["monster"] = r_monster["det"]
+                                    tmp["trigger"] = timing.trigger.id
+                                    tmp["priority"] = timing.trigger.priority
+                                    tmp["storategy_priority"] = timing.trigger.storategy_priority
+                                    tmp["mine_or_other"] = r_monster["mine_or_other"]
+                                    tmp["user"] = user
+                                    tmp["place"] = r_monster["place"]
+                                    tmp["deck_id"] = r_monster["deck_id"]
+                                    tmp["x"] = r_monster["x"]
+                                    tmp["y"] = r_monster["y"]
+                                    tmp["from_x"] = None
+                                    tmp["from_y"] = None
+                                    tmp["place_from"] = None
+                                    tmp["deck_id_from"] = None
+                                    tmp["change_val"] = change_val
+                                    tmp["strategy_value"] = value if timing.trigger.strategy_up_or_down == 0 else -value
+                                    trigger_waiting.append(tmp)
+                    else:
+                        tmp = num2
+                        if timing.trigger.strategy != "":
+                            if timing.trigger.strategy in monster["variables"]:
+                                tmp_variable = monster["variables"][timing.trigger.strategy]
+                                if not tmp_variable["value"].isnumeric():
+                                    tmp_variable["value"] = 0
+                            else:
+                                tmp_variable = {}
+                                tmp_variable["value"] = 0
+                            value = self.check_change_val(
+                                monster, user, monster["place"], monster["deck_id"], 0, 0, timing.trigger.strategy,
+                                mine_or_other,
+                                int(tmp_variable["value"])
+                            )
+                        else:
+                            value = 0
+                        tmp["who"] = timing.which_monster_effect
+                        tmp["monster"] = monster["det"]
+                        tmp["trigger"] = timing.trigger.id
+                        tmp["priority"] = timing.trigger.priority
+                        tmp["storategy_priority"] = timing.trigger.storategy_priority
+                        tmp["mine_or_other"] = monster["mine_or_other"]
+                        tmp["user"] = user
+                        tmp["place"] = monster["place"]
+                        tmp["deck_id"] = monster["deck_id"]
+                        tmp["x"] = monster["x"]
+                        tmp["y"] = monster["y"]
+                        tmp["change_val"] = change_val
+                        tmp["strategy_value"] = value if timing.trigger.strategy_up_or_down == 0 else -value
+                        trigger_waiting.append(tmp)
+            else:
+                timing_kinds = timing.kinds
+                if not self.check_effect_kind(timing_kinds, from_kinds):
+                    continue
+                if timing.trigger.strategy != "":
+                    if timing.trigger.strategy in monster["variables"]:
+                        tmp_variable = monster["variables"][timing.trigger.strategy]
+                        if not tmp_variable["value"].isnumeric():
+                            tmp_variable["value"] = 0
+                    else:
+                        tmp_variable = {}
+                        tmp_variable["value"] = 0
+                    value = self.check_change_val(
+                        monster, user, monster["place"], monster["deck_id"], 0, 0, timing.trigger.strategy,
+                        mine_or_other,
+                        int(tmp_variable["value"])
+                    )
+                else:
+                    value = 0
+                tmp = {}
+                tmp["who"] = timing.which_monster_effect
+                tmp["monster"] = monster["det"]
+                tmp["trigger"] = timing.trigger.id
+                tmp["priority"] = timing.trigger.priority
+                tmp["storategy_priority"] = timing.trigger.storategy_priority
+                tmp["mine_or_other"] = mine_or_other
+                tmp["user"] = user
+                tmp["place"] = monster["place"]
+                tmp["from_x"] = None
+                tmp["from_y"] = None
+                tmp["place_from"] = None
+                tmp["deck_id_from"] = None
+                tmp["deck_id"] = monster["deck_id"]
+                tmp["x"] = monster["x"]
+                tmp["y"] = monster["y"]
+                tmp["change_val"] = change_val
+                tmp["strategy_value"] = value if timing.trigger.strategy_up_or_down == 0 else -value
+                trigger_waiting.append(tmp)
+        for timing in timings3:
+            if timing.who == 0:
+                user = owner
+            elif timing.who == 1:
+                user = chain_user
+            elif timing.who == 2:
+                if chain_user == 1:
+                    user = 2
+                elif chain_user == 2:
+                    user = 1
+            elif timing.who == 3:
+                user = mine_or_other
+            else:
+                user = -1
+            if duel.is_ai is True:
+                if user == 1:
+                    if timing.enemy_own == 2:
+                        continue
+                elif user == 2:
+                    if timing.enemy_own == 0:
+                        continue
+            else:
+                if timing.enemy_own == 2:
+                    continue
+            if timing.monster_exist_specify_flag:
+                num = []
+                if timing.exist_place_kind == 4:
+                    for monster in timing.monster_exist.all():
+                        tmp = self.checkMonsterExistField(
+                            monster.id,
+                            timing.exist_field.id,
+                            user,
+                            timing.exist_kinds,
+                            timing.exist_mine_or_other,
+                            timing.once_per_turn_exist
+                        )
+                        if tmp:
+                            num.extend(tmp)
+                elif timing.exist_place_kind == 1:
+                    for monster in timing.monster_exist.all():
+                        tmp = self.checkMonsterExistDeck(
+                            monster.id,
+                            timing.exist_deck.id,
+                            user,
+                            timing.exist_kinds,
+                            timing.exist_mine_or_other,
+                            timing.once_per_turn_exist
+                        )
+                        if tmp:
+                            num.extend(tmp)
+                elif timing.exist_place_kind == 2:
+                    for monster in timing.monster_exist.all():
+                        tmp = self.checkMonsterExistGrave(
+                            monster.id,
+                            timing.exist_grave.id,
+                            user,
+                            timing.exist_kinds,
+                            timing.exist_mine_or_other,
+                            timing.once_per_turn_exist
+                        )
+                        if tmp:
+                            num.extend(tmp)
+                elif timing.exist_place_kind == 3:
+                    for monster in timing.monster_exist.all():
+                        tmp = self.checkMonsterExistHand(
+                            monster.id,
+                            timing.exist_hand.id,
+                            user,
+                            user,
+                            timing.exist_kinds,
+                            timing.exist_mine_or_other,
+                            timing.once_per_turn_exist
+                        )
+                        if tmp:
+                            num.extend(tmp)
+                if not num:
+                    continue
+                for num2 in num:
+                    if timing.trigger.strategy != "":
+                        if timing.trigger.strategy in monster["variables"]:
+                            tmp_variable = monster["variables"][timing.trigger.strategy]
+                            if not tmp_variable["value"].isnumeric():
+                                tmp_variable["value"] = 0
+                        else:
+                            tmp_variable = {}
+                            tmp_variable["value"] = 0
+                        value = self.check_change_val(
+                            monster, user, monster["place"], monster["deck_id"], 0, 0, timing.trigger.strategy,
+                            mine_or_other,
+                            int(tmp_variable["value"])
+                        )
+                    else:
+                        value = 0
+                    tmp = num2
+                    tmp["monster"] = monster["det"]
+                    tmp["trigger"] = timing.trigger.id
+                    tmp["priority"] = timing.trigger.priority
+                    tmp["storategy_priority"] = timing.trigger.storategy_priority
+                    tmp["mine_or_other"] = monster["mine_or_other"]
+                    tmp["user"] = user
+                    tmp["place"] = monster["place"]
+                    tmp["deck_id"] = monster["deck_id"]
+                    tmp["x"] = monster["x"]
+                    tmp["y"] = monster["y"]
+                    tmp["change_val"] = change_val
+                    tmp["strategy_value"] = value if timing.trigger.strategy_up_or_down == 0 else -value
+                    trigger_waiting.append(tmp)
+            else:
+                timing_kinds = timing.kinds
+                if not self.check_effect_kind(timing_kinds, from_kinds):
+                    continue
+                if (
+                        "rel" in monster["det"]
+                        and monster["det"]["rel"] is not None
+                        and timing.relation_kind in monster["det"]["rel"]
+                ):
+                    for rel_card in monster["det"]["rel"][timing.relation_kind]:
+                        
+                        if int(rel_card["to"]) == int(timing.relation_to) and (
+                                rel_card["name"] == timing.relation_name
+                                or timing.relation_name == ""
+                        ):
+                            if timing.monster_specify_flag is True:
+                                if not timing.monster.all().filter(
+                                     id=rel_card["monster"]["det"]["id"]
+                                ):
+                                    continue
+                            if  timing.who == 5:
+                                tmp_rel = rel_card["monster"]
+                                tmp_rel2 = field[tmp_rel["x"]][tmp_rel["y"]]
+                                if "rel" in field[tmp_rel["x"]][tmp_rel["y"]]["det"]:
+                                    rel = field[tmp_rel["x"]][tmp_rel["y"]]["det"]["rel"]
+                                    if rel is None:
+                                        continue
+                                    if not timing.relation_kind2 in rel:
+                                        continue
+                                    for rel_card2 in rel[timing.relation_kind2]:
+                                        if int(rel_card2["to"]) == int(timing.relation_to2) and (
+                                                rel_card2["name"] == timing.relation_name2
+                                                or timing.relation_name == ""
+                                        ):
+                                            if timing.monster_relate_specify_flag is True:
+                                                if not timing.monster_relate.all().filter(
+                                                        id=rel_card2["monster"]["det"]["id"]
+                                                ):
+                                                    continue
+                                                if timing.once_per_turn_relate and not self.check_once_per_turn_relate(rel_card2["monster"]["mine_or_other"],rel_card2["monster"]["det"]["place_unique_id"]):
+                                                    continue
+                                                monster2 = rel_card2["monster"]
+                                                if timing.trigger.strategy != "":
+                                                    if timing.trigger.strategy in monster["variables"]:
+                                                        tmp_variable = monster["variables"][timing.trigger.strategy]
+                                                        if not tmp_variable["value"].isnumeric():
+                                                            tmp_variable["value"] = 0
+                                                    else:
+                                                        tmp_variable = {}
+                                                        tmp_variable["value"] = 0
+                                                    value = self.check_change_val(
+                                                        monster, user, monster["place"], monster["deck_id"], 0, 0,
+                                                        timing.trigger.strategy,
+                                                        mine_or_other,
+                                                        int(tmp_variable["value"])
+                                                    )
+                                                else:
+                                                    value = 0
+                                                tmp = {}
+                                                tmp["who"] = timing.which_monster_effect
+                                                tmp["monster"] = monster["det"]
+                                                tmp["monster_relate"] = monster2["det"]
+                                                tmp["place_unique_id"] = monster["det"]["place_unique_id"]
+                                                tmp["place_unique_id_relate"] = monster2["det"]["place_unique_id"]
+                                                tmp["mine_or_other_relate"] = monster2["mine_or_other"]
+                                                tmp["place_relate"] = monster2["place"]
+                                                tmp["deck_id_relate"] = monster2["deck_id"]
+                                                tmp["x_relate"] = monster2["x"]
+                                                tmp["y_relate"] = monster2["y"]
+                                                tmp["trigger"] = timing.trigger.id
+                                                tmp["priority"] = timing.trigger.priority
+                                                tmp["storategy_priority"] = timing.trigger.storategy_priority
+                                                tmp["mine_or_other"] = monster["mine_or_other"]
+                                                tmp["user"] = monster2["mine_or_other"]
+                                                tmp["place"] = monster["place"]
+                                                tmp["deck_id"] = monster["deck_id"]
+                                                tmp["x"] = monster["x"]
+                                                tmp["y"] = monster["y"]
+                                                tmp["from_x"] = None
+                                                tmp["from_y"] = None
+                                                tmp["place_from"] = None
+                                                tmp["deck_id_from"] = None
+                                                tmp["change_val"] = change_val
+                                                tmp[
+                                                    "strategy_value"] = value if timing.trigger.strategy_up_or_down == 0 else -value
+                                                trigger_waiting.append(tmp)
+                            else:
+                                monster2 = rel_card["monster"]
+                                if timing.trigger.strategy != "":
+                                    if timing.trigger.strategy in monster["variables"]:
+                                        tmp_variable = monster["variables"][timing.trigger.strategy]
+                                        if not tmp_variable["value"].isnumeric():
+                                            tmp_variable["value"] = 0
+                                    else:
+                                        tmp_variable = {}
+                                        tmp_variable["value"] = 0
+                                    value = self.check_change_val(
+                                        monster, user, monster["place"], monster["deck_id"], 0, 0,
+                                        timing.trigger.strategy,
+                                        mine_or_other,
+                                        int(tmp_variable["value"])
+                                    )
+                                else:
+                                    value = 0
+                                tmp = {}
+                                tmp["who"] = timing.which_monster_effect
+                                tmp["monster"] = monster["det"]
+                                tmp["monster_relate"] = monster2["det"]
+                                tmp["trigger"] = timing.trigger.id
+                                tmp["priority"] = timing.trigger.priority
+                                tmp["storategy_priority"] = timing.trigger.storategy_priority
+                                tmp["mine_or_other"] = monster2["mine_or_other"]
+                                tmp["user"] = user
+                                tmp["place"] = monster2["place"]
+                                tmp["deck_id"] = monster2["deck_id"]
+                                tmp["x"] = monster2["x"]
+                                tmp["y"] = monster2["y"]
+                                tmp["from_x"] = None
+                                tmp["from_y"] = None
+                                tmp["place_from"] = None
+                                tmp["deck_id_from"] = None
+                                tmp["change_val"] = change_val
+                                tmp[
+                                    "strategy_value"] = value if timing.trigger.strategy_up_or_down == 0 else -value
+                                trigger_waiting.append(tmp)
+        self.duel.trigger_waiting = json.dumps(trigger_waiting)
     def raise_trigger_monster_change_val(
             self, monster, change_val, cost_or_effect, effect_kind, chain_user, org,variable_name
     ):
@@ -41407,8 +45045,8 @@ class DuelObj:
         else:
             cost_or_effect = 0
         timing = TriggerTimingMonsterChangeVal.objects.filter(
-            (Q(change_val__gte=change_val) & Q(change_val_operator="<="))
-            | (Q(change_val__lte=change_val) & Q(change_val_operator=">="))
+            (Q(change_val__gte=change_val) & Q(change_val_operator=">="))
+            | (Q(change_val__lte=change_val) & Q(change_val_operator="<="))
             | (Q(change_val=change_val) & Q(change_val_operator="="))
             | (~Q(change_val=change_val) & Q(change_val_operator="!="))
         )
@@ -41421,8 +45059,8 @@ class DuelObj:
                 Q(enemy = 1) | Q(enemy = 2)
             )
         timing3 = TriggerTimingMonsterChangeVal.objects.filter(
-            (Q(change_val__gte=change_val) & Q(change_val_operator="<="))
-            | (Q(change_val__lte=change_val) & Q(change_val_operator=">="))
+            (Q(change_val__gte=change_val) & Q(change_val_operator=">="))
+            | (Q(change_val__lte=change_val) & Q(change_val_operator="<="))
             | (Q(change_val=change_val) & Q(change_val_operator="="))
             | (~Q(change_val=change_val) & Q(change_val_operator="!="))
         )
@@ -41441,13 +45079,13 @@ class DuelObj:
             variable_name = variable_name
         )
         timing = timing.filter(
-            (Q(chain__gte=virtual_chain) & Q(chain_kind=0)) | 
-            (Q(chain__lte=virtual_chain) & Q(chain_kind=1)) | 
+            (Q(chain__lte=virtual_chain) & Q(chain_kind=0)) | 
+            (Q(chain__gte=virtual_chain) & Q(chain_kind=1)) | 
             (Q(chain=virtual_chain) & Q(chain_kind=2))  
         )
         timing3 = timing3.filter(
-            (Q(chain__gte=virtual_chain) & Q(chain_kind=0)) | 
-            (Q(chain__lte=virtual_chain) & Q(chain_kind=1)) | 
+            (Q(chain__lte=virtual_chain) & Q(chain_kind=0)) | 
+            (Q(chain__gte=virtual_chain) & Q(chain_kind=1)) | 
             (Q(chain=virtual_chain) & Q(chain_kind=2))  
         )
         org_monster_id = monster["det"]["id"]
@@ -41918,8 +45556,8 @@ class DuelObj:
         else:
             cost_or_effect = 0
         timing = TriggerTimingChangeVal.objects.filter(
-            (Q(change_val__gte=change_val) & Q(change_val_operator="<="))
-            | (Q(change_val__lte=change_val) & Q(change_val_operator=">="))
+            (Q(change_val__gte=change_val) & Q(change_val_operator=">="))
+            | (Q(change_val__lte=change_val) & Q(change_val_operator="<="))
             | (Q(change_val=change_val) & Q(change_val_operator="="))
             | (~Q(change_val=change_val) & Q(change_val_operator="!="))
         )
@@ -41942,13 +45580,13 @@ class DuelObj:
         timing = timing.filter(Q(cost_or_effect=cost_or_effect) | Q(cost_or_effect=0))
         timing3 = timing3.filter(Q(cost_or_effect=cost_or_effect) | Q(cost_or_effect=0))
         timing = timing.filter(
-            (Q(chain__gte=virtual_chain) & Q(chain_kind=0)) | 
-            (Q(chain__lte=virtual_chain) & Q(chain_kind=1)) | 
+            (Q(chain__lte=virtual_chain) & Q(chain_kind=0)) | 
+            (Q(chain__gte=virtual_chain) & Q(chain_kind=1)) | 
             (Q(chain=virtual_chain) & Q(chain_kind=2))  
         )
         timing3 = timing3.filter(
-            (Q(chain__gte=virtual_chain) & Q(chain_kind=0)) | 
-            (Q(chain__lte=virtual_chain) & Q(chain_kind=1)) | 
+            (Q(chain__lte=virtual_chain) & Q(chain_kind=0)) | 
+            (Q(chain__gte=virtual_chain) & Q(chain_kind=1)) | 
             (Q(chain=virtual_chain) & Q(chain_kind=2))  
         )
         timings = timing.all()
@@ -42367,8 +46005,8 @@ class DuelObj:
                 .filter(clear_flag=False)
             )
             timings = timings.filter(
-            (Q(chain__gte=virtual_chain) & Q(chain_kind=0)) | 
-            (Q(chain__lte=virtual_chain) & Q(chain_kind=1)) | 
+            (Q(chain__lte=virtual_chain) & Q(chain_kind=0)) | 
+            (Q(chain__gte=virtual_chain) & Q(chain_kind=1)) | 
             (Q(chain=virtual_chain) & Q(chain_kind=2))  
         )
             if duel.is_ai is False:
@@ -42389,8 +46027,8 @@ class DuelObj:
                 .filter(clear_flag=False)
             )
             timings = timings.filter(
-            (Q(chain__gte=virtual_chain) & Q(chain_kind=0)) | 
-            (Q(chain__lte=virtual_chain) & Q(chain_kind=1)) | 
+            (Q(chain__lte=virtual_chain) & Q(chain_kind=0)) | 
+            (Q(chain__gte=virtual_chain) & Q(chain_kind=1)) | 
             (Q(chain=virtual_chain) & Q(chain_kind=2))  
         )
             if duel.is_ai is False:
@@ -42598,8 +46236,8 @@ class DuelObj:
                 .filter(clear_flag=True)
             )
             timings = timings.filter(
-            (Q(chain__gte=virtual_chain) & Q(chain_kind=0)) | 
-            (Q(chain__lte=virtual_chain) & Q(chain_kind=1)) | 
+            (Q(chain__lte=virtual_chain) & Q(chain_kind=0)) | 
+            (Q(chain__gte=virtual_chain) & Q(chain_kind=1)) | 
             (Q(chain=virtual_chain) & Q(chain_kind=2))  
         )
             if duel.is_ai is False:
@@ -42620,8 +46258,8 @@ class DuelObj:
                 .filter(clear_flag=True)
             )
             timings = timings.filter(
-            (Q(chain__gte=virtual_chain) & Q(chain_kind=0)) | 
-            (Q(chain__lte=virtual_chain) & Q(chain_kind=1)) | 
+            (Q(chain__lte=virtual_chain) & Q(chain_kind=0)) | 
+            (Q(chain__gte=virtual_chain) & Q(chain_kind=1)) | 
             (Q(chain=virtual_chain) & Q(chain_kind=2))  
         )
             if duel.is_ai is False:
@@ -42916,6 +46554,9 @@ class DuelObj:
         timing = timing.filter(Q(cost_or_effect=cost_or_effect) | Q(cost_or_effect=0))
         timing2 = timing2.filter(Q(cost_or_effect=cost_or_effect) | Q(cost_or_effect=0))
         timing3 = timing3.filter(Q(cost_or_effect=cost_or_effect) | Q(cost_or_effect=0))
+        from_x = 0
+        from_y = 0
+        from_deck_id = 0
         if place_from == "deck":
             timing = timing.filter(
                 ~(Q(exclude_from_deck__isnull=True) & Q(exclude_from_place_kind=3))
@@ -43066,18 +46707,18 @@ class DuelObj:
             to_place_kind = 0
         timing = timing.filter(Q(to_place_kind=to_place_kind) | Q(to_place_kind=0))
         timing.filter(
-            (Q(chain__gte=virtual_chain) & Q(chain_kind=0)) | 
-            (Q(chain__lte=virtual_chain) & Q(chain_kind=1)) | 
+            (Q(chain__lte=virtual_chain) & Q(chain_kind=0)) | 
+            (Q(chain__gte=virtual_chain) & Q(chain_kind=1)) | 
             (Q(chain=virtual_chain) & Q(chain_kind=2)) ) 
         timing2 = timing2.filter(Q(to_place_kind=to_place_kind) | Q(to_place_kind=0))
         timing2.filter(
-            (Q(chain__gte=virtual_chain) & Q(chain_kind=0)) | 
-            (Q(chain__lte=virtual_chain) & Q(chain_kind=1)) | 
+            (Q(chain__lte=virtual_chain) & Q(chain_kind=0)) | 
+            (Q(chain__gte=virtual_chain) & Q(chain_kind=1)) | 
             (Q(chain=virtual_chain) & Q(chain_kind=2)) ) 
         timing3 = timing3.filter(Q(to_place_kind=to_place_kind) | Q(to_place_kind=0))
         timing3.filter(
-            (Q(chain__gte=virtual_chain) & Q(chain_kind=0)) | 
-            (Q(chain__lte=virtual_chain) & Q(chain_kind=1)) | 
+            (Q(chain__lte=virtual_chain) & Q(chain_kind=0)) | 
+            (Q(chain__gte=virtual_chain) & Q(chain_kind=1)) | 
             (Q(chain=virtual_chain) & Q(chain_kind=2)) ) 
         if place_to == "deck":
             timing = timing.filter(
@@ -43289,6 +46930,16 @@ class DuelObj:
                 if not num:
                     continue
                 for num2 in num:
+                    if timing.win_or_lose == 1:
+                        self.win_the_game_user(user)
+                        return;
+                    elif timing.win_or_lose == 2:
+                        if user == 1:
+                            other_user = 2
+                        else:
+                            other_user = 1
+                        self.win_the_game_user(other_user)
+                        return;
                     if timing.trigger.strategy != "":
                         if timing.trigger.strategy in move_to["variables"]:
                             tmp_variable = move_to["variables"][timing.trigger.strategy]
@@ -43325,6 +46976,16 @@ class DuelObj:
                     tmp["strategy_value"] = value if timing.trigger.strategy_up_or_down == 0 else -value
                     trigger_waiting.append(tmp)
             else:
+                if timing.win_or_lose == 1:
+                    self.win_the_game_user(user)
+                    return;
+                elif timing.win_or_lose == 2:
+                    if user == 1:
+                        other_user = 2
+                    else:
+                        other_user = 1
+                    self.win_the_game_user(other_user)
+                    return;
                 if timing.trigger.strategy != "":
                     if timing.trigger.strategy in move_to["variables"]:
                         tmp_variable = move_to["variables"][timing.trigger.strategy]
@@ -43386,11 +47047,11 @@ class DuelObj:
                         monster_det = monster_relate["det"]
                         monster_id = self.get_monster_id(
                            monster_det,
-                           monster_det["place"],
+                           monster_relate["place"],
                            monster_det["owner"],
-                           monster_det["deck_id"],
-                           monster_det["x"],
-                           monster_det["y"],
+                           monster_relate["deck_id"],
+                           monster_relate["x"],
+                           monster_relate["y"],
                            monster_det["owner"],
                        )
                         if timing.monster_relate_except_flag is True:
@@ -43515,6 +47176,16 @@ class DuelObj:
                             if num == 0:
                                 continue
                         tmp = {}
+                        if timing.win_or_lose == 1:
+                            self.win_the_game_user(user)
+                            return;
+                        elif timing.win_or_lose == 2:
+                            if user == 1:
+                                other_user = 2
+                            else:
+                                other_user = 1
+                            self.win_the_game_user(other_user)
+                            return;
                         if timing.trigger.strategy != "":
                             if timing.trigger.strategy in move_to["variables"]:
                                 tmp_variable = move_to["variables"][timing.trigger.strategy]
@@ -43652,6 +47323,16 @@ class DuelObj:
                                     continue
                                 '''
                                 monster = rel_card["monster"]
+                                if timing.win_or_lose == 1:
+                                    self.win_the_game_user(user)
+                                    return;
+                                elif timing.win_or_lose == 2:
+                                    if user == 1:
+                                        other_user = 2
+                                    else:
+                                        other_user = 1
+                                    self.win_the_game_user(other_user)
+                                    return;
                                 if timing.trigger.strategy != "":
                                     if timing.trigger.strategy in monster["det"]:
                                         tmp_variable = monster["det"]["variables"][timing.trigger.strategy]
@@ -43686,6 +47367,16 @@ class DuelObj:
                                 tmp["strategy_value"] = value if timing.trigger.strategy_up_or_down == 0 else -value
                                 trigger_waiting.append(tmp)
                 else:
+                    if timing.win_or_lose == 1:
+                        self.win_the_game_user(user)
+                        return;
+                    elif timing.win_or_lose == 2:
+                        if user == 1:
+                            other_user = 2
+                        else:
+                            other_user = 1
+                        self.win_the_game_user(other_user)
+                        return;
                     if timing.trigger.strategy != "":
                         if timing.trigger.strategy in move_to["variables"]:
                             tmp_variable = move_to["variables"][timing.trigger.strategy]
@@ -43827,8 +47518,12 @@ class DuelObj:
 
             x = trigger_waiting["x"]
             y = trigger_waiting["y"]
-            from_x = trigger_waiting["x"]
-            from_y = trigger_waiting["y"]
+            if(move_from is None):
+                from_x = trigger_waiting["x"]
+                from_y = trigger_waiting["y"]
+            else:
+                from_x = move_from["x"]
+                from_y = move_from["y"]
             monster_from = {}
             monster_from["x"] = from_x
             monster_from["y"] = from_y
@@ -43951,13 +47646,13 @@ class DuelObj:
                        prompt_monster = monster_relate
             duel.in_trigger_waiting = True
             duel.in_cost_force = True
-            if (trigger.force == 0 or( duel.is_ai is True and user == 2)) and duel.force == 0 :
+            if trigger.force == 0 and (duel.force == 0 and (user == 1  or duel.is_ai is False)):
                 if duel.is_ai is False or user == 1:
                     if user == duel.user_turn:
                         duel.ask = 1
                     else:
                         duel.ask = 2
-                else:
+                elif user == 2:
                     self.answer_ai()
                 if trigger.trigger_prompt == "" and (duel.is_ai is False or user == 1):
                     duel.trigger_name = prompt_monster["monster_name"] + "の効果を使用しますか？"
@@ -44007,7 +47702,7 @@ class DuelObj:
                     y_exist,
                     who=who
                 )
-                if duel.force == 2 and trigger.force == 0 and (duel.is_ai is False or user == 1) :
+                if duel.force == 2 :
                     duel.force = 0
             else:
                 flag = True
@@ -44461,8 +48156,8 @@ class DuelObj:
                     if place_unique_id == user_decks[index]["place_unique_id"]:
                         if "rel" not in user_decks[index]:
                             user_decks[index]["rel"] = {}
-                        if relation_kind not in user_decks[x][y]["rel"]:
-                            user_decks[index][relation_kind] = []
+                        if relation_kind not in user_decks[index]["rel"]:
+                            user_decks[index]["rel"][relation_kind] = []
                         tmp2 = {}
                         tmp2["monster"] = copy.deepcopy(monster)
                         tmp2["name"] = relation_name
@@ -44520,8 +48215,8 @@ class DuelObj:
                         if place_unique_id == user_graves[index]["place_unique_id"]:
                             if "rel" not in user_graves[index]:
                                 user_graves[index]["rel"] = {}
-                            if relation_kind not in user_graves[x][y]["rel"]:
-                                user_graves[index][relation_kind] = []
+                            if relation_kind not in user_graves[index]["rel"]:
+                                user_graves[index]["rel"][relation_kind] = []
                             tmp2 = {}
                             tmp2["monster"] = copy.deepcopy(monster)
                             tmp2["name"] = relation_name
@@ -44579,8 +48274,8 @@ class DuelObj:
                         if place_unique_id == user_hands[index]["place_unique_id"]:
                             if "rel" not in user_hands[index]:
                                 user_hands[index]["rel"] = {}
-                            if relation_kind not in user_hands[x][y]["rel"]:
-                                user_hands[index][relation_kind] = []
+                            if relation_kind not in user_hands[index]["rel"]:
+                                user_hands[index]["rel"][relation_kind] = []
                             tmp2 = {}
                             tmp2["monster"] = copy.deepcopy(monster)
                             tmp2["name"] = relation_name
@@ -45962,7 +49657,7 @@ class DuelObj:
                     tmp2["y"] = y
                     tmp2["strategy_value"] = 0
                     tmp2["place_unique_id"] = None
-                else:
+                elif field[x][y]["det"] is not None and whether_monster_flag  :
                     if strategy != "": 
                         if strategy in field[x][y]["det"]["variables"]:
                             tmp_variable = field[x][y]["det"]["variables"][strategy]
@@ -45990,11 +49685,11 @@ class DuelObj:
                         monster_effect_det, field[x][y]["det"], user, effect_kind, 1, "field", 0, x, y
                     ):
                         flag = False
+                else:
+                    flag= False
 
                 if flag is True:
                     return_value.append(tmp2)
-        pprint(strategy_up_or_down)
-        pprint(return_value)
         return_value = sorted(return_value, key=lambda x: x["strategy_value"], reverse=strategy_up_or_down)
         return_value3 = []
         for return_value2 in return_value:
@@ -46539,11 +50234,165 @@ class DuelObj:
             else:
                 trigger_before = self.triggers[str(chain_det)]
             chain_kind = trigger_before.trigger_kind
+            if chain_kind == "":
+                return True
             chain_kinds = chain_kind.split("_")
-            for chain_kind in chain_kinds:
-                if chain_kind not in whether_kind:
+            for whether_kind_det in whether_kind:
+                if whether_kind_det in chain_kinds:
                     return False
 
+        return True
+
+    def answer_ai_fusion_material(self,monster_effect_wrapper,strategy,strategy_up_or_down):
+        duel = self.duel
+        mess = self.mess 
+        chain_user = json.loads(duel.chain_user)
+        effect_user = chain_user[str(duel.chain - 1)]
+        if str(duel.chain - 1) not in mess:
+            mess[str(duel.chain - 1)] = {}
+                
+        if "fusion" not in mess[str(duel.chain - 1)]:
+            return False
+        place1 = mess[str(duel.chain - 1)]["fusion"]
+        place = place1[0]
+        fusion_id = place["fusion"]
+        as_monster_effect = "material1"
+        if not as_monster_effect in mess[str(duel.chain - 1)]:
+            mess[str(duel.chain-1)][as_monster_effect] = []
+        trigger = Trigger.objects.get(id=duel.current_trigger)
+        min_equation_number1 = 0
+        min_equation_number2 = 0
+        min_equation_number3 = 0
+        trigger_fusion1 = json.loads(trigger.fusion1)
+        min_equation_number1 = trigger_fusion1["monster"][0]["min_equation_number"]
+        if trigger.instead_condition:
+            instead_condition = json.loads(trigger.instead_condition)
+            if self.check_monster_effect_condition(
+                    instead_condition, 0, 2):
+                instead = True
+            else:
+                instead = False
+        else:
+            instead = True
+        if(trigger.instead1 and instead is True):
+            instead1 = json.loads(trigger.instead1)
+            min_equation_number1_instead = instead2["monster"][0]["min_equation_number"]
+            max_equation_number1_instead = instead2["monster"][0]["max_equation_number"]
+        else:
+            instead1 = None
+            min_equation_number1_instead = 0
+            max_equation_number1_instead = 1000
+        if(trigger.instead2 and instead is True):
+            instead2 = json.loads(trigger.instead2)
+            min_equation_number2_instead = instead2["monster"][0]["min_equation_number"]
+            max_equation_number2_instead = instead2["monster"][0]["max_equation_number"]
+        else:
+            instead2 = None
+            min_equation_number2_instead = 0
+            max_equation_number2_instead = 1000
+        if(trigger.instead3 and instead is True):
+            instead3 = json.loads(trigger.instead3)
+            min_equation_number3_instead = instead3["monster"][0]["min_equation_number"]
+            max_equation_number3_instead = instead3["monster"][0]["max_equation_number"]
+        else:
+            instead3 = None
+            min_equation_number3_instead = 0
+            max_equation_number3_instead = 1000
+        if(trigger.fusion2):
+            trigger_fusion2 = json.loads(trigger.fusion2)
+            min_equation_number2 = trigger_fusion2["monster"][0]["min_equation_number"]
+
+        else:
+            trigger_fusion2 = None
+        if(trigger.fusion3):
+            trigger_fusion3 = json.loads(trigger.fusion3)
+            min_equation_number3_instead = instead3["monster"][0]["min_equation_number"]
+            max_equation_number3_instead = instead3["monster"][0]["max_equation_number"]
+
+        else:
+            trigger_fusion3 = None
+        monster_id = self.get_monster_id(
+            place["det"], place["place"], place["det"]["owner"],place["deck_id"],place["x"], place["y"], place["mine_or_other"])
+        fusion = Fusion.objects.filter(id=fusion_id).get()
+        if fusion is None:
+            return False
+        fusion1 = json.loads(fusion.fusion1)
+
+        min_equation_number1 = max(min_equation_number1,fusion1["monster"][0]["min_equation_number"])
+        if(fusion.fusion2):
+            fusion2 = json.loads(fusion.fusion2)
+
+            min_equation_number2 = max(min_equation_number2,fusion2["monster"][0]["min_equation_number"])
+        else:
+            fusion2 = None
+        if(fusion.fusion3):
+            fusion3 = json.loads(fusion.fusion3)
+
+            min_equation_number3 = max(min_equation_number3,fusion3["monster"][0]["min_equation_number"])
+        else:
+            fusion3 = None
+        tmp_ary = self.get_fusion_material(trigger.fusion_monster, effect_user, trigger,1,1)
+        ary = []
+        ary.append(tmp_ary[0]["monster"])
+        ary.append(tmp_ary[1]["monster"])
+        ary.append(tmp_ary[2]["monster"])
+        result = []
+        tmp = {}
+        tmp["min"] = tmp_ary[0]["min"]
+        tmp["max"] = tmp_ary[0]["max"]
+        tmp["monster"] = (sorted(ary[0], key=lambda x:(x["instead"], x["strategy_value"]), reverse=strategy_up_or_down))
+        result.append(tmp)
+        tmp = {}
+        tmp["min"] = tmp_ary[1]["min"]
+        tmp["max"] = tmp_ary[1]["max"]
+        tmp["monster"] = (sorted(ary[1], key=lambda x:(x["instead"], x["strategy_value"]), reverse=strategy_up_or_down))
+        result.append(tmp)
+        tmp = {}
+        tmp["min"] = tmp_ary[2]["min"]
+        tmp["max"] = tmp_ary[2]["max"]
+        tmp["monster"] = (sorted(ary[2], key=lambda x: (x["instead"],x["strategy_value"]), reverse=strategy_up_or_down))
+        result.append(tmp)
+        flag = False
+        ary = self.fusion_cross_check(result[0],result[1],result[2],min_equation_number1,min_equation_number2,min_equation_number3,1,min_equation_number1_instead,min_equation_number2_instead,min_equation_number3_instead,max_equation_number1_instead,max_equation_number2_instead,max_equation_number3_instead)
+        if(ary[0]):
+            as_monster_effect = "material1"
+            if not as_monster_effect in mess[str(duel.chain - 1)]:
+                mess[str(duel.chain-1)][as_monster_effect] = []
+            mess[str(duel.chain - 1)][
+            "material1"
+            ].extend(ary[0])
+        if(ary[1]):
+            as_monster_effect = "material2"
+            if not as_monster_effect in mess[str(duel.chain - 1)]:
+                mess[str(duel.chain-1)][as_monster_effect] = []
+            mess[str(duel.chain - 1)][
+            "material2"
+            ].extend(ary[1])
+        if(ary[2]):
+            as_monster_effect = "material3"
+            if not as_monster_effect in mess[str(duel.chain - 1)]:
+                mess[str(duel.chain-1)][as_monster_effect] = []
+            mess[str(duel.chain - 1)][
+            "material3"
+            ].extend(ary[2])
+        self.mess = mess
+        duel.ask = 0
+        return True
+    def answer_ai_fusion(self,monster_effect_wrapper,strategy,strategy_up_or_down):
+        duel = self.duel
+        mess = self.mess 
+        user = 2
+        as_monster_effect = "fusion"
+        if not as_monster_effect in mess[str(duel.chain - 1)]:
+            mess[str(duel.chain-1)][as_monster_effect] = []
+        trigger = Trigger.objects.get(id=duel.current_trigger)
+        monsters = self.get_fusion_monster(trigger.fusion_monster, user, trigger,0,1)
+        result = sorted(monsters, key=lambda x: x["strategy_value"], reverse=strategy_up_or_down)
+        mess[str(duel.chain - 1)][
+            as_monster_effect
+        ].append(result[0])
+        self.mess = mess
+        duel.ask = 0
         return True
 
     def answer_ai(self,strategy="",strategy_up_or_down=0):
@@ -46692,7 +50541,10 @@ class DuelObj:
                 return 
             elif monster_effect_det2.monster_effect_val == 16 or monster_effect_det2.monster_effect_val == 26 or monster_effect_det2.monster_effect_val == 16 or monster_effect_det2.monster_effect_val == 67 :
                 return
-            monster_effect_text_org = json.loads(monster_effect_det2.monster_effect)
+            if monster_effect_det2.monster_effect:
+                monster_effect_text_org = json.loads(monster_effect_det2.monster_effect)
+            else:
+                monster_effect_text_org  = []
             if monster_effect_det2.monster_effect_val == 28 or monster_effect_det2.monster_effect_val == 27 or monster_effect_det2.monster_effect_val == 64 or monster_effect_det2.monster_effect_val == 63:
                 chain_variable_det = json.loads(duel.chain_variable)
                 chain_variable_name = monster_effect_text_org["chain_variable"]
@@ -46740,6 +50592,10 @@ class DuelObj:
                     ask_org = 2
                 else:
                     ask_org = 1
+            elif monster_effect_det2.monster_effect_val == 76:
+                return self.answer_ai_fusion(monster_effect,strategy,strategy_up_or_down)
+            elif monster_effect_det2.monster_effect_val == 77:
+                return self.answer_ai_fusion_material(monster_effect,strategy,strategy_up_or_down)
             elif monster_effect_det2.monster_effect_val == 5:
                 if self.user != effect_user:
                     other_user_flag = True
@@ -47824,6 +51680,10 @@ class DuelObj:
         det = json.loads(monster_effect_text)
         as_monster_effect = det["each"]
         each_val = det["val"]
+        if "del" in det:
+            del_ary = det["del"].split(",")
+        else:
+            del_ary = []
         max = det["max"]
         if int(max) <= duel.each:
             duel.each = 0
@@ -47865,6 +51725,9 @@ class DuelObj:
             return False
         each = place1[duel.each]
         duel.each += 1
+        for delete_mess in del_ary:
+            if delete_mess in tmp_mess[str(duel.chain-1)]:
+                del tmp_mess[str(duel.chain-1)][delete_mess]
         tmp_mess[str(duel.chain-1)][each_val] = []
         tmp_mess[str(duel.chain-1)][each_val].append( each)
         self.mess = tmp_mess
@@ -47897,6 +51760,21 @@ class DuelObj:
                 return True
             once_per_turns = duel.once_per_turn_exist2.split("_")
             if pid in once_per_turns:
+                return False
+        return True
+    def check_once_per_duel(self,trigger,user):
+        duel = self.duel
+        if user == 1:
+            if duel.once_per_duel1 == "":
+                return True
+            once_per_duels = duel.once_per_duel1.split("_")
+            if str(trigger.id) in once_per_duels:
+                return False
+        else:    
+            if duel.once_per_duel2 == "":
+                return True
+            once_per_duels = duel.once_per_duel2.split("_")
+            if str(trigger.id) in once_per_duels:
                 return False
         return True
     def check_once_per_turn(self,trigger,user):
@@ -47961,6 +51839,7 @@ class DuelObj:
             if str(trigger.id)+"*"+pid in once_per_turns:
                 return False
         return True
+    '''
     def check_once_per_turn_monster_group(self,trigger,user,monster):
         duel = self.duel
         pid = monster["det"]["place_unique_id"]
@@ -47979,6 +51858,8 @@ class DuelObj:
             if str(trigger.once_per_turn_group)+"*"+pid in once_per_turns:
                 return False
         return True
+    '''
+    ''' askがなかった場合 '''
     def do_next(self,monster_effect,user):
         if monster_effect.if_not_to_2 is False:
             if monster_effect.pac:
@@ -48001,20 +51882,20 @@ class DuelObj:
     def do_cost_next(self,cost,user):
         if cost.if_not_to_2 is False:
             if cost.pac:
-                return self._pac(cost.pac)
+                return self._pac_cost(cost.pac)
             else:
-                if cost.cost_next is not None:
+                if cost.cost_next:
                     return cost.cost_next
                 else:
-                    return self.pop_pac(user)
+                    return self.pop_pac_cost(user)
         else:
             if cost.pac2:
-                return self._pac(cost.pac2)
+                return self._pac_cost(cost.pac2)
             else:
                 if cost.cost_next2 is not None:
                     return cost.cost_next2
                 else:
-                    return self.pop_pac(user)
+                    return self.pop_pac_cost(user)
 
 
     def timing_auto(self):

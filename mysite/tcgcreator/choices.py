@@ -245,7 +245,7 @@ def choices_det(duelobj, trigger_id, request, user):
         other_user = 1
     triggers = Trigger.objects.all()
     trigger = triggers.get(id=trigger_id)
-    if trigger is not None and duelobj.check_launch_trigger( trigger, duelobj.duel.phase, duelobj.duel.user_turn, user, other_user, user):
+    if trigger is not None and duelobj.check_launch_trigger( trigger, duelobj.duel.phase, duelobj.duel.user_turn, user, other_user, user,fusion = 1):
         return duelobj.invoke_trigger(trigger, "", "", "", duelobj.user, "")
     else:
         return -1

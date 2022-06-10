@@ -20,6 +20,14 @@
 		$("#id_pac").after("<input type=\"button\" onclick=\"getLastPacNextSpecify('id_pac')\" value=\"最新\">");
 		// $("#id_trigger_cost").after("<input type=\"button\" onclick=\"getTriggerCost()\" value=\"追加\">");
 		$("#id_trigger_monster").after("<input type=\"button\" onclick=\"getConditionKind('trigger_monster',0,100,0)\" value=\"追加\">");
+		$("#id_fusion_monster").after("<input type=\"button\" onclick=\"getConditionKind('fusion_monster',0,100,0)\" value=\"追加\">");
+		$("#id_instead_condition").after("<input type=\"button\" onclick=\"getConditionKind('instead_condition',0,100,0)\" value=\"追加\">");
+		$("#id_fusion1").after("<input type=\"button\" onclick=\"getConditionKind('fusion1',0,100,0)\" value=\"追加\">");
+		$("#id_fusion2").after("<input type=\"button\" onclick=\"getConditionKind('fusion2',0,100,0)\" value=\"追加\">");
+		$("#id_fusion3").after("<input type=\"button\" onclick=\"getConditionKind('fusion3',0,100,0)\" value=\"追加\">");
+		$("#id_instead1").after("<input type=\"button\" onclick=\"getConditionKind('instead1',0,100,0)\" value=\"追加\">");
+		$("#id_instead2").after("<input type=\"button\" onclick=\"getConditionKind('instead2',0,100,0)\" value=\"追加\">");
+		$("#id_instead3").after("<input type=\"button\" onclick=\"getConditionKind('instead3',0,100,0)\" value=\"追加\">");
 		$.ajax({
    'type': "POST",
    'url': "/tcgcreator/get_effect_kind/",

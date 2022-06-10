@@ -34,7 +34,7 @@ a{
 	color:#880000;
 }
 </style>
-<script type="text/javascript" src="{% static "tcgcreator/js/jquery.min.js" %}"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
 <script type="text/javascript">
 	function changeDeck(val){
 		location.href="./?deck_group="+val	;
@@ -48,7 +48,7 @@ a{
 	}
 	function createNewDeck(){
 		deck_name = $("#deck_name").val();
-		location.href="./?deck_name=デッキ";
+		location.href="./?deck_name="+deck_name
 	}
 	
 $(function(){

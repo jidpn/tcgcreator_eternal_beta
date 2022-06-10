@@ -2336,7 +2336,8 @@ success: function(data){
                         if(user == 1){
                             $("#"+x+"_"+y).html(result);
                         }else{
-                            $("#"+x+"_"+({{field_y}}-y-1)).html(result);
+				
+                            $("#"+x+"_"+({{field_y}}-y-1)).html(result+x+y);
                         }
                     }else{
                         if(user == 1){

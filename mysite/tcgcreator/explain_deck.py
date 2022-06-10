@@ -96,4 +96,4 @@ def explain_deck(request):
                     return HttpResponse("error")
         i += 1
 
-    return render(request, "cell/explain_deck.html", {"decks_obj": tmp})
+    return render(request, "tcgcreator/explain_deck.html", {"decks_obj": tmp})

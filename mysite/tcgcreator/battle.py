@@ -83,7 +83,7 @@ def battle(request, room_number):
 
     timing_whether_show = list(Timing.objects.filter(timing_whether_show=1).all())
     kind_whether_show = list(MonsterEffectKind.objects.filter(monster_effect_show=1).all())
-    variables = GlobalVariable.objects.order_by("-priority").filter(show=1)
+    variables = GlobalVariable.objects.order_by("-priority")
     virtual_variables = VirtualVariable.objects.order_by("-priority").filter(show=1)
     fields = Field.objects.all()
     field_size = FieldSize.objects.first()

@@ -5,8 +5,13 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <title>デュエル場</title>
-<script type="text/javascript" src="{% static 'tcgcreator/js/jquery.min.js' %}"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
 <script type="text/javascript">
+
+	$(document).ready(function(){
+		  $("#wrap").fadeIn("slow");;
+	});
         function enterRoom1(){
                 {% if guest_flag is False %}
                     var deck_id = $("#deck_id").val();
@@ -78,43 +83,29 @@
 table td{
 	width:10%;
 	height:100px;
+	background-color:#FFF;
 	border:1px solid #000000;
 }
-body {
-    background-color: #FFFFFF;
+#wrap{
+    background-image:url({% static 'tcgcreator/img/background'%}/{{Background}});
+    background-size: 100% ;
     margin-right: auto;
     margin-left: auto;
     margin-top: 0px;
     font-size:12px;
     width: 100%;
+    height:100%;
     color:#000000;
-}
-#wrap{
-    width:100%;
-    height:768px;
-    margin:0 auto;
-    position:relative;
-    background:url(img/aozora.jpg) ;
-}
-#wrap01{
-    width:100%;
-    height:768px;
-    margin:0 auto;
-    position:relative;
-    background-color:rgba(255,255,255,0.95);/*background-color:rgbaを使用すると、現在の要素だけが透明になる。*/
-}
-td{
-	width:300px;
-}
-a{
-	color:#880000;
+    display:none;
+    -webkit-animation: anime 36s 0s infinite;
+    animation: anime 36s 0s infinite;
 }
 </style>
 </head>
 <body>
 <div id="wrap">
 <div id="wrap01" style="text-align:center">
-<h1 style="text-align:center">
+<h1 style="width:30%;margin:auto;text-align:center;background-color:white">
 デュエル場
 </h1>
 <table style="text-align:center">
@@ -124,6 +115,7 @@ a{
 <td>部屋3 {{room_text3 |linebreaksbr }}{% if wait_kind3 == 0 %}　<a href="javascript:enterRoom3()">入室</a>{%if Config.ai and ai3%}<a href="javascript:aiEnterRoom3()">NPCと対戦</a>{% endif%}{% endif %}{% if watch_3 == 1 %}　<a href="{% url "tcgcreator:watch3" %}">観戦</a>{% endif %}{% if reenter3 == 1 %}　<a href="{% url "tcgcreator:battle3" %}">再入室</a>{% endif %}</td>
 </tr>
 </table>
+<div style="background-color:FFF">
 {% if guest_flag is False %}
 デッキ <select id="deck_id" name="deck_id" >
 {% for user_deck_groups_tmp in  UserDeckGroups %}
@@ -156,6 +148,7 @@ NPCデッキ <select id="ai_id" name="ai_id" >
 
 <a style="font-size:16px;" href="{% url 'tcgcreator:makedeck' %}">デッキ構築</a>
 <a style="font-size:16px;" href="{% url 'tcgcreator:index' %}">戻る</a>
+</div>
 </div>
 </div>
 </body>

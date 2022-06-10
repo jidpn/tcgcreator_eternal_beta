@@ -29,6 +29,7 @@
 		        break;
 			case "66":
 			case "67":
+			case "79":
 				$("#id_monster_effect").after("<input type=\"button\" onclick=\"getMultipleChoice('monster_effect')\" value=\"追加\"><input type=\"button\" onclick=\"deleteMonsterEffect(0)\" value=\"削除\"><br>");
 
                             break;
@@ -210,6 +211,7 @@
 			break;
 			case "66":
 			case "67":
+			case "79":
 				$("#id_monster_effect").after("<input type=\"button\" onclick=\"getMultipleChoice('monster_effect')\" value=\"追加\"><input type=\"button\" onclick=\"deleteMonsterEffect(0)\" value=\"削除\"><br>");
 
                             break;
@@ -221,6 +223,8 @@
 				case "3":
 				case "4":
 				case "44":
+				case "76":
+				case "77":
 				$("#id_monster_effect").after("<input type=\"button\" onclick=\"getMonsterEffectMove('monster_effect')\" value=\"追加\"><input type=\"button\" onclick=\"deleteMonsterEffect(0)\" value=\"削除\"><br>");
 				$("#monster_who").hide();
 				break;
@@ -242,6 +246,7 @@
 			case "53":
 			case "49":
 			case "2":
+			case "80":
 			$("#id_monster_effect").after("<input type=\"button\" onclick=\"getVariableChange(0)\" value=\"追加\"><input type=\"button\" onclick=\"deleteVariableChange(0)\" value=\"削除\"><br>");
 				break;
 			case "29":
