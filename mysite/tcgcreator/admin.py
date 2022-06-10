@@ -342,6 +342,7 @@ class EternalEffectAdmin(admin.ModelAdmin):
     save_as = True
     change_form_template = "admin/tcgcreator/eternal_effect.html"
     search_fields = ["eternal_name"]
+    list_filter = ['eternal_effect_val']
 
     class Media:
         js = [

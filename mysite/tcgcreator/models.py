@@ -1585,6 +1585,7 @@ class Battle(models.Model):
 
 
 class Duel(models.Model):
+    id = models.IntegerField(primary_key=True)
     user_deck1 = models.ForeignKey(
         UserDeckChoice, default=None, blank=True, null=True, on_delete=models.SET_NULL,related_name = "user_deck1"
     )

@@ -1063,6 +1063,8 @@ class DuelObj:
             persist,
             val_name,
         )
+        if tmp_value is True:
+            tmp_value = 0
         if self.is_float(return_value) and self.is_float(tmp_value) and tmp_value != 0.0:
             return_value = float(return_value) + float(tmp_value)
         return return_value
@@ -8940,6 +8942,8 @@ class DuelObj:
         if self.duel.chain_det_trigger != "":
             chain_det_trigger_json = json.loads(self.duel.chain_det_trigger)
         if trigger.pac:
+            pprint("AAA")
+            pprint(trigger.pac)
             effect = self._pac(trigger.pac, org_chain)
         else:
             effect = trigger.next_effect
@@ -9217,11 +9221,7 @@ class DuelObj:
                 pass
         else:
             self.sound_effect = ""
-        if  user == 1:
-            self.effect = duel.effect
-        else:
-            self.effect = duel.effect2
-        duel.effect_flag = 0
+        self.effect = duel.effect
         self.log_initial = duel.current_log
         self.current_log = ""
         self.in_execute = duel.in_execute
@@ -9269,12 +9269,11 @@ class DuelObj:
         duel = self.duel
         game_name = self.config.game_name
         pwd = os.path.dirname(__file__)
-        if user == 1:
-            duel.effect = ""
-            duel.effect2 += self.effect
+        if duel.is_ai is True and duel.user_turn == 2:
+            duel.effect = self.effect
         else:
-            duel.effect += self.effect
-            duel.effect2 = ""
+            duel.effect = ""
+
         if duel.cost_det is None:
             duel.cost_det = 0
         if self.config.cheat is True or self.config.detail_log is True or (self.turn_changed is True and self.config.initial_turn_log is True):
@@ -9304,6 +9303,7 @@ class DuelObj:
         duel.time_1 = time()
         duel.time_2 = time()
         duel.save()
+        pprint(duel.chain_det)
         if self.config.cheat is True or self.config.detail_log is True or (self.turn_changed is True and self.config.initial_turn_log is True):
             self.log_write()
             self.log.close()
@@ -12255,6 +12255,8 @@ class DuelObj:
 
         trigger_waiting = json.loads(self.duel.trigger_waiting)
         tmp = None
+        pprint("RET")
+        pprint(self.duel.in_pac)
         while (
             self.duel.chain != 0
             and self.duel.ask == 0
@@ -12294,6 +12296,7 @@ class DuelObj:
         duel = self.duel
         self.tmp_chain = str(duel.chain)
         chain_det = json.loads(self.duel.chain_det)
+        pprint(chain_det)
         chain_user_ary = json.loads(self.duel.chain_user)
         current_chain = chain_det[str(self.duel.chain - 1)]
         chain_user = chain_user_ary[str(self.duel.chain - 1)]
@@ -12326,9 +12329,13 @@ class DuelObj:
             monster_effect, decks, graves, kinds
         )
         pprint(monster_effect)
+        pprint("duel.in_pac")
+        pprint(duel.in_pac)
         if monster_effect_next == "copy":
             return "copy"
         if monster_effect_next is None:
+            pprint("PAC")
+            pprint(pac)
             pac = json.loads(duel.in_pac)
             if str(self.duel.chain - 1) in pac and len(pac[str(duel.chain - 1)]) > 0:
                 pac = pac[str(self.duel.chain - 1)]
@@ -12711,6 +12718,7 @@ class DuelObj:
                         str(self.duel.chain - 1) in pac
                         and len(pac[str(duel.chain - 1)]) > 0
                     ):
+                        pprint("JKL")
                         pac = pac[str(self.duel.chain - 1)]
                         pac_id = pac.pop()
                         pac = PacWrapper.objects.get(id=pac_id)
@@ -12730,8 +12738,8 @@ class DuelObj:
             chain_det_ary = json.loads(self.duel.chain_det_trigger)
             chain_det2 = chain_det_ary[str(self.duel.chain - 1)]
             current_trigger = Trigger.objects.get(id=chain_det2)
-            if current_trigger.pac:
-                self._pac(current_trigger.pac)
+            #if current_trigger.pac:
+            #    self._pac(current_trigger.pac)
             chain_user = chain_user_ary[str(self.duel.chain - 1)]
             current_chain = chain_det[str(self.duel.chain - 1)]
             if current_chain == 0:
@@ -14090,9 +14098,12 @@ class DuelObj:
     def pop_pac(self, user):
         duel = self.duel
         pac = json.loads(duel.in_pac)
+        pprint("pac")
+        pprint(pac)
         if str(duel.chain - 1) not in pac or len(pac[str(duel.chain - 1)]) == 0:
             return -2
         pac_id = pac[str(duel.chain - 1)].pop()
+        pprint(pac)
         duel.in_pac = json.dumps(pac)
         pac = PacWrapper.objects.get(id=pac_id)
         log_tmp = self.write_log(pac.log, user)
@@ -14127,6 +14138,7 @@ class DuelObj:
             return pac.monster_effect_next2
 
     def _pac(self, effect_pac, chain=None,flag = 0):
+        pprint("_POAC")
         if flag == 1:
             return effect_pac.pac.pac_next
         duel = self.duel
@@ -14522,6 +14534,8 @@ class DuelObj:
 
     def invoke_monster_effect(self, monster_effect, decks, graves, kinds):
 
+        pprint("INVOKE_MONSTER_EFFECT")
+        pprint(self.duel.in_pac)
         duel = self.duel
         trigger_info = self.get_trigger_monster()
         chain_user = json.loads(duel.chain_user)
@@ -15408,11 +15422,14 @@ class DuelObj:
                 self.move_to_monster(move_to, effect_kind)
             if monster_effect.if_not_to_2 is False or move_to:
                 if monster_effect.pac:
+                    pprint("GHI")
                     return self._pac(monster_effect.pac)
                 else:
                     if monster_effect.monster_effect_next:
+                        pprint("DEF")
                         return monster_effect.monster_effect_next
                     else:
+                        pprint("ABC")
                         return self.pop_pac(user)
             else:
                 if monster_effect.pac2:
@@ -16082,14 +16099,15 @@ class DuelObj:
                                 flag = True
                             else:
                                 if isinstance(data["val"], list):
-                                    pprint(data["val"])
                                     self.effect += "monster;"+x+";"+y+";"+effect2[1]+";"+str(abs(int(float(data["val"][monster_i]))))+"|"
                                 else:
                                     self.effect += "monster;"+x+";"+y+";"+effect2[1]+";"+str(abs(int(float(data["val"]))))+"|"
                                 flag = True
                             monster_i += 1
             if flag is True:
-                self.duel.effect_flag += 1
+                if self.effect[0] != "&":
+                    self.effect = "&"+str(self.duel.effect_flag)+"&"+self.effect+"*"
+                    self.duel.effect_flag += 1
             return;
 
     def write_log(self, log, user, data=None):
@@ -18807,6 +18825,7 @@ class DuelObj:
         duel.once_per_turn_exist2 = ""
         duel.once_per_turn_relate1 = ""
         duel.once_per_turn_relate2 = ""
+        duel.effect_flag = 0
         if self.duel.guest_flag is False:
             user1_name = duel.user_1.first_name
         else:

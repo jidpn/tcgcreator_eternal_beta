@@ -209,6 +209,7 @@ table td{
 <script type="text/javascript">
     function getCookie(name) {
     var cookieValue = null;
+	var turn_num=0;
     if (document.cookie && document.cookie !== '') {
         var cookies = document.cookie.split(';');
         for (var i = 0; i < cookies.length; i++) {
@@ -524,11 +525,14 @@ success: function(data){
 success: function(data){
 	 console.log("AAAAAA");
     if(data == "waiting"){
+	    console.log(ai_doing_flag);
         return;
     }else{
 		if(ai_doing_flag == true){
             Success3(data);
-	    	}
+	    }else{
+            Success(data);
+	    }
     }
    },
    error:function(){
@@ -538,7 +542,9 @@ success: function(data){
  });
     if(ai_doing_flag == true){
         timer_ai = setTimeout(WaitAi,1000);
-    }
+	    }else{
+        timer_ai = setTimeout(Wait,1000);
+	    }
     }
     function Wait(){
     Success2();
@@ -946,7 +952,6 @@ function showFusion(ary){
 			      let result_button = "</tr><tr>";
 	for(var i =  0;i<ary.length;i++){
 			var tmp = ary[i];
-				       console.log(tmp);
         var img_url = tmp["img"];
 	     result_html += "<td><img card_id=\""+img_url+"\"  id=\""+monster["det"]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></td>";
 	  result_button += "<td><input value=\""+tmp["sentence"]+"\"  type=\"button\" onclick=\"sendFusionMonster('"+tmp["place"]+"',"+tmp["deck_id"]+",'"+tmp["place_unique_id"]+"',"+tmp["mine_or_other_num"]+","+tmp["fusion"]+")\"  ></td>";
@@ -1082,7 +1087,6 @@ function ask_det2(type,k,l,under_id = ""){
             //makeHandsGray();
 	  	result_html +="<table style=\"display:inline;text-align:center;\"><tr>";
             for(j=0;j<data[i]["hand"].length;j++){
-		console.log(global_answer_hand);
                 if($.inArray(hand_i+"_"+j,global_answer_hand) == -1){
                     if(Validate(data[i]["hand"][j])){
 			hand_flag = true;
@@ -1111,11 +1115,6 @@ function ask_det2(type,k,l,under_id = ""){
                 }
                 );
         }
-	console.log(field_flag)
-	console.log(deck_flag)
-	console.log(grave_flag)
-	console.log(hand_flag)
-	console.log(player_flag)
 	if(field_flag == false && deck_flag == false && grave_flag == false && hand_flag == false && player_flag == false){
 		Success2();
         	sendAnswer();
@@ -1689,7 +1688,6 @@ function ask_det(data){
 	if(org_data["player"] == true){
 			$("#player2").html( "<input type=\"button\" onclick=\"ask_det2('player',"+0+","+0+")\"  value=\"プレイヤー\">");
 	}
-	console.log(data);
     for(i = 0;i<data.length;i++){
         if(data[i]["mine_or_other"]){
             result_html += "<br>"+data[i]["mine_or_other"]+"<br>";
@@ -2048,7 +2046,6 @@ function sendHandTrigger(hand_id,place_unique_id,trigger_id,mine_or_other){
    timeout: 60000,
 success: function(data){
     if(data == "waiting"){
-	    pprint("WAITING_HAND_TRIGGER");
         clearTimeout(timer);
         timer = setTimeout(sendHandTrigger,1000);
         return;
@@ -4058,7 +4055,6 @@ success: function(data){
  {% endif %}
 }
 function sendHandTriggerDet(data){
-	console.log("HAND_TRIGGER");
     if(data == undefined){
         data = global_data;
     }
@@ -4070,7 +4066,6 @@ function sendHandTriggerDet(data){
    data: "room_number={{room_number}}",
    timeout: 60000,
 success: function(data){
-	console.log(data);
     if(data == "waiting"){
         clearTimeout(timer);
         timer = setTimeout(sendHandTriggerDet,1000);
@@ -4787,6 +4782,7 @@ success: function(data){
     data = JSON.parse(data_org);
 	console.log(data);
     if(data["waiting_ai"] == undefined){
+	console.log("abc");
         Success(data);
 
     }
@@ -4816,7 +4812,8 @@ success: function(data){
 			}
 		}
 	}
-   if(data["effect"] && data["effect_flag"] != 0){
+   if(data["effect"] ){
+	console.log("def");
     	showEffect(data,1);
 	return;						
 }
@@ -4846,10 +4843,13 @@ success: function(data){
    if(data["sound_effect"]){
         PlaySoundEffect(data["sound_effect"]);
     }
+	if(!timer){
+        timer = setTimeout(Wait,1000);
+	}
 }
     function Success(data){
-	console.log(data);
-
+	turn_num = 0;
+	console.log(data["effect"]);
 	$("#player").html("");
 	$("#other_player").html("");
         if(data == "init_duel"){
@@ -4887,7 +4887,7 @@ success: function(data){
         $("#center_message").html("");
             global_all_fields = [];
     data = JSON.parse(data);
-							if(data["effect"] && data["effect_flag"] != 0){
+							if(data["effect"] ){
     	showEffect(data,0);
 	return;						}
            $(".swing").removeClass("swing")
@@ -5761,16 +5761,29 @@ function makeFields(data,koka,success2){
     }
 
     function showEffect(data,mode){
-	console.log(mode);
 	var data_effect = data["effect"];
 	data["effect_move"] = []
         data_effect_tmp = data_effect.split("*");
-        data_effects = data_effect_tmp[0].split("|");
-	console.log(data_effect);				      
+	data_effects = []
+	for(var j=0;j<data_effect_tmp.length;j++){
+		if(data_effect_tmp[j].substr(0,1) == "&"){
+        		data_effects_turn = data_effect_tmp[0].split("&");
+		      if(parseInt(data_effects_turn[1])< turn_num){
+				contiinue;
+			 }
+			turn_num++;
+        		data_effects = data_effect_tmp[0].split("|");
+			break;
+		}					      		
+     }
+	var effect_flag = false;
 	for(var i=0;i<data_effects.length;i++){
+		console.log(data_effects[i]);
+		console.log(data_effects[i].substr(0,1));
 		if(data_effects[i] == ""){
 			continue;
 	        }else{
+		    effect_flag = true;
                     var effect_kind = data_effects[i].split(";");
         	    switch(effect_kind[0]){
                           case "background":
@@ -5828,22 +5841,28 @@ function makeFields(data,koka,success2){
 	        }
 
 	}
-	 console.log(data_effect_tmp);
-	var tmp = data_effect_tmp.shift();
-	if(Array.isArray(tmp)){
-		data["effect"] = tmp.join("*");
-												data["effect_flag"] -= 1;
+	data_effect_tmp.shift();
+	if(Array.isArray(data_effect_tmp)){
+		data["effect"] = data_effect_tmp.join("*");
 	}else{
 		data["effect"] = null;
-												data["effect_flag"] -= 1;
 	}
 
       data = JSON.stringify(data);
        if(mode == 0){
-		var timer = setTimeout(Success,1000,data);
+		if(effect_flag == true){					     
+			var timer = setTimeout(Success,1000,data);
+	      }else{
+			Success(data);
+		}
+					      
        }else{
-	var timer = setTimeout(Success3,1000,data);
+		if(effect_flag == true){					     
+				var timer = setTimeout(Success3,1000,data);
+	      }else{
+			Success3(data);
 	       	}
+}
 
     }
      function doEachMonsterEffect(x,y,effect_kind_all){

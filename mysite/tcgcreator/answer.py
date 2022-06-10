@@ -1365,7 +1365,6 @@ def multiple_answer_det(
     duel.field = field
     duel.ask -= del_ask
     choices = None
-    pprint("DEF")
     if duel.ask == 0:
         chain_det = json.loads(duel.chain_det)
         current_chain = chain_det[str(duel.chain - 1)]
@@ -1384,14 +1383,14 @@ def multiple_answer_det(
                 pac = PacWrapper.objects.get(id=pac_id)
                 next_effect = pac.monster_effect_next
                 if next_effect is None:
-                    trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                    trigger = Trigger.objects.get(id=duel.current_trigger)
                     if trigger.chain_flag is True:
                         duel.virtual_chain -= 1
                     duel.chain -= 1
                 else:
                     chain_det[str(duel.chain - 1)] = next_effect.id
             else:
-                trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                trigger = Trigger.objects.get(id=duel.current_trigger)
                 if trigger.chain_flag is True:
                     duel.virtual_chain -= 1
                 duel.chain -= 1
@@ -1578,14 +1577,14 @@ def answerorder(request):
                 pac = PacWrapper.objects.get(id=pac_id)
                 next_effect = pac.monster_effect_next
                 if next_effect is None:
-                    Trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                    trigger = Trigger.objects.get(id=duel.current_trigger)
                     if trigger.chain_flag is True:
                         duel.virtual_chain -= 1
                     duel.chain -= 1
                 else:
                     chain_det[str(duel.chain - 1)] = next_effect.id
             else:
-                Trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                trigger = Trigger.objects.get(id=duel.current_trigger)
                 if trigger.chain_flag is True:
                     duel.virtual_chain -= 1
                 duel.chain -= 1
@@ -1989,7 +1988,7 @@ def yes_or_no_cost(request, duelobj, user, other_user, room_number, lock):
             next_effect = duelobj.copy_special_effect(effect.cost,effect.cost_kind,True)
             if next_effect is not None and isinstance(next_effect,int) is False and next_effect[0] is not None:
                 duel.cost_det = next_effect[0].id
-                trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                trigger = Trigger.objects.get(id=duel.current_trigger)
                 tmp = duelobj.pay_cost(next_effect[0], user,duel.chain,trigger)
             else:
                 duel.cost_det = 0
@@ -2001,14 +2000,14 @@ def yes_or_no_cost(request, duelobj, user, other_user, room_number, lock):
             else:
                 next_effect = duelobj.pop_pac_cost(user)
             duel.cost_det = next_effect.id
-            trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+            trigger = Trigger.objects.get(id=duel.current_trigger)
             tmp = duelobj.pay_cost(next_effect, user,duel.chain,trigger)
 
         tmp = False
         if duel.cost_det == 0 and tmp is False:
             if duel.in_copying is False:
                 duelobj.end_cost(duel.cost_user,duel.chain,trigger)
-                trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                trigger = Trigger.objects.get(id=duel.current_trigger)
                 if trigger.chain_flag is True:
                     duel.virtual_chain += 1
                 duel.chain += 1
@@ -2028,7 +2027,7 @@ def yes_or_no_cost(request, duelobj, user, other_user, room_number, lock):
             tmp = False
             if next_effect is not None and next_effect != -2:
                 duel.cost_det = next_effect.id
-                trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                trigger = Trigger.objects.get(id=duel.current_trigger)
                 tmp = duelobj.pay_cost(next_effect, user,duel.chain,trigger)
             else:
                 duel.cost_det = 0
@@ -2049,7 +2048,7 @@ def yes_or_no_cost(request, duelobj, user, other_user, room_number, lock):
             tmp = False
             if next_effect is not None and next_effect != -2:
                 duel.cost_det = next_effect.id
-                trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                trigger = Trigger.objects.get(id=duel.current_trigger)
                 tmp = duelobj.pay_cost(next_effect, user,duel.chain,trigger)
             else:
                 duel.cost_det = 0
@@ -2203,7 +2202,6 @@ def yes_or_no(request):
         else:
             duel.force = 1
         duel.ask = 0
-        pprint("AAA")
         duelobj.save_all(user, other_user, room_number)
         free_lock(room_number, lock)
         return battle_det(request, duelobj, None)
@@ -2228,26 +2226,24 @@ def yes_or_no(request):
         else:
             next_effect = effect.monster_effect_next
         if next_effect != 0 and next_effect is not None:
+            pprint(next_effect)
             chain_det[str(duel.chain - 1)] = next_effect.id
         else:
-            pac = json.loads(duel.in_pac)
-            if str(duel.chain - 1) in pac and pac[str(duel.chain - 1)] != []:
-                pac_id = pac[str(duel.chain - 1)].pop()
-                duel.in_pac = json.dumps(pac)
-                pac = PacWrapper.objects.get(id=pac_id)
-                next_effect = pac.monster_effect_next
-                if next_effect is None:
-                    Trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
-                    if trigger.chain_flag is True:
-                        duel.virtual_chain -= 1
-                    duel.chain -= 1
-                else:
-                    chain_det[str(duel.chain - 1)] = next_effect.id
+            next_effect = duelobj.pop_pac(user)
+            if next_effect is None:
+                trigger = Trigger.objects.get(id=duel.current_trigger)
+                if trigger.chain_flag is True:
+                    duel.virtual_chain -= 1
+                duel.chain -= 1
+            else:
+                chain_det[str(duel.chain - 1)] = next_effect.id
+                '''
             else:
                 trigger = Trigger.objects.get(id=duel.current_trigger)
                 if trigger.chain_flag is True:
                     duel.virtual_chain -= 1
                 duel.chain -= 1
+                '''
         duel.chain_det = json.dumps(chain_det)
     else:
         duel.ask = 0
@@ -2267,16 +2263,16 @@ def yes_or_no(request):
                 pac_id = pac[str(duel.chain - 1)].pop()
                 duel.in_pac = json.dumps(pac)
                 pac = PacWrapper.objects.get(id=pac_id)
-                next_effect = pac.monster_effect_next
+                next_effect = pac.monster_effect_next2
                 if next_effect is None:
-                    Trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                    trigger = Trigger.objects.get(id=duel.current_trigger)
                     if trigger.chain_flag is True:
                         duel.virtual_chain -= 1
                     duel.chain -= 1
                 else:
                     chain_det[str(duel.chain - 1)] = next_effect.id
             else:
-                Trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                trigger = Trigger.objects.get(id=duel.current_trigger)
                 if trigger.chain_flag is True:
                     duel.virtual_chain -= 1
                 duel.chain -= 1
@@ -2830,14 +2826,14 @@ def answer_under_det(
                 pac = PacWrapper.objects.get(id=pac_id)
                 next_effect = pac.monster_effect_next
                 if next_effect is None:
-                    Trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                    trigger = Trigger.objects.get(id=duel.current_trigger)
                     if trigger.chain_flag is True:
                         duel.virtual_chain -= 1
                     duel.chain -= 1
                 else:
                     chain_det[str(duel.chain - 1)] = next_effect.id
             else:
-                Trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                trigger = Trigger.objects.get(id=duel.current_trigger)
                 if trigger.chain_flag is True:
                    duel.virtual_chain -= 1
                 duel.chain -= 1
@@ -2880,14 +2876,14 @@ def answer_under_det(
         tmp = False
         if next_effect is not None and next_effect != -2:
             duel.cost_det = next_effect.id
-            trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+            trigger = Trigger.objects.get(id=duel.current_trigger)
             tmp = duelobj.pay_cost(next_effect, user,duel.chain,trigger)
         else:
             duel.cost_det = 0
         if duel.cost_det == 0 and tmp is False:
             if duel.in_copying is False:
                 duelobj.end_cost(duel.cost_user,duel.chain,trigger)
-                trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                trigger = Trigger.objects.get(id=duel.current_trigger)
                 if trigger.chain_flag is True:
                     duel.virtual_chain += 1
                 duel.chain += 1
@@ -3005,14 +3001,14 @@ def answer_as_under(
                 pac = PacWrapper.objects.get(id=pac_id)
                 next_effect = pac.monster_effect_next
                 if next_effect is None:
-                    Trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                    trigger = Trigger.objects.get(id=duel.current_trigger)
                     if trigger.chain_flag is True:
                         duel.virtual_chain -= 1
                     duel.chain -= 1
                 else:
                     chain_det[str(duel.chain - 1)] = next_effect.id
             else:
-                Trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                trigger = Trigger.objects.get(id=duel.current_trigger)
                 if trigger.chain_flag is True:
                    duel.virtual_chain -= 1
                 duel.chain -= 1
@@ -3137,14 +3133,14 @@ def answer_as(
                 pac = PacWrapper.objects.get(id=pac_id)
                 next_effect = pac.monster_effect_next
                 if next_effect is None:
-                    Trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                    trigger = Trigger.objects.get(id=duel.current_trigger)
                     if trigger.chain_flag is True:
                         duel.virtual_chain -= 1
                     duel.chain -= 1
                 else:
                     chain_det[str(duel.chain - 1)] = next_effect.id
             else:
-                Trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                trigger = Trigger.objects.get(id=duel.current_trigger)
                 if trigger.chain_flag is True:
                    duel.virtual_chain -= 1
                 duel.chain -= 1
@@ -4023,7 +4019,6 @@ def answer_field_det(
         else:
             if duel.ask == 2 or duel.ask == 3:
                 duel.ask -= 2
-    pprint("ABC")
     if duel.ask == 0 and duel.in_cost is False:
         chain_det = json.loads(duel.chain_det)
         current_chain = chain_det[str(duel.chain - 1)]
@@ -4042,14 +4037,14 @@ def answer_field_det(
                 pac = PacWrapper.objects.get(id=pac_id)
                 next_effect = pac.monster_effect_next
                 if next_effect is None:
-                    trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                    trigger = Trigger.objects.get(id=duel.current_trigger)
                     if trigger.chain_flag is True:
                         duel.virtual_chain -= 1
                     duel.chain -= 1
                 else:
                     chain_det[str(duel.chain - 1)] = next_effect.id
             else:
-                trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                trigger = Trigger.objects.get(id=duel.current_trigger)
                 if trigger.chain_flag is True:
                     duel.virtual_chain -= 1
                 duel.chain -= 1
@@ -4096,7 +4091,7 @@ def answer_field_det(
         tmp = False
         if next_effect is not None and next_effect != -2:
             duel.cost_det = next_effect.id
-            trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+            trigger = Trigger.objects.get(id=duel.current_trigger)
             tmp = duelobj.pay_cost(next_effect, user,duel.chain,trigger)
         else:
             duel.cost_det = 0
@@ -5041,14 +5036,14 @@ def answer_det(duelobj, duel, user, answer_json, request, del_ask, lock,ID1,ID2)
                 pac = PacWrapper.objects.get(id=pac_id)
                 next_effect = pac.monster_effect_next
                 if next_effect is None:
-                    trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                    trigger = Trigger.objects.get(id=duel.current_trigger)
                     if trigger.chain_flag is True:
                         duel.virtual_chain -= 1
                     duel.chain -= 1
                 else:
                     chain_det[str(duel.chain - 1)] = next_effect.id
             else:
-                trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                trigger = Trigger.objects.get(id=duel.current_trigger)
                 if trigger.chain_flag is True:
                    duel.virtual_chain -= 1
                 duel.chain -= 1
@@ -5990,14 +5985,14 @@ def send_fusion_monster_field(request):
                 pac = PacWrapper.objects.get(id=pac_id)
                 next_effect = pac.monster_effect_next
                 if next_effect is None:
-                    trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                    trigger = Trigger.objects.get(id=duel.current_trigger)
                     if trigger.chain_flag is True:
                         duel.virtual_chain -= 1
                     duel.chain -= 1
                 else:
                     chain_det[str(duel.chain - 1)] = next_effect.id
             else:
-                trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                trigger = Trigger.objects.get(id=duel.current_trigger)
                 if trigger.chain_flag is True:
                    duel.virtual_chain -= 1
                 duel.chain -= 1
@@ -6227,14 +6222,14 @@ def send_fusion_material(request):
             pac = PacWrapper.objects.get(id=pac_id)
             next_effect = pac.monster_effect_next
             if next_effect is None:
-                trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                trigger = Trigger.objects.get(id=duel.current_trigger)
                 if trigger.chain_flag is True:
                     duel.virtual_chain -= 1
                 duel.chain -= 1
             else:
                 chain_det[str(duel.chain - 1)] = next_effect.id
         else:
-            trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+            trigger = Trigger.objects.get(id=duel.current_trigger)
             if trigger.chain_flag is True:
                duel.virtual_chain -= 1
             duel.chain -= 1
@@ -6487,7 +6482,7 @@ def send_fusion_monster(request):
                 else:
                     chain_det[str(duel.chain - 1)] = next_effect.id
             else:
-                trigger = Triggtrigger = Trigger.objects.get(id=duel.current_trigger)
+                trigger = Trigger.objects.get(id=duel.current_trigger)
                 if trigger.chain_flag is True:
                    duel.virtual_chain -= 1
                 duel.chain -= 1

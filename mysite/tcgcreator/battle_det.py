@@ -5,7 +5,7 @@ from .models import (
     Hand,
     CostWrapper,
     Config,
-    Lock,
+    Lock
 )
 from html import escape
 from django.http import HttpResponse
@@ -144,10 +144,7 @@ def battle_det(request, duelobj=None, choices=None):
                     duelobj.win_the_game()
                     return HttpResponse("true")
                 return HttpResponse("waiting_choosing_deck")
-    pprint("AAA")
-    pprint(request.POST)
     if "wait_ai" in request.POST:
-        pprint("WAITING_AI")
         if duel.user_turn == 2 and duel.ask == 0:
             decks = Deck.objects.all()
             graves = Grave.objects.all()
@@ -276,7 +273,6 @@ def battle_det(request, duelobj=None, choices=None):
     hands = Hand.objects.all()
     turn = duel.user_turn
     duelobj.update = False
-    pprint("BBB")
 #    chain_user = duelobj.get_current_chain_user()
     if choices is None:
         choices = []
@@ -373,7 +369,6 @@ def battle_det(request, duelobj=None, choices=None):
         )
     flag_3 = False
     ai_flag = False
-    pprint("CCC")
     while flag is True and (duel.winner == 0 and duel.winner_ai == 0):
         flag = False
         lll_flag = False
@@ -478,7 +473,6 @@ def battle_det(request, duelobj=None, choices=None):
                                             user,
                                             other_user,
                                         )
-                                        pprint("BBB")
                                         if duel.chain == 0:
                                             duel.current_priority = 10000
                                             duelobj.invoke_after_chain_effect(
@@ -553,8 +547,6 @@ def battle_det(request, duelobj=None, choices=None):
                                             user,
                                             other_user,
                                         )
-                                        pprint("CCC")
-                                        pprint(duel.ask)
                                         if duel.chain == 0:
                                             duelobj.invoke_after_chain_effect(
                                                 decks, graves, hands, duel.phase, duel.user_turn, user, other_user
@@ -731,7 +723,6 @@ def battle_det(request, duelobj=None, choices=None):
                                     user,
                                     other_user,
                                 )
-                                pprint("DDD")
                                 if duel.chain == 0:
                                    duelobj.invoke_after_chain_effect(
                                        decks, graves, hands, duel.phase, duel.user_turn, user, other_user
@@ -812,7 +803,6 @@ def battle_det(request, duelobj=None, choices=None):
                                     user,
                                     other_user,
                                     )
-                                    pprint("EEE")
                                     if duel.chain == 0:
                                        duelobj.invoke_after_chain_effect(
                                            decks, graves, hands, duel.phase, duel.user_turn, user, other_user
@@ -862,9 +852,6 @@ def battle_det(request, duelobj=None, choices=None):
                                     duel.in_trigger_waiting = False
                                 continue
                             break
-                        pprint(duel.trigger_waiting)
-                        pprint("JIL")
-                        pprint(duel.chain)
                         duelobj.invoke_trigger_waiting(duel.trigger_waiting)
                         if (
                             choices[0] is None
@@ -895,7 +882,6 @@ def battle_det(request, duelobj=None, choices=None):
                                     user,
                                     other_user,
                                 )
-                                pprint("FFF")
                                 if duel.chain == 0:
                                     duelobj.invoke_after_chain_effect(
                                         decks, graves, hands, duel.phase, duel.user_turn, user, other_user
@@ -904,7 +890,6 @@ def battle_det(request, duelobj=None, choices=None):
                                 duelobj.check_eternal_effect(
                                     decks, graves, hands, duel.phase, duel.user_turn, user, other_user
                                 )
-                                pprint("AAA")
                                 if duel.chain == 0:
                                     duel.appoint = duel.user_turn
                                     if duel.timing3 is not None:
@@ -984,7 +969,6 @@ def battle_det(request, duelobj=None, choices=None):
                                         user,
                                     )
 
-                pprint("DDD")
                 if (
                     (duel.chain == 0 or duel.in_trigger_waiting is True)
                     and duel.trigger_waiting != "[]"
@@ -1083,7 +1067,6 @@ def battle_det_return(
     duelobj, decks, graves, hands, user, other_user, choices, room_number
 ):
     duel = duelobj.duel
-    pprint("DDD")
     if duel.winner != 0 or duel.winner_ai != 0:
         return battle_det_return_org(
             duelobj, decks, graves, hands, user, other_user, choices, room_number
@@ -1222,8 +1205,7 @@ def battle_det_return(
         return_value["time_1"] = limit_time - (time() - duel.time_2)
         return_value["time_2"] = limit_time - (time() - duel.time_1)
     return_value["winner"] = False
-    return_value["effect"] = duelobj.effect
-    return_value["effect_flag"] = duelobj.duel.effect_flag
+    return_value["effect"] = duelobj.duel.effect
     return HttpResponse(json.dumps(return_value))
 
 
@@ -1244,7 +1226,6 @@ def battle_det_return_org(
     return_value["phase"] = duel.phase.id
     return_value["turn"] = duel.user_turn
     return_value["log"] = escape(duel.log_turn)
-    return_value["effect_flag"] = duelobj.duel.effect_flag
     return HttpResponse(json.dumps(return_value))
     return_value["message_log"] = escape(duel.message_log)
     if duel.ask > 0:
@@ -1331,7 +1312,7 @@ def battle_det_return_org(
         return_value["winner_who"] = duel.winner
     else:
         return_value["winner_who"] = duel.winner_ai
-    return_value["effect"] = duelobj.effect
+    return_value["effect"] = duelobj.duel.effect
     return HttpResponse(json.dumps(return_value))
 
 def battle_det_return_org_ai(
@@ -1342,7 +1323,6 @@ def battle_det_return_org_ai(
         decks, graves, hands, duel.phase, duel.user_turn, user, other_user
     )
     return_value = {}
-    return_value["effect_flag"] = duelobj.duel.effect_flag
     if duelobj.current_log != "":
         return_value["current_log"] = escape(duelobj.current_log)
     else:
@@ -1405,5 +1385,5 @@ def battle_det_return_org_ai(
     return_value["time_1"] = 0
     return_value["time_2"] = 0
     return_value["waiting_ai"]  = 1
-    return_value["effect"] = duelobj.effect
+    return_value["effect"] = duelobj.duel.effect
     return HttpResponse(json.dumps(return_value))
