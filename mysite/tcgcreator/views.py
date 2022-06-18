@@ -3339,7 +3339,7 @@ def init_battle(request, room_number):
                     duel.user_deck1 = tmp2
                     duel.save()
             if ai_choosing is False and ai_id:
-                tmp3 = EnemyDeckChoice.objects.filter(id=ai_id).first()
+                tmp3 = EnemyDeckChoice.objects.first()
 
                 tmp3.enemy_deck = EnemyDeckGroup.objects.get(enemy_deck_id=ai_id)
                 tmp3.save()

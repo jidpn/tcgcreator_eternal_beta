@@ -63,6 +63,7 @@ class DuelObj:
                 if "persist" not in monster["eternal"][key]:
                     monster["eternal"].pop(key)
         monster["flag"] = 0
+        monster["turncount"] = self.duel.turn_count
         if "rel" in monster:
             del monster["rel"]
         return monster
@@ -75,6 +76,7 @@ class DuelObj:
                 if "persist" not in monster["eternal"][key]:
                     monster["eternal"].pop(key)
         monster["flag"] = 0
+        monster["turncount"] = self.duel.turn_count
         if "rel" in monster:
             del monster["rel"]
         return monster
@@ -95,6 +97,7 @@ class DuelObj:
                     monster["eternal"].pop(key)
         if "rel" in monster:
             del monster["rel"]
+        monster["turncount"] = self.duel.turn_count
         return monster
 
     def copy_monster_from_hand(self, monster, deck_id, mine_or_other):
@@ -113,6 +116,7 @@ class DuelObj:
             for key in reversed(range(len(monster["eternal"]))):
                 if monster["eternal"][key] is None or "persist" not in monster["eternal"][key]:
                     monster["eternal"].pop(key)
+        monster["turncount"] = self.duel.turn_count
         return monster
 
     def copy_monster_from_field(self, monster, kind, mine_or_other):
@@ -170,7 +174,7 @@ class DuelObj:
         monster["place"] = "deck"
         monster["mine_or_other"] = mine_or_other
         monster["deck_id"] = deck_id
-        monster["turncount"] = duel.turn_count
+        monster["turncount"] = self.duel.turn_count
         if "kind" in monster:
             del monster["kind"]
         if "rel" in monster:
@@ -227,7 +231,7 @@ class DuelObj:
         monster["place"] = "grave"
         monster["mine_or_other"] = mine_or_other
         monster["deck_id"] = deck_id
-        monster["turncount"] = duel.turn_count
+        monster["turncount"] = self.duel.turn_count
         if "kind" in monster:
             del monster["kind"]
         if "rel" in monster:
@@ -284,7 +288,7 @@ class DuelObj:
         monster["place"] = "hand"
         monster["mine_or_other"] = mine_or_other
         monster["deck_id"] = deck_id
-        monster["turncount"] = duel.turn_count
+        monster["turncount"] = self.duel.turn_count
         if "kind" in monster:
             del monster["kind"]
         if "rel" in monster:
@@ -343,7 +347,7 @@ class DuelObj:
         monster["place"] = "hand"
         monster["mine_or_other"] = mine_or_other
         monster["deck_id"] = deck_id
-        monster["turncount"] = duel.turn_count
+        monster["turncount"] = self.duel.turn_count
         if "kind" in monster:
             del monster["kind"]
         field["under"].append(monster)
@@ -371,7 +375,7 @@ class DuelObj:
                     deck = self.decks[deck_id]["otherdeck"]
                 else:
                     deck = self.decks[deck_id]["commondeck"]
-            under["turncount"] = duel.turn_count
+            under["turncount"] = self.duel.turn_count
             user_decks = deck
             user_decks.append(under)
             if shuffle is True:
@@ -411,7 +415,7 @@ class DuelObj:
                 else:
                     grave = self.graves[deck_id]["commongrave"]
             user_graves = grave
-            under["turncount"] = duel.turn_count
+            under["turncount"] = self.duel.turn_count
             user_graves.append(under)
             if shuffle is True:
                 np.random.shuffle(user_graves)
@@ -449,7 +453,7 @@ class DuelObj:
                     hand = self.hands[deck_id]["otherhand"]
                 else:
                     hand = self.hands[deck_id]["commonhand"]
-            under["turncount"] = duel.turn_count
+            under["turncount"] = self.duel.turn_count
             user_hands = hand
             user_hands.append(under)
             if shuffle is True:
@@ -477,7 +481,7 @@ class DuelObj:
         monster["x"] = x
         monster["y"] = y
         monster["mine_or_other"] = mine_or_other
-        monster["turncount"] = duel.turn_count
+        #monster["turncount"] = duel.turn_count
         if "kind" in monster:
             del monster["kind"]
         return monster
@@ -1511,7 +1515,6 @@ class DuelObj:
                         return change_val
 
                 else:
-
                     return True
             eternal_org = eternals
             eternals = json.loads(eternals.invalid_monster)
@@ -1672,7 +1675,7 @@ class DuelObj:
                                         return not_effected["timings"]
                                     elif mode == 21:
                                         return not_effected["ignore_variable"]
-                                    if mode == 25:
+                                    elif mode == 25:
                                         return eternal_values[0]
                                     elif mode == 26:
                                         for eternal_value in eternal_values:
@@ -3373,11 +3376,16 @@ class DuelObj:
     def unique_fusion_effect(self):
         duel = self.duel
         tmp = self.mess
+        chain_user = json.loads(duel.chain_user)
+        user = int(chain_user[str(duel.chain-1)])
         if str(duel.chain - 1) not in tmp:
             tmp[str(duel.chain - 1)] = {}
         place1 = tmp[str(duel.chain - 1)]["fusion"]
         place = place1[0]
-        fusion = Fusion.objects.get(id=place["fusion"])
+        if duel.is_ai is True and user == 2:
+            fusion = Fusion.objects.get(id=place["fusion"]["id"])
+        else:
+            fusion = Fusion.objects.get(id=place["fusion"])
         return fusion.unique_effect
     def get_fusion_material(self,monster_effect,user,trigger,mode=0,effect_flag = 0,strategy = "",strategy_up_or_down =""):
         duel = self.duel
@@ -3418,7 +3426,10 @@ class DuelObj:
             instead3 = None
         monster_id = self.get_monster_id(
             place["det"], place["place"], place["det"]["owner"],place["deck_id"],place["x"], place["y"], place["mine_or_other"])
-        fusion = Fusion.objects.get(id=place["fusion"])
+        if user == 2 and duel.is_ai is True:
+            fusion = Fusion.objects.get(id=place["fusion"]["id"])
+        else:
+            fusion = Fusion.objects.get(id=place["fusion"])
         fusion1 = json.loads(fusion.fusion1)
         if(fusion.fusion2):
             fusion2 = json.loads(fusion.fusion2)
@@ -3434,21 +3445,21 @@ class DuelObj:
             fusion_monster1 = {}
             fusion_monster1["max"] = 0
             fusion_monster1["min"] = 0
-            fusion_monster1["monsters"] = []
+            fusion_monster1["monster"] = []
         if fusion2:
             fusion_monster2 = self.check_fusion_monster_det(trigger_fusion2,fusion2,instead2,fusion,user,mode = mode,effect_flag = effect_flag,strategy = strategy,strategy_up_or_down = strategy_up_or_down)
         else:
             fusion_monster2 = {}
             fusion_monster2["max"] = 0
             fusion_monster2["min"] = 0
-            fusion_monster2["monsters"] = []
+            fusion_monster2["monster"] = []
         if fusion3:
             fusion_monster3 = self.check_fusion_monster_det(trigger_fusion3,fusion3,instead3,fusion,user,mode = mode,effect_flag = effect_flag,strategy = strategy,strategy_up_or_down = strategy_up_or_down)
         else:
             fusion_monster3 = {}
             fusion_monster3["max"] = 0
             fusion_monster3["min"] = 0
-            fusion_monster3["monsters"] = []
+            fusion_monster3["monster"] = []
         ary = [fusion_monster1,fusion_monster2,fusion_monster3]
         if mode == 0:
             if fusion_monster1 is False or fusion_monster2 is False or fusion_monster3 is False:
@@ -8942,8 +8953,6 @@ class DuelObj:
         if self.duel.chain_det_trigger != "":
             chain_det_trigger_json = json.loads(self.duel.chain_det_trigger)
         if trigger.pac:
-            pprint("AAA")
-            pprint(trigger.pac)
             effect = self._pac(trigger.pac, org_chain)
         else:
             effect = trigger.next_effect
@@ -9035,9 +9044,12 @@ class DuelObj:
                 tmp["sentence"] = trigger.trigger_sentence
                 tmp["id"] = trigger.id
                 available_trigger.append(tmp)
+        self.trigger_waiting_for_ai = []
         trigger_num = self.check_monster_trigger(
             decks, graves, hands, user, other_user, priority,1
         )
+        self.invoke_trigger_waiting(self.trigger_waiting_for_ai, 0,1)
+        self.trigger_waiting_for_ai = []
         if len(available_trigger) > 1 and (self.duel.is_ai is False or user == 1):
             return_value.append(available_trigger)
             return_value.append(priority)
@@ -9206,7 +9218,8 @@ class DuelObj:
             flag =  True
         return flag
 
-    def init_all(self, user, other_user, room_number):
+    def init_all(self, user, other_user, room_number,mode=0):
+        self.trigger_waiting_for_ai = False
         self.turn_changed = False
         self.retrieve = 0
         self.tmp_val = {}
@@ -9221,7 +9234,15 @@ class DuelObj:
                 pass
         else:
             self.sound_effect = ""
-        self.effect = duel.effect
+        if(duel.change_turn_flag is True):
+            self.effect = duel.effect
+        else:
+            self.effect = "&"
+        # ターン変動ではないがデックトリガの時必要
+        if mode == 1:
+            duel.change_turn_flag = True
+        else:
+            duel.change_turn_flag = False
         self.log_initial = duel.current_log
         self.current_log = ""
         self.in_execute = duel.in_execute
@@ -9269,10 +9290,7 @@ class DuelObj:
         duel = self.duel
         game_name = self.config.game_name
         pwd = os.path.dirname(__file__)
-        if duel.is_ai is True and duel.user_turn == 2:
-            duel.effect = self.effect
-        else:
-            duel.effect = ""
+        duel.effect = self.effect
 
         if duel.cost_det is None:
             duel.cost_det = 0
@@ -9303,7 +9321,6 @@ class DuelObj:
         duel.time_1 = time()
         duel.time_2 = time()
         duel.save()
-        pprint(duel.chain_det)
         if self.config.cheat is True or self.config.detail_log is True or (self.turn_changed is True and self.config.initial_turn_log is True):
             self.log_write()
             self.log.close()
@@ -12255,8 +12272,6 @@ class DuelObj:
 
         trigger_waiting = json.loads(self.duel.trigger_waiting)
         tmp = None
-        pprint("RET")
-        pprint(self.duel.in_pac)
         while (
             self.duel.chain != 0
             and self.duel.ask == 0
@@ -12296,7 +12311,6 @@ class DuelObj:
         duel = self.duel
         self.tmp_chain = str(duel.chain)
         chain_det = json.loads(self.duel.chain_det)
-        pprint(chain_det)
         chain_user_ary = json.loads(self.duel.chain_user)
         current_chain = chain_det[str(self.duel.chain - 1)]
         chain_user = chain_user_ary[str(self.duel.chain - 1)]
@@ -12329,13 +12343,9 @@ class DuelObj:
             monster_effect, decks, graves, kinds
         )
         pprint(monster_effect)
-        pprint("duel.in_pac")
-        pprint(duel.in_pac)
         if monster_effect_next == "copy":
             return "copy"
         if monster_effect_next is None:
-            pprint("PAC")
-            pprint(pac)
             pac = json.loads(duel.in_pac)
             if str(self.duel.chain - 1) in pac and len(pac[str(duel.chain - 1)]) > 0:
                 pac = pac[str(self.duel.chain - 1)]
@@ -12718,7 +12728,6 @@ class DuelObj:
                         str(self.duel.chain - 1) in pac
                         and len(pac[str(duel.chain - 1)]) > 0
                     ):
-                        pprint("JKL")
                         pac = pac[str(self.duel.chain - 1)]
                         pac_id = pac.pop()
                         pac = PacWrapper.objects.get(id=pac_id)
@@ -14098,12 +14107,9 @@ class DuelObj:
     def pop_pac(self, user):
         duel = self.duel
         pac = json.loads(duel.in_pac)
-        pprint("pac")
-        pprint(pac)
         if str(duel.chain - 1) not in pac or len(pac[str(duel.chain - 1)]) == 0:
             return -2
         pac_id = pac[str(duel.chain - 1)].pop()
-        pprint(pac)
         duel.in_pac = json.dumps(pac)
         pac = PacWrapper.objects.get(id=pac_id)
         log_tmp = self.write_log(pac.log, user)
@@ -14138,7 +14144,6 @@ class DuelObj:
             return pac.monster_effect_next2
 
     def _pac(self, effect_pac, chain=None,flag = 0):
-        pprint("_POAC")
         if flag == 1:
             return effect_pac.pac.pac_next
         duel = self.duel
@@ -14534,8 +14539,6 @@ class DuelObj:
 
     def invoke_monster_effect(self, monster_effect, decks, graves, kinds):
 
-        pprint("INVOKE_MONSTER_EFFECT")
-        pprint(self.duel.in_pac)
         duel = self.duel
         trigger_info = self.get_trigger_monster()
         chain_user = json.loads(duel.chain_user)
@@ -15422,14 +15425,11 @@ class DuelObj:
                 self.move_to_monster(move_to, effect_kind)
             if monster_effect.if_not_to_2 is False or move_to:
                 if monster_effect.pac:
-                    pprint("GHI")
                     return self._pac(monster_effect.pac)
                 else:
                     if monster_effect.monster_effect_next:
-                        pprint("DEF")
                         return monster_effect.monster_effect_next
                     else:
-                        pprint("ABC")
                         return self.pop_pac(user)
             else:
                 if monster_effect.pac2:
@@ -16069,6 +16069,8 @@ class DuelObj:
                 for effect in effect_ary:
                     effect2 = effect.split(";") 
                     if effect2[0] == "video" or effect2[0] == "background":
+                        if(flag is False):
+                             self.effect += "&"+str(self.duel.effect_flag)+"*"
                         if effect2[0] == "background":
                             self.duel.background_image = effect2[1]
                         self.effect += monster_effect.effect + "|"
@@ -16085,6 +16087,14 @@ class DuelObj:
                     if effect2[0] == "video" or effect2[0] == "background":
                         if effect2[0] == "background":
                             self.duel.background_image = effect2[1]
+                        if(effect2[1] != "number"):
+                            if(flag is False):
+                                if self.effect[0] != "&":
+                                    self.effect = "&"+str(self.duel.effect_flag)+"*"+self.effect
+                                    self.duel.effect_flag +=1
+                                else:
+                                    self.effect += "&"+str(self.duel.effect_flag)+"*"
+                                    self.duel.effect_flag +=1
                         self.effect += effect + "|"
                         flag = True
                     elif effect2[0] == "monster":
@@ -16095,19 +16105,36 @@ class DuelObj:
                             x = str(monster["x"])
                             y = str(monster["y"])
                             if(effect2[1] != "number"):
+                                if(flag is False):
+                                    if self.effect[0] != "&":
+                                        self.effect = "&"+str(self.duel.effect_flag)+"*"+self.effect
+                                        self.duel.effect_flag +=1
+                                    else:
+                                        self.effect += "&"+str(self.duel.effect_flag)+"*"
+                                        self.duel.effect_flag +=1
                                 self.effect += "monster;"+x+";"+y+";"+effect2[1]+"|"
                                 flag = True
                             else:
                                 if isinstance(data["val"], list):
+                                    if(flag is False):
+                                        if self.effect[0] != "&":
+                                            self.effect = "&"+str(self.duel.effect_flag)+"*"+self.effect
+                                            self.duel.effect_flag +=1
+                                        else:
+                                            self.effect += "&"+str(self.duel.effect_flag)+"*"
+                                            self.duel.effect_flag +=1
                                     self.effect += "monster;"+x+";"+y+";"+effect2[1]+";"+str(abs(int(float(data["val"][monster_i]))))+"|"
                                 else:
+                                    if(flag is False):
+                                        if self.effect[0] != "&":
+                                            self.effect = "&"+str(self.duel.effect_flag)+"*"+self.effect
+                                            self.duel.effect_flag +=1
+                                        else:
+                                            self.effect += "&"+str(self.duel.effect_flag)+"*"
+                                            self.duel.effect_flag +=1
                                     self.effect += "monster;"+x+";"+y+";"+effect2[1]+";"+str(abs(int(float(data["val"]))))+"|"
                                 flag = True
                             monster_i += 1
-            if flag is True:
-                if self.effect[0] != "&":
-                    self.effect = "&"+str(self.duel.effect_flag)+"&"+self.effect+"*"
-                    self.duel.effect_flag += 1
             return;
 
     def write_log(self, log, user, data=None):
@@ -18838,11 +18865,13 @@ class DuelObj:
         else:
             user2_name = "NPC"
         if duel.user_turn == 1:
+            #duel.change_turn_flag = True
             duel.user_turn = 2
             duel.log_turn = str(duel.turn_count) +"ターン:"+ user2_name + "のターン\n"
             duel.log += duel.log_turn
             self.current_log += duel.log_turn
         elif duel.user_turn == 2:
+            #duel.change_turn_flag = True
             duel.user_turn = 1
             duel.log_turn = str(duel.turn_count) +"ターン:" + user1_name + "のターン\n"
             duel.log += duel.log_turn
@@ -37886,6 +37915,7 @@ class DuelObj:
                                         det = field[x][y]["det"].copy()
                                         org_det = det
                                         field[x][y]["det"] = None
+                                        self.effect += "field_move;"+str(x)+";"+str(y)+"|"
                                         det = self.copy_monster_from_field(
                                             det,
                                             field[x][y]["kind"],
@@ -40358,8 +40388,7 @@ class DuelObj:
                 trigger_waiting = []
             else:
                 trigger_waiting = json.loads(duel.trigger_waiting)
-            trigger_waiting.append(field_triggers[0])
-            duel.trigger_waiting = json.dumps(trigger_waiting)
+            self.trigger_waiting_for_ai.append(field_triggers[0])
             return True
 
         return field
@@ -41580,6 +41609,18 @@ class DuelObj:
                             )
                         else:
                             value = 0
+                            '''
+                        self.invoke_trigger        (
+                    trigger,
+                    "deck",
+                    monster,
+                    mine_or_other,
+                    user,
+                    deck_id,
+                    0,
+                    0,
+                )
+                        '''
                         tmp = {}
                         tmp["monster"] = monster
                         tmp["move_from"] = None
@@ -41597,8 +41638,7 @@ class DuelObj:
                         tmp["from_x"] = 0
                         tmp["from_y"] = 0
                         tmp["strategy_value"] = value if trigger.strategy_up_or_down == 0 else -value
-                        trigger_waiting.append(tmp)
-                        duel.trigger_waiting = json.dumps(trigger_waiting)
+                        self.trigger_waiting_for_ai.append(tmp)
                     return True
                 tmp = {}
                 tmp["id"] = trigger.id
@@ -41678,6 +41718,18 @@ class DuelObj:
                             )
                         else:
                             value = 0
+                            '''
+                        self.invoke_trigger        (
+                    trigger,
+                    "deck",
+                    monster,
+                    mine_or_other,
+                    user,
+                    deck_id,
+                    0,
+                    0,
+                )
+                        '''
                         tmp = {}
                         tmp["monster"] = monster
                         tmp["move_from"] = None
@@ -41695,8 +41747,7 @@ class DuelObj:
                         tmp["from_x"] = 0
                         tmp["from_y"] = 0
                         tmp["strategy_value"] = 0
-                        trigger_waiting.append(tmp)
-                        duel.trigger_waiting = json.dumps(trigger_waiting)
+                        self.trigger_waiting_for_ai.append(tmp)
                     return True
                 tmp = {}
                 tmp["id"] = trigger.id
@@ -41777,6 +41828,18 @@ class DuelObj:
                             )
                         else:
                             value = 0
+                            '''
+                        self.invoke_trigger        (
+                    trigger,
+                    "hand",
+                    monster,
+                    mine_or_other,
+                    user,
+                    deck_id,
+                    0,
+                    0,
+                )
+                        '''
                         tmp = {}
                         tmp["monster"] = monster
                         tmp["move_from"] = None
@@ -41794,8 +41857,7 @@ class DuelObj:
                         tmp["from_x"] = 0
                         tmp["from_y"] = 0
                         tmp["strategy_value"] = value if trigger.strategy_up_or_down == 0 else -value
-                        trigger_waiting.append(tmp)
-                        duel.trigger_waiting = json.dumps(trigger_waiting)
+                        self.trigger_waiting_for_ai.append(tmp)
                     flag = True
                 tmp = {}
                 tmp["id"] = trigger.id
@@ -47385,6 +47447,7 @@ class DuelObj:
                                 tmp["deck_id_from"] = None
                                 tmp["strategy_value"] = value if timing.trigger.strategy_up_or_down == 0 else -value
                                 trigger_waiting.append(tmp)
+
                 else:
                     if timing.win_or_lose == 1:
                         self.win_the_game_user(user)
@@ -47445,9 +47508,12 @@ class DuelObj:
             cost_or_effect,
         )
 
-    def invoke_trigger_waiting(self, trigger_waiting, tmp_priority=0):
+    def invoke_trigger_waiting(self, trigger_waiting, tmp_priority=0,mode=0):
         duel = self.duel
-        trigger_waitings = json.loads(trigger_waiting)
+        if mode == 0:
+            trigger_waitings = json.loads(trigger_waiting)
+        else:
+            trigger_waitings = trigger_waiting
         trigger_waitings.sort(key=lambda x: (x["priority"],x["storategy_priority"],x["strategy_value"]), reverse=True)
         flag = False
         count = 0
@@ -47733,11 +47799,13 @@ class DuelObj:
             if flag is False or flag == 2:
                 break
         # invoke_triggerでtriggerが引かれる場合がある
-        trigger_waitings2 = json.loads(duel.trigger_waiting)
-        for remove_waiting in remove_waitings:
-            trigger_waitings2.remove(remove_waiting)
-        duel.trigger_waiting = json.dumps(trigger_waitings2)
+        if mode == 0:
+            trigger_waitings2 = json.loads(duel.trigger_waiting)
+            for remove_waiting in remove_waitings:
+                trigger_waitings2.remove(remove_waiting)
+            duel.trigger_waiting = json.dumps(trigger_waitings2)
         return flag
+
 
     def get_variables(self):
         duel = self.duel
@@ -50332,7 +50400,7 @@ class DuelObj:
             trigger_fusion3 = None
         monster_id = self.get_monster_id(
             place["det"], place["place"], place["det"]["owner"],place["deck_id"],place["x"], place["y"], place["mine_or_other"])
-        fusion = Fusion.objects.filter(id=fusion_id).get()
+        fusion = Fusion.objects.filter(id=fusion_id["id"]).get()
         if fusion is None:
             return False
         fusion1 = json.loads(fusion.fusion1)

@@ -1765,6 +1765,7 @@ class Duel(models.Model):
     effect2 = models.TextField(default="", blank=True)
     effect_flag = models.IntegerField(default=False,blank = True)
     background_image=models.CharField(max_length=32,default="",blank=True);
+    change_turn_flag = models.BooleanField(default=False)
     class Meta:
         db_table = "tcgcreator_duel"
 

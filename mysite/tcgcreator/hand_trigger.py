@@ -52,7 +52,7 @@ def hand_trigger(request):
         user = 2
         other_user = 1
     pprint("1")
-    duelobj.init_all(user, other_user, room_number)
+    duelobj.init_all(user, other_user, room_number,1)
     pprint("2")
     decks = Deck.objects.all()
     graves = Grave.objects.all()
