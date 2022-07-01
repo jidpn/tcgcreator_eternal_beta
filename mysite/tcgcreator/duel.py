@@ -6809,6 +6809,8 @@ class DuelObj:
         duel = self.duel
         val = val[1:-1]
         tmp = self.mess
+        if val not in tmp[str(duel.chain-1)]:
+            return []
         tmps = tmp[str(duel.chain - 1)][val]
         return_value = []
         for tmp in tmps:
@@ -7250,6 +7252,8 @@ class DuelObj:
             elif self.user == 2:
                 user = 1
         elif self.retrieve == 0:
+            user = self.user
+        elif  duel.chain == 0:
             user = self.user
         else:
             chain_user = json.loads(duel.chain_user)
@@ -8059,8 +8063,6 @@ class DuelObj:
                 duel.cost_det = cost_det
                 cost = cost_next
                 cost_unwrap = cost.cost
-                ppeinr(cost_unwrap)
-                ppeinr(cost_unwrap.cost_val)
                 if cost_unwrap.cost_val == 5:
                     if self.duel.is_ai is False:
                         self.duel.ask = 3
@@ -9048,7 +9050,12 @@ class DuelObj:
         trigger_num = self.check_monster_trigger(
             decks, graves, hands, user, other_user, priority,1
         )
-        self.invoke_trigger_waiting(self.trigger_waiting_for_ai, 0,1)
+        flag = self.invoke_trigger_waiting(self.trigger_waiting_for_ai, 0,1)
+        if flag is True:
+            return_value.append(None)
+            return_value.append(10000)
+
+        self.update = True
         self.trigger_waiting_for_ai = []
         if len(available_trigger) > 1 and (self.duel.is_ai is False or user == 1):
             return_value.append(available_trigger)
@@ -9186,6 +9193,7 @@ class DuelObj:
             return_value.append(None)
             return_value.append(priority)
         else:
+            pprint(available_trigger)
             return_value.append("monster_trigger")
             return_value.append(priority)
         return return_value
@@ -16055,7 +16063,10 @@ class DuelObj:
                 break
             if(dummy[0] == "{"):
                 tmp = self.get_name_all(dummy, 1)
-                tmp = tmp[0]
+                if len(tmp):
+                    tmp = tmp[0]
+                else:
+                    tmp = ""
             elif dummy[0] == "$":
                 tmp = self.get_place_name(dummy,user)
             prompt_text = prompt_text.replace(log_calc.group(), tmp) + "\n"
@@ -47510,6 +47521,7 @@ class DuelObj:
 
     def invoke_trigger_waiting(self, trigger_waiting, tmp_priority=0,mode=0):
         duel = self.duel
+        flag2 = False
         if mode == 0:
             trigger_waitings = json.loads(trigger_waiting)
         else:
@@ -47793,6 +47805,7 @@ class DuelObj:
                 flag = True
                 duel.force = 0
             trigger_waitings.remove(trigger_waiting)
+            flag2 = True
             remove_waitings.append(trigger_waiting)
             if len(trigger_waitings) == 0:
                 duel.in_trigger_waiting = False
@@ -47804,6 +47817,8 @@ class DuelObj:
             for remove_waiting in remove_waitings:
                 trigger_waitings2.remove(remove_waiting)
             duel.trigger_waiting = json.dumps(trigger_waitings2)
+        if flag2 is True:
+            duel.current_priority = 10000
         return flag
 
 
@@ -47959,7 +47974,7 @@ class DuelObj:
                 x = self.search_place_unique_id(y,place_unique_id)
                 if x == -1:
                     return
-            if field[x][y]["det"]["place_unique_id"] == place_unique_id:
+            if field[x][y]["det"] != None and field[x][y]["det"]["place_unique_id"] == place_unique_id:
                 for relate_index in range(
                     len(field[x][y]["det"]["rel"][relation_kind])
                 ):
@@ -50346,7 +50361,9 @@ class DuelObj:
         as_monster_effect = "material1"
         if not as_monster_effect in mess[str(duel.chain - 1)]:
             mess[str(duel.chain-1)][as_monster_effect] = []
-        trigger = Trigger.objects.get(id=duel.current_trigger)
+        chain_det_trigger_json = json.loads(self.duel.chain_det_trigger)
+        trigger_id = chain_det_trigger_json[str(duel.chain - 1)]
+        trigger = Trigger.objects.get(id=trigger_id)
         min_equation_number1 = 0
         min_equation_number2 = 0
         min_equation_number3 = 0
@@ -50472,7 +50489,9 @@ class DuelObj:
         as_monster_effect = "fusion"
         if not as_monster_effect in mess[str(duel.chain - 1)]:
             mess[str(duel.chain-1)][as_monster_effect] = []
-        trigger = Trigger.objects.get(id=duel.current_trigger)
+        chain_det_trigger_json = json.loads(self.duel.chain_det_trigger)
+        trigger_id = chain_det_trigger_json[str(duel.chain - 1)]
+        trigger = Trigger.objects.get(id=trigger_id)
         monsters = self.get_fusion_monster(trigger.fusion_monster, user, trigger,0,1)
         result = sorted(monsters, key=lambda x: x["strategy_value"], reverse=strategy_up_or_down)
         mess[str(duel.chain - 1)][

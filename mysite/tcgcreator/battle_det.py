@@ -90,7 +90,6 @@ def send_message(request):
 
 
 def battle_det(request, duelobj=None, choices=None):
-    pprint("HOGEHOGE")
     room_number = int(request.POST["room_number"])
     lock = Lock.objects.get()
     if duelobj is None:
@@ -153,7 +152,6 @@ def battle_det(request, duelobj=None, choices=None):
             duelobj.user = 1
             duelobj.other_user = 2
             duelobj.init_all(1,2, room_number)
-            pprint("ORG_AI")
             return battle_det_return_org_ai(
                 duelobj, decks, graves, hands, 1, 2, choices, room_number
             )
@@ -184,7 +182,6 @@ def battle_det(request, duelobj=None, choices=None):
                     user = 2
                     other_user = 1
                 duelobj.init_all(user, other_user, room_number)
-                pprint("ORG_AI2")
                 return battle_det_return_org_ai(
                     duelobj, decks, graves, hands, user, other_user, choices, room_number
                 )
@@ -271,8 +268,6 @@ def battle_det(request, duelobj=None, choices=None):
         other_user = 1
     if tmp_flag is True:
         duelobj.init_all(user, other_user, room_number)
-    pprint("START")
-    pprint(duel.winner)
     decks = Deck.objects.all()
     graves = Grave.objects.all()
     hands = Hand.objects.all()
@@ -346,15 +341,12 @@ def battle_det(request, duelobj=None, choices=None):
         flag = False
     else:
         flag = True
-    pprint("START2")
-    pprint(duel.in_trigger_waiting)
     if (
             (duel.chain == 0 or duel.in_trigger_waiting is True)
             and duel.trigger_waiting != "[]"
             and duel.in_cost is False
             and duel.ask == 0
     ):
-        pprint("THIS")
         if choices2[0] == None and  choices[0] == None:
             tmp_priority = min(choices[1],choices2[1])
         elif choices2[0] == None:
@@ -377,11 +369,11 @@ def battle_det(request, duelobj=None, choices=None):
         )
     flag_3 = False
     ai_flag = False
-    pprint("START3")
-    pprint(flag)
-    pprint(duel.winner_ai)
+    pprint(choices)
+    pprint(choices2)
+    pprint("current_priority")
+    pprint(duel.current_priority)
     while flag is True and (duel.winner == 0 and duel.winner_ai == 0):
-        pprint("START4")
         flag = False
         lll_flag = False
         if duel.in_cost >= 1 and duelobj.in_execute is False and duel.appoint == user:
@@ -389,13 +381,10 @@ def battle_det(request, duelobj=None, choices=None):
             trigger = Trigger.objects.get(id=duel.current_trigger)
             duelobj.pay_cost(cost, user,duel.chain,trigger,False)
             duelobj.update = True
-            pprint("COST")
         elif duel.in_cost is False:
             choices = duelobj.check_trigger(
                 decks, graves, hands, duel.phase, duel.user_turn, user, other_user
             )
-            pprint("FIRST_CHOICE")
-            pprint(choices)
             while duel.winner == 0 and duel.winner_ai == 0:
                 if flag_3 is True:
                     break
@@ -414,8 +403,6 @@ def battle_det(request, duelobj=None, choices=None):
                             other_user,
                             user,
                         )
-                        pprint(choices2)
-                        pprint(choices)
                         if duel.appoint == user:
                             break
                         if choices2[0] is not None and duelobj.check_wait(other_user) and duel.is_ai is False:
@@ -441,6 +428,7 @@ def battle_det(request, duelobj=None, choices=None):
                                         duel.appoint = 1
                                     duel.none = True
                                 else:
+                                    pprint("POI")
                                     duel.current_priority = duelobj.max2(choices,choices2)
                                     duelobj.update = True
                                     if duel.appoint == 1:
@@ -450,6 +438,7 @@ def battle_det(request, duelobj=None, choices=None):
                                     duel.none = False
                             elif choices2[0] is not None and duelobj.check_wait(other_user) and duel.is_ai is False:
                                 if ai_flag is False:
+                                    pprint("BBB")
                                     duel.current_priority = duelobj.max2(choices,choices2)
                                     ai_flag = False
                                 duelobj.update = True
@@ -460,6 +449,7 @@ def battle_det(request, duelobj=None, choices=None):
                                         duel.appoint = 1
                                     duel.none = True
                                 else:
+                                    pprint("CCC")
                                     duel.current_priority = duelobj.max2(choices,choices2)
                                     duelobj.update = True
                                     if duel.appoint == 1:
@@ -473,6 +463,8 @@ def battle_det(request, duelobj=None, choices=None):
                             else:
                                 lll_flag = False
                                 tmp_current_priority = duel.current_priority
+                                pprint(choices)
+                                pprint("DDD")
                                 duel.current_priority = duelobj.max2(choices,choices2)
                                 if tmp_current_priority != duel.current_priority:
                                     duelobj.update = True
@@ -481,7 +473,6 @@ def battle_det(request, duelobj=None, choices=None):
                                     if duel.in_cost is False:
                                         if duel.is_ai == True:
                                             ai_flag = True
-                                        pprint("EEE")
                                         duelobj.retrieve_chain(
                                             decks,
                                             graves,
@@ -555,8 +546,9 @@ def battle_det(request, duelobj=None, choices=None):
                                 elif duel.current_priority == 0 and duel.in_cost is False :
                                     if (duel.ask == 0 ):
                                         duelobj.invoke_trigger_waiting(duel.trigger_waiting)
-                                    if duel.chain != 0:
-                                        pprint("AAA")
+                                    if duel.chain != 0 and duel.current_priority == 0:
+
+                                        pprint("BBB")
                                         duelobj.retrieve_chain(
                                             decks,
                                             graves,
@@ -629,7 +621,6 @@ def battle_det(request, duelobj=None, choices=None):
                                         flag_2 = True
                                     break
                 if duel.appoint == user:
-                    pprint("AAA")
                     choices = duelobj.check_trigger(
                         decks,
                         graves,
@@ -648,11 +639,7 @@ def battle_det(request, duelobj=None, choices=None):
                         other_user,
                         user,
                     )
-                    pprint("MEJISU")
-                    pprint(choices2)
-                    pprint(choices)
                     while (choices[0] is None and choices[1] == choices2[1] and choices2[0] is None and duel.current_priority != 0):
-                        pprint("BBB")
                         choices = duelobj.check_trigger(
                         decks,
                         graves,
@@ -671,16 +658,18 @@ def battle_det(request, duelobj=None, choices=None):
                         other_user,
                         user,
                         )
-                        duel.current_priority = choices2[1]
-                        pprint("MEJISU2")
-                        pprint(choices2)
                         pprint(choices)
+                        pprint(choices2)
+                        pprint("LKJ")
+                        if(choices[0] is None and choices2[0] is None):
+                            duel.current_priority = max(choices[1] ,choices2[1])
                     if (choices2[1] > choices[1] and choices2[1] is not None) or (
                         choices2[0] is not None and choices[0] is None
                     ):
                         if not duelobj.check_wait(other_user) or duel.is_ai is True:
 
                             duel.current_priority = choices2[1]
+                            pprint("FFF")
                             duelobj.update = True
                         elif duel.none == False:
                             if duel.appoint == 1:
@@ -690,6 +679,7 @@ def battle_det(request, duelobj=None, choices=None):
                             duel.none = True
                             break
                         else:
+                            pprint("GGG")
                             duel.current_priority = duelobj.max2(choices,choices2)
                             if duel.appoint == 1:
                                 duel.appoint = 2
@@ -704,6 +694,7 @@ def battle_det(request, duelobj=None, choices=None):
                         ):  # and duel.appoint == duel.user_turn):
                             duelobj.update = True
                             if not duelobj.check_wait(other_user):
+                                pprint("GGG")
                                 duel.current_priority = choices2[1]
                             elif duel.none == False:
                                 if duel.appoint == 1:
@@ -713,6 +704,7 @@ def battle_det(request, duelobj=None, choices=None):
                                 duel.none = True
                                 break
                             else:
+                                pprint("HHH")
                                 duel.current_priority = duelobj.max2(choices,choices2)
                                 if duel.appoint == 1:
                                     duel.appoint = 2
@@ -724,6 +716,7 @@ def battle_det(request, duelobj=None, choices=None):
                             and choices2[0] is not None
                             and duel.appoint != duel.user_turn
                         ):
+                            pprint("III")
                             duel.current_priority = choices2[1]
                             duelobj.update = True
                         elif duel.in_cost is False and \
@@ -741,7 +734,7 @@ def battle_det(request, duelobj=None, choices=None):
                         )):
                             duelobj.invoke_trigger_waiting(duel.trigger_waiting)
                             if duel.in_cost is False:
-                                pprint("BBB")
+                                pprint("CCC")
                                 duelobj.retrieve_chain(
                                     decks,
                                     graves,
@@ -817,12 +810,13 @@ def battle_det(request, duelobj=None, choices=None):
                             and (choices2[0] is None
                             or choices[0] is True) and duel.chain == 0 and duel.in_cost is False):
                             duel.current_priority = choices[1]
+                            pprint("SSS")
                             duelobj.update = True
                             if duel.current_priority == 0 and duel.ask == 0:
                                 duel.current_priority = 10000
                                 duelobj.invoke_trigger_waiting(duel.trigger_waiting)
                                 if duel.in_cost is False:
-                                    pprint("CCC")
+                                    pprint("DDD")
                                     duelobj.retrieve_chain(
                                     decks,
                                     graves,
@@ -867,6 +861,7 @@ def battle_det(request, duelobj=None, choices=None):
                                 and duel.ask == 0
                             ):
                                 duel.current_priority = duelobj.max2(choices,choices2)
+                                pprint("TTT")
                                 flag2 = duelobj.invoke_trigger_waiting(duel.trigger_waiting, duel.current_priority)
                                 duelobj.update = True
                                 if duel.current_priority == 0:
@@ -877,9 +872,6 @@ def battle_det(request, duelobj=None, choices=None):
                                     choices2 = duelobj.check_trigger(
                                 decks, graves, hands, duel.phase, duel.user_turn, other_user, user
                                 )
-                                pprint("MEJISU3")
-                                pprint(choices2)
-                                pprint(choices)
                                 if not flag2:
                                     duel.in_trigger_waiting = False
                                 continue
@@ -904,8 +896,8 @@ def battle_det(request, duelobj=None, choices=None):
                             )
                             duelobj.invoke_trigger_waiting(duel.trigger_waiting)
                             duelobj.update = True
-                            if duel.in_cost is False:
-                                pprint("DDD")
+                            if duel.in_cost is False and duel.current_priority == 0:
+                                pprint("EEE")
                                 duelobj.retrieve_chain(
                                     decks,
                                     graves,
@@ -1001,9 +993,6 @@ def battle_det(request, duelobj=None, choices=None):
                                         other_user,
                                         user,
                                     )
-                                    pprint("MEJISU4")
-                                    pprint(choices2)
-                                    pprint(choices)
 
                 if (
                     (duel.chain == 0 or duel.in_trigger_waiting is True)
@@ -1014,6 +1003,7 @@ def battle_det(request, duelobj=None, choices=None):
                     and choices2[0] is None 
                 ):
                     duel.current_priority = duelobj.max2(choices,choices2)
+                    pprint("UUU")
                     if duel.current_priority == 0:
                         duel.current_priority = 10000
                         choices = duelobj.check_trigger(
@@ -1022,9 +1012,6 @@ def battle_det(request, duelobj=None, choices=None):
                         choices2 = duelobj.check_trigger(
                     decks, graves, hands, duel.phase, duel.user_turn, other_user, user
                     )
-                    pprint("MEJISU5")
-                    pprint(choices2)
-                    pprint(choices)
                     flag2 = duelobj.invoke_trigger_waiting(duel.trigger_waiting, duel.current_priority)
                     duelobj.update = True
                     if not flag2:
@@ -1043,6 +1030,7 @@ def battle_det(request, duelobj=None, choices=None):
                     '''
                 if flag_2 is True:
                     break
+                pprint("AAA")
                 if( choices[0] is not None
                      and choices[0] is not True
                      and duel.appoint == user
@@ -1073,6 +1061,7 @@ def battle_det(request, duelobj=None, choices=None):
         and choices2[0] is None
     ):
         duel.current_priority = duelobj.max2(choices, choices2)
+        pprint("VVV")
         if duel.current_priority == 0:
             duel.current_priority = 10000
             choices = duelobj.check_trigger(
@@ -1086,6 +1075,13 @@ def battle_det(request, duelobj=None, choices=None):
                 duel.appoint = 1
             else:
                 duel.appoint = 2
+    pprint("duel.current_prioirty")
+    pprint(duel.current_priority)
+    if(choices[0] is not None and choices2[0] is None):
+        duel.appoint = user
+    if(choices2[0] is not None and choices[0] is None):
+        duel.appoint = other_user
+            
     if duelobj.update is True:
         duelobj.save_all(user, other_user, room_number)
     if room_number == 1:
@@ -1245,7 +1241,6 @@ def battle_det_return(
         return_value["time_2"] = limit_time - (time() - duel.time_1)
     return_value["winner"] = False
     return_value["effect"] = str(duelobj.effect)
-    pprint(duelobj.effect)
     return HttpResponse(json.dumps(return_value))
 
 
@@ -1352,7 +1347,6 @@ def battle_det_return_org(
     else:
         return_value["winner_who"] = duel.winner_ai
     return_value["effect"] = duelobj.effect
-    pprint(duelobj.effect)
     return HttpResponse(json.dumps(return_value))
 
 def battle_det_return_org_ai(

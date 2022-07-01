@@ -24,6 +24,7 @@ def hand_trigger(request):
     mine_or_other = request.POST["mine_or_other"]
 
     lock = Lock.objects.get()
+    pprint("HAND_TRIGGER")
     lock_flag = lock_lock(room_number, lock)
     if lock_flag != "OK":
         return HttpResponse("waiting")
@@ -85,6 +86,7 @@ def hand_trigger(request):
             pprint("HAND_TRIGGER2")
             return battle_det(request, duelobj)
         else:
+            pprint("error1")
             free_lock(room_number, lock)
             return HttpResponse("error")
     elif duel.user_2 == request.user or (ID2 == ID and duel.guest_flag2):
@@ -104,6 +106,7 @@ def hand_trigger(request):
             pprint("HAND_TRIGGER3")
             return battle_det(request, duelobj)
         else:
+            pprint("error2")
             free_lock(room_number, lock)
             return HttpResponse("error")
     free_lock(room_number, lock)
@@ -147,6 +150,7 @@ def hand_trigger_det(
             monster = Monster.objects.get(id=hand["id"])
             monster_triggers = monster.trigger.all()
             result_trigger = monster_triggers.get(id=trigger_id)
+            pprint(result_trigger)
             if result_trigger is None:
                 return False
             elif duelobj.check_launch_trigger(
@@ -162,9 +166,11 @@ def hand_trigger_det(
                 fusion = 1
             ):
                 pprint("444")
+                pprint(result_trigger)
                 duelobj.invoke_trigger(
                     result_trigger, "hand", hand, mine_or_other2, duelobj.user, hand_id
                 )
+                duelobj.duel.current_priority = 10000
                 pprint("555")
                 duelobj.save_all(user, other_user, room_number)
                 pprint("666")

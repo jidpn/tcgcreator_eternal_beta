@@ -286,7 +286,7 @@ def init_duel(room_number, user,default_deck = None,enemy_deck=None,user1_choosi
                 min_deck_size = deck.min_deck_size
                 max_deck_size = deck.max_deck_size
                 for special_card in special_cards:
-                    if special_card.filter(deck = deck):
+                    if special_card.deck == deck:
                         special_first = special_card
                         min_deck_size = special_first.min_deck_size
                         max_deck_size = special_first.max_deck_size
