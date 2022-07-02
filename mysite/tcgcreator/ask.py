@@ -24,6 +24,8 @@ def ask_place(request):
     hands = Hand.objects.all()
     room_number = int(request.POST["room_number"])
     duel = Duel.objects.filter(id=room_number).get()
+    pprint("DUELASK")
+    pprint(duel.ask)
     if duel.guest_flag is False:
         ID1 = -1
     else:

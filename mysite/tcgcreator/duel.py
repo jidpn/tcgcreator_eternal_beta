@@ -5240,6 +5240,7 @@ class DuelObj:
         global_name=None,
         eternal = False
     ):
+        pprint(val)
         duel = self.duel
         val = val[1:-1]
         val = val.split(":")
@@ -12848,6 +12849,7 @@ class DuelObj:
                                 self.duel.ask += 2
                             else:
                                 self.answer_ai(strategy,strategy_up_or_down)
+                                self.answer_ai(strategy,strategy_up_or_down)
             elif (
                 monster_effect_unwrap.monster_effect_val == 3
                 or monster_effect_unwrap.monster_effect_val == 44
@@ -14814,9 +14816,9 @@ class DuelObj:
                     self.duel.ask_kind = effect_kind
                     if duel.is_ai is False :
                         if duel.user_turn == user:
-                            self.duel.ask = 2
+                            self.duel.ask += 2
                         else:
-                            self.duel.ask = 1
+                            self.duel.ask += 1
                     else:
                         if duel.user_turn == 2:
                             self.duel.ask = 2
@@ -42077,6 +42079,7 @@ class DuelObj:
         ignore_timing = None,
         fusion = 0
     ):
+        pprint(trigger)
         duel = self.duel
         if(trigger.once_per_duel):
             if not self.check_once_per_duel(trigger,user):
