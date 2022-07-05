@@ -856,6 +856,7 @@ function chooseFusionMonster(data){
         }
 	for(i = 0;i<monsters.length;i++){
 	    monster = monsters[i];
+		console.log(monster);
 	    	if(monster["mine_or_other"] == user){
 	    		mine_or_other = "あなたの";
 	    		mine_or_other_num = user;
@@ -1587,6 +1588,7 @@ function ask_det(data){
     }
     if(data["fusion"] == true){
     	global_field_info = data["field_info"];
+	console.log(data);
 	chooseFusionMonster(data);
 	return;
     }

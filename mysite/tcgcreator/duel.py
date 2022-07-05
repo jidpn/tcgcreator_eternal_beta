@@ -3777,6 +3777,7 @@ class DuelObj:
                                     if mode == 1:
                                         return True
                                     for fusion in fusions:
+                                        pprint(fusion)
                                         fusion_monster["fusion"] = fusion
                                         return_monster.append(fusion_monster)
                 if not tmp_deck:
@@ -3820,8 +3821,10 @@ class DuelObj:
                                 for fusion in fusions:
                                     fusion_monster["fusion"] = fusion
                                     return_monster.append(fusion_monster)
+                                    fusion_monster =copy.deepcopy(fusion_monster)
         if mode == 1:
             return False
+        pprint(return_monster)
         return return_monster
     def validate_place(self,monster_condition,monster,user):
         monster_place = monster["place"]
@@ -5250,7 +5253,7 @@ class DuelObj:
             chain_user = json.loads(duel.chain_user)
             user = chain_user[str(self.tmp_chain)]
         elif duel.chain == 0:
-            user = self.user
+            user = duel.appoint
         elif duel.ask == 1:
             user = self.user
         elif duel.ask == 2:
@@ -9194,7 +9197,6 @@ class DuelObj:
             return_value.append(None)
             return_value.append(priority)
         else:
-            pprint(available_trigger)
             return_value.append("monster_trigger")
             return_value.append(priority)
         return return_value
@@ -18883,11 +18885,15 @@ class DuelObj:
             duel.log_turn = str(duel.turn_count) +"ターン:"+ user2_name + "のターン\n"
             duel.log += duel.log_turn
             self.current_log += duel.log_turn
-        elif duel.user_turn == 2:
+        elif duel.user_turn == 2 :
             #duel.change_turn_flag = True
             duel.user_turn = 1
-            duel.log_turn = str(duel.turn_count) +"ターン:" + user1_name + "のターン\n"
-            duel.log += duel.log_turn
+            if duel.is_ai is False:
+                duel.log_turn = str(duel.turn_count) +"ターン:" + user1_name + "のターン\n"
+                duel.log += duel.log_turn
+            else:
+                duel.log += str(duel.turn_count) +"ターン:" + user1_name + "のターン\n"
+                duel.log_turn += str(duel.turn_count) +"ターン:" + user1_name + "のターン\n"
             self.current_log += duel.log_turn
         duel.appoint = duel.user_turn
         self.expire_turn(duel.user_turn)
@@ -42079,7 +42085,6 @@ class DuelObj:
         ignore_timing = None,
         fusion = 0
     ):
-        pprint(trigger)
         duel = self.duel
         if(trigger.once_per_duel):
             if not self.check_once_per_duel(trigger,user):
