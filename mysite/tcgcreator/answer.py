@@ -1980,6 +1980,7 @@ def yes_or_no_cost(request, duelobj, user, other_user, room_number, lock):
     duelobj.check_eternal_effect(
         decks, graves, hands, duel.phase, duel.user_turn, user, other_user
     )
+    choices = None
     if answer == "yes":
         duel.ask = 0
         effect = CostWrapper.objects.get(id=cost_det)
@@ -2060,6 +2061,16 @@ def yes_or_no_cost(request, duelobj, user, other_user, room_number, lock):
                 else:
                     duelobj.end_cost(duel.cost_user,duel.chain,trigger)
             choices = None
+        else:
+            if effect.pac2:
+                next_effect = duelobj._pac_cost(effect.pac2)
+            elif effect.cost_next2:
+                next_effect = effect.cost_next2
+            else:
+                next_effect = duelobj.pop_pac_cost2(user)
+            duel.cost_det = next_effect.id
+            trigger = Trigger.objects.get(id=duel.current_trigger)
+            tmp = duelobj.pay_cost(next_effect, user,duel.chain,trigger)
     duelobj.save_all(user, other_user, room_number)
     free_lock(room_number, lock)
     return battle_det(request, duelobj, choices)

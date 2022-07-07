@@ -1846,10 +1846,11 @@ class DuelObj:
         monster_check = None,
         name_flag = False
     ):
-        if user != self.user:
-            other_user_flag2 = True
-        else:
-            other_user_flag2 = False
+        #if user != self.user:
+        #    other_user_flag2 = True
+        #else:
+        #謎多分Falseでいいと思われる
+        other_user_flag2 = False
         field = self.field
         if monster_check is None:
             monster2 = {}
@@ -2041,7 +2042,7 @@ class DuelObj:
                 return False
         if "turn_count" in monster_condition and monster_condition["turn_count"] != "":
             if (
-                self.calculate_boland(monster_condition["turn_count"], monster2, False,other_user_flag2 = other_user_flag2)
+                self.calculate_boland(monster_condition["turn_count"], monster2, False,other_user_flag2 = other_user_flag2,user =user)
                 != monster["turncount"]
             ):
                 return False
@@ -2156,7 +2157,7 @@ class DuelObj:
                     value = 0
                 if cond_val["operator"] == "=": 
                     if float(value) != self.calculate_boland(
-                        cond_val["num"], monster2, False,other_user_flag2 = other_user_flag2
+                        cond_val["num"], monster2, False,other_user_flag2 = other_user_flag2,user =user
                     ):
                         tmp_flag = False
                 elif cond_val["operator"] == "":
@@ -2173,17 +2174,17 @@ class DuelObj:
                             tmp_flag = False
                 elif cond_val["operator"] == "<=":
                     if float(value) > self.calculate_boland(
-                        cond_val["num"], monster2, False,other_user_flag2 = other_user_flag2
+                        cond_val["num"], monster2, False,other_user_flag2 = other_user_flag2,user =user
                     ):
                         tmp_flag = False
                 elif cond_val["operator"] == ">=":
                     if float(value) < self.calculate_boland(
-                        cond_val["num"], monster2, False,other_user_flag2 = other_user_flag2
+                        cond_val["num"], monster2, False,other_user_flag2 = other_user_flag2,user =user
                     ):
                         tmp_flag = False
                 elif cond_val["operator"] == "!=":
                     if float(value) == self.calculate_boland(
-                        cond_val["num"], monster2, False,other_user_flag2 = other_user_flag2
+                        cond_val["num"], monster2, False,other_user_flag2 = other_user_flag2,user =user
                     ):
                         tmp_flag = False
                 if current_and_or == "and":
@@ -2304,23 +2305,23 @@ class DuelObj:
                 value = float(value)
                 if cond_val["operator"] == "=" or cond_val["operator"] == "":
                     if str(value) != str(
-                        self.calculate_boland(cond_val["num"], monster2, False,other_user_flag2 = other_user_flag2,mode = 1)
+                        self.calculate_boland(cond_val["num"], monster2, False,other_user_flag2 = other_user_flag2,mode = 1,user =user)
                     ):
                         tmp_flag = False
                 elif cond_val["operator"] == "<=":
                     if int(value) > self.calculate_boland(
-                        cond_val["num"], monster2, False,other_user_flag2 = other_user_flag2,mode = 1
+                        cond_val["num"], monster2, False,other_user_flag2 = other_user_flag2,mode = 1,user =user
                     ):
 
                         tmp_flag = False
                 elif cond_val["operator"] == ">=":
                     if int(value) < self.calculate_boland(
-                        cond_val["num"], monster2, False,other_user_flag2 = other_user_flag2,mode = 1
+                        cond_val["num"], monster2, False,other_user_flag2 = other_user_flag2,mode = 1,user =user
                     ):
                         tmp_flag = False
                 elif cond_val["operator"] == "!=":
                     if int(value) == self.calculate_boland(
-                        cond_val["num"], monster2, False,other_user_flag2 = other_user_flag2,mode = 1
+                        cond_val["num"], monster2, False,other_user_flag2 = other_user_flag2,mode = 1,user =user
                     ):
                         tmp_flag = False
                 if current_and_or == "and":
@@ -2347,10 +2348,11 @@ class DuelObj:
         effect_kind="",
         name_flag = False
     ):
-        if user != self.user:
-            other_user_flag2 = True
-        else:
-            other_user_flag2 = False 
+        #if user != self.user:
+        #    other_user_flag2 = True
+        #else:
+        #謎多分Falseでいいと思われる
+        other_user_flag2 = False 
         choose = int(choose)
         duel = self.duel
         cost = self.cost
@@ -3197,8 +3199,8 @@ class DuelObj:
             max_equation_number = monster_condition["max_equation_number"]
             if equation_kind == "number":
                 if count >= float(self.calculate_boland(
-                    min_equation_number, monster,other_user_flag2 = other_user_flag2
-                )) and count <= float(self.calculate_boland(max_equation_number, monster,other_user_flag2 = other_user_flag2)):
+                    min_equation_number, monster,other_user_flag2 = other_user_flag2,user =user
+                )) and count <= float(self.calculate_boland(max_equation_number, monster,other_user_flag2 = other_user_flag2,user =user)):
                     if and_or_all == "or":
                         flag = True
                     elif flag is True:
@@ -3211,9 +3213,9 @@ class DuelObj:
 
             elif equation_kind == "kind":
                 if len(variety) >= self.calculate_boland(
-                    min_equation_number, monster,other_user_flag2 = other_user_flag2
+                    min_equation_number, monster,other_user_flag2 = other_user_flag2,user =user
                 ) and len(variety) <= self.calculate_boland(
-                    max_equation_number, monster,other_user_flag2 = other_user_flag2
+                    max_equation_number, monster,other_user_flag2 = other_user_flag2,user =user
                 ):
                     if and_or_all == "or":
                         flag = True
@@ -3232,9 +3234,9 @@ class DuelObj:
                 if (
                     same_name
                     and same_name_max
-                    >= self.calculate_boland(min_equation_number, monster,other_user_flag2 = other_user_flag2)
+                    >= self.calculate_boland(min_equation_number, monster,other_user_flag2 = other_user_flag2,user =user)
                     and same_name_max
-                    <= self.calculate_boland(max_equation_number, monster,other_user_flag2 = other_user_flag2)
+                    <= self.calculate_boland(max_equation_number, monster,other_user_flag2 = other_user_flag2,user =user)
                 ):
                     if and_or_all == "or":
                         flag = True
@@ -3247,8 +3249,8 @@ class DuelObj:
                         flag = False
             elif counter == "x":
                 if x_counter >= self.calculate_boland(
-                    min_equation_number, monster,other_user_flag2 = other_user_flag2
-                ) and x_counter <= self.calculate_boland(max_equation_number, monster,other_user_flag2 = other_user_flag2):
+                    min_equation_number, monster,other_user_flag2 = other_user_flag2,user =user
+                ) and x_counter <= self.calculate_boland(max_equation_number, monster,other_user_flag2 = other_user_flag2,user =user):
                     if and_or_all == "or":
                         flag = True
                     elif flag is True:
@@ -3260,8 +3262,8 @@ class DuelObj:
                         flag = False
             elif counter == "y":
                 if y_counter >= self.calculate_boland(
-                    min_equation_number, monster,other_user_flag2 = other_user_flag2
-                ) and y_counter <= self.calculate_boland(max_equation_number, monster,other_user_flag2 = other_user_flag2):
+                    min_equation_number, monster,other_user_flag2 = other_user_flag2,user =user
+                ) and y_counter <= self.calculate_boland(max_equation_number, monster,other_user_flag2 = other_user_flag2,user =user):
                     if and_or_all == "or":
                         flag = True
                     elif flag is True:
@@ -3273,9 +3275,9 @@ class DuelObj:
                         flag = False
             else:
                 if len(variable_variety) >= self.calculate_boland(
-                    min_equation_number, monster,other_user_flag2 = other_user_flag2
+                    min_equation_number, monster,other_user_flag2 = other_user_flag2,user =user
                 ) and len(variable_variety) <= self.calculate_boland(
-                    max_equation_number, monster,other_user_flag2 = other_user_flag2
+                    max_equation_number, monster,other_user_flag2 = other_user_flag2,user =user
                 ):
                     if and_or_all == "or":
                         flag = True
@@ -3777,7 +3779,6 @@ class DuelObj:
                                     if mode == 1:
                                         return True
                                     for fusion in fusions:
-                                        pprint(fusion)
                                         fusion_monster["fusion"] = fusion
                                         return_monster.append(fusion_monster)
                 if not tmp_deck:
@@ -3824,7 +3825,6 @@ class DuelObj:
                                     fusion_monster =copy.deepcopy(fusion_monster)
         if mode == 1:
             return False
-        pprint(return_monster)
         return return_monster
     def validate_place(self,monster_condition,monster,user):
         monster_place = monster["place"]
@@ -4065,7 +4065,7 @@ class DuelObj:
                 if variable_name == "chain":
                     if variable_condition["variable"][key]["variable_equation"] == "=":
                         if not duel.virtual_chain == self.calculate_boland(
-                                variable_condition["variable"][key]["variable_val"]
+                                variable_condition["variable"][key]["variable_val"],user =user
                         ):
                             if current_and_or == "and" or variable_flag is False:
                                 variable_flag = False
@@ -4076,7 +4076,7 @@ class DuelObj:
                             variable_condition["variable"][key]["variable_equation"] == "<="
                     ):
                         if not duel.virtual_chain <= self.calculate_boland(
-                                variable_condition["variable"][key]["variable_val"]
+                                variable_condition["variable"][key]["variable_val"],user =user
                         ):
                             if current_and_or == "and" or variable_flag is False:
                                 variable_flag = False
@@ -4087,7 +4087,7 @@ class DuelObj:
                             variable_condition["variable"][key]["variable_equation"] == ">="
                     ):
                         if not duel.virtual_chain >= self.calculate_boland(
-                                variable_condition["variable"][key]["variable_val"]
+                                variable_condition["variable"][key]["variable_val"],user =user
                         ):
                             if current_and_or == "and" or variable_flag is False:
                                 variable_flag = False
@@ -4098,7 +4098,7 @@ class DuelObj:
                             variable_condition["variable"][key]["variable_equation"] == "!="
                     ):
                         if not duel.virtual_chain != self.calculate_boland(
-                                variable_condition["variable"][key]["variable_val"]
+                                variable_condition["variable"][key]["variable_val"],user =user
                         ):
                             if current_and_or == "and" or variable_flag is False:
                                 variable_flag = False
@@ -4108,7 +4108,7 @@ class DuelObj:
                 elif variable_name == "turncount":
                     if variable_condition["variable"][key]["variable_equation"] == "=":
                         if not duel.turn_count == self.calculate_boland(
-                                variable_condition["variable"][key]["variable_val"]
+                                variable_condition["variable"][key]["variable_val"],user =user
                         ):
                             if current_and_or == "and" or variable_flag is False:
                                 variable_flag = False
@@ -4119,7 +4119,7 @@ class DuelObj:
                             variable_condition["variable"][key]["variable_equation"] == "<="
                     ):
                         if not duel.turn_count <= self.calculate_boland(
-                                variable_condition["variable"][key]["variable_val"]
+                                variable_condition["variable"][key]["variable_val"],user =user
                         ):
                             if current_and_or == "and" or variable_flag is False:
                                 variable_flag = False
@@ -4130,7 +4130,7 @@ class DuelObj:
                             variable_condition["variable"][key]["variable_equation"] == ">="
                     ):
                         if not duel.turn_count >= self.calculate_boland(
-                                variable_condition["variable"][key]["variable_val"]
+                                variable_condition["variable"][key]["variable_val"],user =user
                         ):
                             if current_and_or == "and" or variable_flag is False:
                                 variable_flag = False
@@ -4141,7 +4141,7 @@ class DuelObj:
                             variable_condition["variable"][key]["variable_equation"] == "!="
                     ):
                         if not duel.turn_count != self.calculate_boland(
-                                variable_condition["variable"][key]["variable_val"]
+                                variable_condition["variable"][key]["variable_val"],user =user
                         ):
                             if current_and_or == "and" or variable_flag is False:
                                 variable_flag = False
@@ -4153,7 +4153,7 @@ class DuelObj:
                         if not variable[variable_name][
                                    "value"
                                ] == self.calculate_boland(
-                            variable_condition["variable"][key]["variable_val"]
+                            variable_condition["variable"][key]["variable_val"],user =user
                         ):
                             if current_and_or == "and" or variable_flag is False:
                                 variable_flag = False
@@ -4166,7 +4166,7 @@ class DuelObj:
                         if not variable[variable_name][
                                    "value"
                                ] <= self.calculate_boland(
-                            variable_condition["variable"][key]["variable_val"]
+                            variable_condition["variable"][key]["variable_val"],user =user
                         ):
                             if current_and_or == "and" or variable_flag is False:
                                 variable_flag = False
@@ -4179,7 +4179,7 @@ class DuelObj:
                         if not variable[variable_name][
                                    "value"
                                ] >= self.calculate_boland(
-                            variable_condition["variable"][key]["variable_val"]
+                            variable_condition["variable"][key]["variable_val"],user =user
                         ):
                             if current_and_or == "and" or variable_flag is False:
                                 variable_flag = False
@@ -4192,7 +4192,7 @@ class DuelObj:
                         if not variable[variable_name][
                                    "value"
                                ] != self.calculate_boland(
-                            variable_condition["variable"][key]["variable_val"]
+                            variable_condition["variable"][key]["variable_val"],user =user
                         ):
                             if current_and_or == "and" or variable_flag is False:
                                 variable_flag = False
@@ -4206,7 +4206,7 @@ class DuelObj:
                         if not variable[variable_name][
                                    "1_value"
                                ] == self.calculate_boland(
-                            variable_condition["variable"][key]["variable_val"]
+                            variable_condition["variable"][key]["variable_val"],user =user
                         ):
                             if current_and_or == "and" or variable_flag is False:
                                 variable_flag = False
@@ -4219,7 +4219,7 @@ class DuelObj:
                         if not variable[variable_name][
                                    "1_value"
                                ] <= self.calculate_boland(
-                            variable_condition["variable"][key]["variable_val"]
+                            variable_condition["variable"][key]["variable_val"],user =user
                         ):
                             if current_and_or == "and" or variable_flag is False:
                                 variable_flag = False
@@ -4232,7 +4232,7 @@ class DuelObj:
                         if not variable[variable_name][
                                    "1_value"
                                ] >= self.calculate_boland(
-                            variable_condition["variable"][key]["variable_val"]
+                            variable_condition["variable"][key]["variable_val"],user =user
                         ):
                             if current_and_or == "and" or variable_flag is False:
                                 variable_flag = False
@@ -4245,7 +4245,7 @@ class DuelObj:
                         if not variable[variable_name][
                                    "1_value"
                                ] != self.calculate_boland(
-                            variable_condition["variable"][key]["variable_val"]
+                            variable_condition["variable"][key]["variable_val"],user =user
                         ):
                             if current_and_or == "and" or variable_flag is False:
                                 variable_flag = False
@@ -4259,7 +4259,7 @@ class DuelObj:
                         if not variable[variable_name][
                                    "2_value"
                                ] == self.calculate_boland(
-                            variable_condition["variable"][key]["variable_val"]
+                            variable_condition["variable"][key]["variable_val"],user =user
                         ):
                             if current_and_or == "and" or variable_flag is False:
                                 variable_flag = False
@@ -4272,7 +4272,7 @@ class DuelObj:
                         if not variable[variable_name][
                                    "2_value"
                                ] <= self.calculate_boland(
-                            variable_condition["variable"][key]["variable_val"]
+                            variable_condition["variable"][key]["variable_val"],user =user
                         ):
                             if current_and_or == "and" or variable_flag is False:
                                 variable_flag = False
@@ -4285,7 +4285,7 @@ class DuelObj:
                         if not variable[variable_name][
                                    "2_value"
                                ] >= self.calculate_boland(
-                            variable_condition["variable"][key]["variable_val"]
+                            variable_condition["variable"][key]["variable_val"],user =user
                         ):
                             if current_and_or == "and" or variable_flag is False:
                                 variable_flag = False
@@ -4298,7 +4298,7 @@ class DuelObj:
                         if not variable[variable_name][
                                    "2_value"
                                ] != self.calculate_boland(
-                            variable_condition["variable"][key]["variable_val"]
+                            variable_condition["variable"][key]["variable_val"],user =user
                         ):
                             if current_and_or == "and" or variable_flag is False:
                                 variable_flag = False
@@ -5002,7 +5002,7 @@ class DuelObj:
             chain_user = json.loads(duel.chain_user)
             user = chain_user[str(self.tmp_chain)]
         elif duel.chain == 0:
-            user = self.user
+            user = self.duel.appoint
         elif duel.ask == 1:
             user = self.user
         elif duel.ask == 2:
@@ -5243,7 +5243,6 @@ class DuelObj:
         global_name=None,
         eternal = False
     ):
-        pprint(val)
         duel = self.duel
         val = val[1:-1]
         val = val.split(":")
@@ -6654,9 +6653,15 @@ class DuelObj:
             elif rel_mine_or_other == 2:
                 mine_or_other = 1
         if rel_mine_or_other == 1:
-            user_decks = self.decks[deck_id]["mydeck"]
+            if user == self.user:
+                user_decks = self.decks[deck_id]["mydeck"]
+            else:
+                user_decks = self.decks[deck_id]["otherdeck"]
         elif rel_mine_or_other == 2:
-            user_decks = self.decks[deck_id]["otherdeck"]
+            if user == self.user:
+                user_decks = self.decks[deck_id]["otherdeck"]
+            else:
+                user_decks = self.decks[deck_id]["otherdeck"]
         else:
             user_decks = self.decks[deck_id]["commondeck"]
         return self.get_name_det(user_decks,"deck",deck_id,mine_or_other,num)
@@ -12404,10 +12409,10 @@ class DuelObj:
                     exclude = monster_effect_text["exclude"]
                     monster_effect_text = monster_effect_text["monster"][0]
                     min = self.calculate_boland(
-                        monster_effect_text["min_equation_number"], None
+                        monster_effect_text["min_equation_number"], None,chain_user
                     )
                     max = self.calculate_boland(
-                        monster_effect_text["max_equation_number"], None
+                        monster_effect_text["max_equation_number"], None,chain_user
                     )
                     if self.check_monster_exists(
                          monster_effect_text,
@@ -12420,31 +12425,43 @@ class DuelObj:
                          exclude,
                      ):
                         if duel.is_ai is False:
-                            if duel.user_turn == 1:
-                                self.duel.ask = 1
+                            if duel.user_turn == 1 :
+                                if chain_user == 1:
+                                    self.duel.ask = 1
+                                else:
+                                    self.duel.ask = 2
                             else:
-                                self.duel.ask = 2
+                                if chain_user == 1:
+                                    self.duel.ask = 2
+                                else:
+                                    self.duel.ask = 1
                         else:
-                            if duel.user_turn == 1:
-                                self.duel.ask = 1
+                            if duel.user_turn == 1 :
+                                if chain_user == 1:
+                                    self.duel.ask = 1
+                                else:
+                                    self.answer_ai(strategy,strategy_up_or_down)
                             else:
-                                self.answer_ai(strategy,strategy_up_or_down)
+                                if chain_user == 1:
+                                    self.duel.ask = 2
+                                else:
+                                    self.answer_ai(strategy,strategy_up_or_down)
                     monster_effect_text = json.loads(
                         monster_effect_unwrap.monster_effect
                     )
                     whether_monster = monster_effect_text["whether_monster"]
                     exclude = monster_effect_text["exclude"]
                     monster_effect_text = monster_effect_text["monster"][1]
+                    if chain_user == 1:
+                        tmp_user = 2
+                    else:
+                        tmp_user = 1
                     min = self.calculate_boland(
                         monster_effect_text["min_equation_number"], None
                     )
                     max = self.calculate_boland(
                         monster_effect_text["max_equation_number"], None
                     )
-                    if chain_user == 1:
-                        tmp_user = 2
-                    else:
-                        tmp_user = 1
                     if self.check_monster_exists(
                          monster_effect_text,
                          min,
@@ -12456,16 +12473,27 @@ class DuelObj:
                          exclude,
                      ):
                         if duel.is_ai is False:
-                            if duel.user_turn == 1:
-                                self.duel.ask += 2
+                            if duel.user_turn == 2 :
+                                if chain_user == 1:
+                                    self.duel.ask += 1
+                                else:
+                                    self.duel.ask += 2
                             else:
-                                self.duel.ask += 1
+                                if chain_user == 1:
+                                    self.duel.ask += 2
+                                else:
+                                    self.duel.ask += 1
                         else:
-                            if duel.user_turn == 2:
-                                self.duel.ask += 2
+                            if duel.user_turn == 2: 
+                                if chain_user == 1:
+                                    self.answer_ai(strategy,strategy_up_or_down)
+                                else:
+                                    self.duel.ask += 2
                             else:
-                                self.answer_ai(strategy,strategy_up_or_down)
-                    
+                                if chain_user == 1:
+                                    self.duel.ask += 2
+                                else:
+                                    self.answer_ai(strategy,strategy_up_or_down)
                 elif (
                     monster_effect_unwrap.monster_effect_val == 3
                     or monster_effect_unwrap.monster_effect_val == 44
@@ -12807,14 +12835,27 @@ class DuelObj:
                      ):
                         if duel.is_ai is False:
                             if duel.user_turn == 1:
-                                self.duel.ask = 1
+                                if chain_user == 1:
+                                    self.duel.ask = 1
+                                else:
+                                    self.duel.ask = 2
                             else:
-                                self.duel.ask = 2
+                                if chain_user == 1:
+                                    self.duel.ask = 2
+                                else:
+                                    self.duel.ask = 1
                         else:
                             if duel.user_turn == 1:
-                                self.duel.ask = 1
+                                if chain_user == 1:
+                                    self.duel.ask = 1
+                                else:
+                                    self.answer_ai(strategy,strategy_up_or_down)
                             else:
-                                self.answer_ai(strategy,strategy_up_or_down)
+                                if chain_user == 1:
+                                    self.answer_ai(strategy,strategy_up_or_down)
+                                else:
+                                    self.duel.ask = 1
+
                     monster_effect_text = json.loads(
                         monster_effect_unwrap.monster_effect
                     )
@@ -12842,16 +12883,27 @@ class DuelObj:
                          exclude,
                      ):
                         if duel.is_ai is False:
-                            if duel.user_turn == 1:
-                                self.duel.ask += 2
+                            if duel.user_turn == 2:
+                                if chain_user == 1:
+                                    self.duel.ask += 1
+                                else:
+                                    self.duel.ask += 2
                             else:
-                                self.duel.ask += 1
+                                if chain_user == 2:
+                                    self.duel.ask += 2
+                                else:
+                                    self.duel.ask += 1
                         else:
                             if duel.user_turn == 2:
-                                self.duel.ask += 2
+                                if chain_user == 1:
+                                    self.duel.ask += 1
+                                else:
+                                    self.answer_ai(strategy,strategy_up_or_down)
                             else:
-                                self.answer_ai(strategy,strategy_up_or_down)
-                                self.answer_ai(strategy,strategy_up_or_down)
+                                if chain_user == 1:
+                                    self.answer_ai(strategy,strategy_up_or_down)
+                                else:
+                                    self.duel.ask += 1
             elif (
                 monster_effect_unwrap.monster_effect_val == 3
                 or monster_effect_unwrap.monster_effect_val == 44
@@ -14794,10 +14846,16 @@ class DuelObj:
                         else:
                             self.duel.ask = 2
                     else:
-                        if duel.user_turn == 1:
-                            self.duel.ask = 1
+                        if duel.user_turn == user:
+                            if user == 1:
+                                self.duel.ask = 1
+                            else:
+                                self.answer_ai(strategy,strategy_up_or_down)
                         else:
-                            self.answer_ai(strategy,strategy_up_or_down)
+                            if user == 1:
+                                self.duel.ask = 2
+                            else:
+                                self.answer_ai(strategy,strategy_up_or_down)
             monster_effect_text = json.loads(monster_effect_unwrap.monster_effect)
             whether_monster = monster_effect_text["whether_monster"]
             exclude = monster_effect_text["exclude"]
@@ -14822,10 +14880,16 @@ class DuelObj:
                         else:
                             self.duel.ask += 1
                     else:
-                        if duel.user_turn == 2:
-                            self.duel.ask = 2
+                        if duel.user_turn == other_user:
+                            if other_user == 1:
+                                self.duel.ask += 1
+                            else:
+                                self.answer_ai(strategy,strategy_up_or_down)
                         else:
-                            self.answer_ai(strategy,strategy_up_or_down)
+                            if other_user == 2:
+                                self.duel.ask += 2
+                            else:
+                                self.answer_ai(strategy,strategy_up_or_down)
             if duel.ask == 0:
                 if monster_effect.pac:
                     return self._pac(monster_effect.pac)

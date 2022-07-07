@@ -1031,6 +1031,7 @@ def battle_det(request, duelobj=None, choices=None):
                 if flag_2 is True:
                     break
                 pprint("AAA")
+                pprint(duel.ask)
                 if( choices[0] is not None
                      and choices[0] is not True
                      and duel.appoint == user
