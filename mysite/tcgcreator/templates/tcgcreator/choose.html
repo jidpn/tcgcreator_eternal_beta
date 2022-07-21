@@ -137,7 +137,7 @@ table td{
     {% if Config.ai %}
 NPCデッキ <select id="ai_id" name="ai_id" >
     {% for enemy_deck_groups_tmp in  EnemyDeckGroups %}
-    {% if EnemyDeckGroup == enemy_deck_groups_tmp %}
+    {% if EnemyDeckGroup == enemy_deck_groups_tmp.id %}
     <option value="{{enemy_deck_groups_tmp.enemy_deck_id}}" selected>{{enemy_deck_groups_tmp.deck_name}}</option>
     {% else %}
     <option value="{{enemy_deck_groups_tmp.enemy_deck_id}}">{{enemy_deck_groups_tmp.deck_name}}</option>

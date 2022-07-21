@@ -202,6 +202,7 @@
         result+= 'リレーションタイプ<input type="text" id="put_relation_kind_'+String(i)+'">';
         result+= '<input type="button" onclick="addPutRelation('+String(i)+')" class="add_button_put_relation" value="追加" id="add_relation_'+String(i)+'" class="add_relation">';
         result+=' <select id="put_relation_to_'+i+'"> <option value="0">リレーション受ける</option> <option value="1">リレーションする</option></select>';
+        result+=' <input type="checkbox" id="put_relation_hide_'+i+'">';
 		$("#put_relation").append(result);
 		addKindType("put_relation_kind_"+i,'put_relation_kind');
 	}

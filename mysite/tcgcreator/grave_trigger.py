@@ -43,16 +43,17 @@ def grave_trigger(request):
     duelobj = DuelObj(room_number)
     duelobj.duel = duel
     duelobj.room_number = room_number
-    if duel.user_1 == request.user or (ID1 == ID or duel.guest_flag is True):
+    if duel.user_1 == request.user or (ID1 == ID and duel.guest_flag is True):
         duelobj.user = 1
         user = 1
         other_user = 2
-    elif duel.user_2 == request.user or(ID2 == ID or duel.guest_flag2 is True):
+    elif duel.user_2 == request.user or(ID2 == ID and duel.guest_flag2 is True):
         duelobj.user = 2
         user = 2
         other_user = 1
     else:
         return HttpResponse("error")
+    pprint(user)
     duelobj.init_all(user, other_user, room_number,1)
     graves = Grave.objects.all()
     graves = Grave.objects.all()
@@ -168,7 +169,7 @@ def grave_trigger_det(
                 fusion = 1
             ):
                 duelobj.invoke_trigger(
-                    result_trigger, "grave", grave, mine_or_other, duelobj.user, grave_id
+                    result_trigger, "grave", grave, mine_or_other2, duelobj.user, grave_id
                 )
                 duelobj.save_all(user, other_user, room_number)
                 return True

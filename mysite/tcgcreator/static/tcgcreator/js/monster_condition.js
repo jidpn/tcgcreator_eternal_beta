@@ -460,12 +460,19 @@
             $("#relation_monster_"+0).val(val["relation_monster"][0]) ;
             $("#put_relation_kind_"+0).val(val["relation_kind"][0]) ;
             $("#put_relation_to_"+0).val(val["relation_to"][0]) ;
+
+            if(val["relation_hide"][0]) {
+            	$("#put_relation_hide_"+0).prop("checked",true) ;
+	    }
             for(k=1;val["relation_name"][k]!= undefined;k++){
 	            addPutRelation(k-1);
                 $("#relation_name_"+k).val(val["relation_name"][k]) ;
                 $("#relation_monster_"+k).val(val["relation_monster"][k]) ;
                 $("#put_relation_kind_"+k).val(val["relation_kind"][k]) ;
                 $("#put_relation_to_"+k).val(val["relation_to"][k]) ;
+            	if(val["relation_hide"][k]) {
+            		$("#put_relation_hide_"+k).prop("checked",true) ;
+		}
             }
         }
         }
@@ -851,6 +858,7 @@
         val["relation_monster"]=[];
         val["put_relation_kind"]=[];
         val["put_relation_to"]=[];
+        val["put_relation_hide"]=[];
         val["monster_variable_val_player"] = $("#monster_variable_val_player").val();
         val["monster_variable_player_id"] = $("#monster_variable_player_id").val() ;
         val["monster_variable_player_how"] = $("#monster_variable_player_how").val() ;
@@ -876,6 +884,7 @@
         val["relation_monster"][k]=$("#relation_monster_"+k).val();
         val["put_relation_kind"][k]=$("#put_relation_kind_"+k).val();
         val["put_relation_to"][k]=parseInt($("#put_relation_to_"+k).val());
+        val["put_relation_hide"][k]=$("#put_relation_hide_"+k).prop("checked");
         }
         }
         k=0;

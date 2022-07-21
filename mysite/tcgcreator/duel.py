@@ -46,6 +46,7 @@ from time import time
 import html
 
 class DuelObj:
+    invoke_flag = False
     def __init__(self, room_number):
         pass
 
@@ -3463,6 +3464,7 @@ class DuelObj:
             fusion_monster3["min"] = 0
             fusion_monster3["monster"] = []
         ary = [fusion_monster1,fusion_monster2,fusion_monster3]
+        pprint(ary)
         if mode == 0:
             if fusion_monster1 is False or fusion_monster2 is False or fusion_monster3 is False:
                 return False
@@ -7770,7 +7772,9 @@ class DuelObj:
                         if field[x][y]["det"]["place_unique_id"] != place_unique_id:
                             continue
                     field[x][y]["det"] = None
+                    pprint(cost)
                     self.effect += "field_move;"+str(x)+";"+str(y)+"|"
+                    self.effect2 += "field_move;"+str(x)+";"+str(y)+"|"
                     if self.config.sort is True:
                         field = self.sortField(field,y)
                 self.field = field
@@ -7951,7 +7955,7 @@ class DuelObj:
                         max,
                         chain_user,
                         cost.cost_kind,
-                        1,
+                        True,
                         whether_monster,
                         exclude,
                 ):
@@ -7977,7 +7981,7 @@ class DuelObj:
                         max,
                         chain_no_user,
                         cost.cost_kind,
-                        1,
+                        True,
                         whether_monster,
                         exclude,
                 ):
@@ -8063,6 +8067,8 @@ class DuelObj:
                     self.answer_ai(strategy,strategy_up_or_down)
         duel.cost_det = cost.id
         cost_next = self.invoke_cost(cost, chain)
+        if cost_next == -4:
+            return  -1
         while cost_next and cost_next != -2:
             pprint(cost_next)
             if cost_next == -1:
@@ -8098,7 +8104,7 @@ class DuelObj:
                                 max,
                                 chain_user,
                                 cost.cost_kind,
-                                1,
+                                True,
                                 whether_monster,
                                 exclude,
                         ):
@@ -8124,7 +8130,7 @@ class DuelObj:
                             chain_no_user,
                             cost_unwrap.cost_kind,
                             cost.cost_kind,
-                            1,
+                            True,
                             whether_monster,
                             exclude,
                     ):
@@ -8182,6 +8188,8 @@ class DuelObj:
                         else:
                             self.answer_ai(strategy,strategy_up_or_down)
                 cost_next = self.invoke_cost(cost, chain)
+                if cost_next == -4:
+                    return  -1
         self.end_cost(user,org_chain,trigger)
         if self.copying_flag >= 2:
             if trigger.chain_flag is True:
@@ -8323,7 +8331,7 @@ class DuelObj:
                     max,
                     chain_user,
                     cost.cost_kind,
-                    1,
+                    True,
                     whether_monster,
                     exclude,
                 ):
@@ -8335,6 +8343,8 @@ class DuelObj:
                         return False
                     else:
                         self.answer_ai(strategy,strategy_up_or_down)
+            else:
+                self.invoke_flag = True
         elif cost_unwrap.cost_val == 4:
             cost_text = json.loads(cost_unwrap.cost)
             whether_monster = cost_text["whether_monster"]
@@ -8349,7 +8359,7 @@ class DuelObj:
                     max,
                     chain_no_user,
                     cost.cost_kind,
-                    1,
+                    True,
                     whether_monster,
                     exclude,
                 ):
@@ -8361,6 +8371,8 @@ class DuelObj:
                         return False
                     else:
                         self.answer_ai(strategy,strategy_up_or_down)
+            else:
+                self.invoke_flag = True
         elif cost_unwrap.cost_val == 27 or cost_unwrap.cost_val == 63:
             cost_text = json.loads(cost_unwrap.cost)
             min = self.calculate_boland(cost_text["min_equation_number"], None)
@@ -8374,6 +8386,8 @@ class DuelObj:
                     return False
                 else:
                     self.answer_ai(strategy,strategy_up_or_down)
+            else:
+                self.invoke_flag = True
         elif cost_unwrap.cost_val == 28 or cost_unwrap.cost_val == 64:
             cost_text = json.loads(cost_unwrap.cost)
             min = self.calculate_boland(cost_text["min_equation_number"], None, True)
@@ -8387,6 +8401,8 @@ class DuelObj:
                     return False
                 else:
                     self.answer_ai(strategy,strategy_up_or_down)
+            else:
+                self.invoke_flag = True
         elif cost_unwrap.cost_val == 16:
             if duel.is_ai is False or chain_user == 1:
                 if duel.user_turn == chain_user:
@@ -8418,6 +8434,8 @@ class DuelObj:
                     return False
                 else:
                     self.answer_ai(strategy,strategy_up_or_down)
+            else:
+                self.invoke_flag = True
         elif cost_unwrap.cost_val == 28 or cost_unwrap.cost_val == 64:
             cost_text = json.loads(cost_unwrap.cost)
             min = self.calculate_boland(cost_text["min_equation_number"], None)
@@ -8431,8 +8449,12 @@ class DuelObj:
                     return False
                 else:
                     self.answer_ai(strategy,strategy_up_or_down)
+            else:
+                self.invoke_flag = True
         duel.cost_det = cost.id
         cost_next = self.invoke_cost(cost, chain)
+        if cost_next == -4:
+            return -1
         while cost_next and cost_next != -2 and cost_next != -3:
             pprint(cost_next)
             if cost_next == -1:
@@ -8479,7 +8501,7 @@ class DuelObj:
                             max,
                             chain_user,
                             cost.cost_kind,
-                            1,
+                            True,
                             whether_monster,
                             exclude,
                         ):
@@ -8491,6 +8513,8 @@ class DuelObj:
                                 return False
                             else:
                                 self.answer_ai(strategy,strategy_up_or_down)
+                    else:
+                        self.invoke_flag = True
                 elif cost_unwrap.cost_val == 4:
                     cost_text = json.loads(cost_unwrap.cost)
                     whether_monster = cost_text["whether_monster"]
@@ -8505,7 +8529,7 @@ class DuelObj:
                         chain_no_user,
                         cost_unwrap.cost_kind,
                         cost.cost_kind,
-                        1,
+                        True,
                         whether_monster,
                         exclude,
                     ):
@@ -8518,6 +8542,8 @@ class DuelObj:
                                 return False
                             else:
                                 self.answer_ai(strategy,strategy_up_or_down)
+                    else:
+                        self.invoke_flag = True
                 elif cost_unwrap.cost_val == 16:
                     if duel.is_ai is False or chain_user == 1:
                         if duel.user_turn == chain_user:
@@ -8562,7 +8588,11 @@ class DuelObj:
                             return False
                         else:
                             self.answer_ai(strategy,strategy_up_or_down)
+                    else:
+                        self.invoke_flag = True
                 cost_next = self.invoke_cost(cost, chain)
+                if cost_next == -4:
+                    return -1
         self.end_cost(user,org_chain,trigger)
         # -3はcopy_special_effectでコピーした時
         if (in_copying_org == 0 or self.copying_flag >=2) and cost_next != -3:
@@ -8955,10 +8985,11 @@ class DuelObj:
         else:
             cost = trigger.trigger_cost
         self.duel.cost_user = user
-        if self.pay_cost(cost, user,org_chain, trigger,copy) is False:
-            flag = False
+        flag =  self.pay_cost(cost, user,org_chain, trigger,copy) 
+        if flag == -1:
+            return  -1
         chain_det_json = {}
-        chain_det_trigger_json = {}
+        chain_det_trigger = {}
         if self.duel.chain_det != "":
             chain_det_json = json.loads(self.duel.chain_det)
         if self.duel.chain_det_trigger != "":
@@ -9250,10 +9281,21 @@ class DuelObj:
                 pass
         else:
             self.sound_effect = ""
+        pprint(duel.effect)
+        #pprint(self.effect)
+        pprint(duel.change_turn_flag)
+        self.effect = duel.effect
+        self.effect2 = duel.effect2
+        '''
         if(duel.change_turn_flag is True):
-            self.effect = duel.effect
         else:
-            self.effect = "&"
+            if user == 1:
+                self.effect = "&"
+                self.effect2 = duel.effect2
+            else:
+                self.effect = duel.effect
+                self.effect2 = "&"
+        '''
         # ターン変動ではないがデックトリガの時必要
         if mode == 1:
             duel.change_turn_flag = True
@@ -9306,7 +9348,12 @@ class DuelObj:
         duel = self.duel
         game_name = self.config.game_name
         pwd = os.path.dirname(__file__)
-        duel.effect = self.effect
+        if user == 1:
+            duel.effect = "&" 
+            duel.effect2 = self.effect2
+        else:
+            duel.effect = self.effect
+            duel.effect2 = "&"
 
         if duel.cost_det is None:
             duel.cost_det = 0
@@ -9694,6 +9741,7 @@ class DuelObj:
                                     user_decks[index]["place_unique_id"]
                                     == cost_det["det"]["place_unique_id"]
                                 ):
+                                    effect_flag = True
                                     continue
                     if exclude_det[0] == "%":
                         if exclude_det in timing_mess:
@@ -9702,6 +9750,7 @@ class DuelObj:
                                     user_decks[index]["place_unique_id"]
                                     == timing_det["det"]["place_unique_id"]
                                 ):
+                                    effect_flag = True
                                     continue
                     if exclude_det in mess:
                         for mess_det in mess[exclude_det]:
@@ -9709,6 +9758,7 @@ class DuelObj:
                                 user_decks[index]["place_unique_id"]
                                 == mess_det["det"]["place_unique_id"]
                             ):
+                                effect_flag = True
                                 continue
 
             current_and_or = "and"
@@ -13181,12 +13231,15 @@ class DuelObj:
             or cost_unwrap.cost_val == 64
         ):
             duel.cost_log += self.write_log(cost.log, user)
-            if self.duel.ask > 0:
+            if self.duel.ask > 0 :
                 self.duel.ask_det = cost.cost.cost
                 return -1
 
             else:
-                return self.do_cost_next(cost,user)
+                if user == 2 and duel.is_ai is True:
+                    return self.do_cost_next_ai(cost,user)
+                else:
+                    return self.do_cost_next(cost,user)
         elif cost_unwrap.cost_val == 17:
             cost_kind = cost.cost_kind
             duel.cost_log += self.write_log(cost.log, user)
@@ -13359,7 +13412,7 @@ class DuelObj:
         elif cost_unwrap.cost_val == 20:
             duel.cost_log += self.write_log(cost.log, user)
             self.cancel_cost()
-            return -1
+            return -4
         elif cost_unwrap.cost_val == 21:
             duel.cost_log += self.write_log(cost.log, user)
             self.play_music(cost_unwrap.cost)
@@ -13772,6 +13825,7 @@ class DuelObj:
         self.duel.tmponce_per_turn_exist2 = ""
         self.duel.tmponce_per_turn_relate1 = ""
         self.duel.tmponce_per_turn_relate2 = ""
+        self.mess[str(self.duel.chain)] = []
         return
     def check_monster_effect_timing_and_phase_condition(self, monster_effect_condition):
 
@@ -14886,7 +14940,7 @@ class DuelObj:
                             else:
                                 self.answer_ai(strategy,strategy_up_or_down)
                         else:
-                            if other_user == 2:
+                            if other_user == 1:
                                 self.duel.ask += 2
                             else:
                                 self.answer_ai(strategy,strategy_up_or_down)
@@ -16150,9 +16204,11 @@ class DuelObj:
                     if effect2[0] == "video" or effect2[0] == "background":
                         if(flag is False):
                              self.effect += "&"+str(self.duel.effect_flag)+"*"
+                             self.effect2 += "&"+str(self.duel.effect_flag)+"*"
                         if effect2[0] == "background":
                             self.duel.background_image = effect2[1]
                         self.effect += monster_effect.effect + "|"
+                        self.effect2 += monster_effect.effect + "|"
                         flag = True
                     else:
                         pass
@@ -16165,16 +16221,26 @@ class DuelObj:
                     effect2 = effect.split(";") 
                     if effect2[0] == "video" or effect2[0] == "background":
                         if effect2[0] == "background":
+                            
+                            if(flag is False):
+                                self.effect += "&"+str(self.duel.effect_flag)+"*"
+                                self.effect2 += "&"+str(self.duel.effect_flag)+"*"
                             self.duel.background_image = effect2[1]
+                            self.effect += monster_effect.effect + "|"
+                            self.effect2 += monster_effect.effect + "|"
+                            flag = True
                         if(effect2[1] != "number"):
                             if(flag is False):
                                 if self.effect[0] != "&":
                                     self.effect = "&"+str(self.duel.effect_flag)+"*"+self.effect
+                                    self.effect2 = "&"+str(self.duel.effect_flag)+"*"+self.effect
                                     self.duel.effect_flag +=1
                                 else:
                                     self.effect += "&"+str(self.duel.effect_flag)+"*"
+                                    self.effect2 += "&"+str(self.duel.effect_flag)+"*"
                                     self.duel.effect_flag +=1
                         self.effect += effect + "|"
+                        self.effect2 += effect + "|"
                         flag = True
                     elif effect2[0] == "monster":
                         for monster in data["monsters"]:
@@ -16187,31 +16253,40 @@ class DuelObj:
                                 if(flag is False):
                                     if self.effect[0] != "&":
                                         self.effect = "&"+str(self.duel.effect_flag)+"*"+self.effect
+                                        self.effect2 = "&"+str(self.duel.effect_flag)+"*"+self.effect
                                         self.duel.effect_flag +=1
                                     else:
                                         self.effect += "&"+str(self.duel.effect_flag)+"*"
+                                        self.effect2 += "&"+str(self.duel.effect_flag)+"*"
                                         self.duel.effect_flag +=1
                                 self.effect += "monster;"+x+";"+y+";"+effect2[1]+"|"
+                                self.effect2 += "monster;"+x+";"+y+";"+effect2[1]+"|"
                                 flag = True
                             else:
                                 if isinstance(data["val"], list):
                                     if(flag is False):
                                         if self.effect[0] != "&":
                                             self.effect = "&"+str(self.duel.effect_flag)+"*"+self.effect
+                                            self.effect2 = "&"+str(self.duel.effect_flag)+"*"+self.effect
                                             self.duel.effect_flag +=1
                                         else:
                                             self.effect += "&"+str(self.duel.effect_flag)+"*"
+                                            self.effect2 += "&"+str(self.duel.effect_flag)+"*"
                                             self.duel.effect_flag +=1
                                     self.effect += "monster;"+x+";"+y+";"+effect2[1]+";"+str(abs(int(float(data["val"][monster_i]))))+"|"
+                                    self.effect2 += "monster;"+x+";"+y+";"+effect2[1]+";"+str(abs(int(float(data["val"][monster_i]))))+"|"
                                 else:
                                     if(flag is False):
                                         if self.effect[0] != "&":
                                             self.effect = "&"+str(self.duel.effect_flag)+"*"+self.effect
+                                            self.effect2 = "&"+str(self.duel.effect_flag)+"*"+self.effect
                                             self.duel.effect_flag +=1
                                         else:
                                             self.effect += "&"+str(self.duel.effect_flag)+"*"
+                                            self.effect2 += "&"+str(self.duel.effect_flag)+"*"
                                             self.duel.effect_flag +=1
                                     self.effect += "monster;"+x+";"+y+";"+effect2[1]+";"+str(abs(int(float(data["val"]))))+"|"
+                                    self.effect2 += "monster;"+x+";"+y+";"+effect2[1]+";"+str(abs(int(float(data["val"]))))+"|"
                                 flag = True
                             monster_i += 1
             return;
@@ -23348,6 +23423,9 @@ class DuelObj:
                                     relation_to = int(
                                         monster_effect["put_relation_to"][index]
                                     )
+                                    relation_to = int(
+                                        monster_effect["put_relation_to"][index]
+                                    )
                                     if relation_kind not in field[x][y]["det"]["rel"]:
                                         continue
                                     for index2 in range(
@@ -25033,6 +25111,12 @@ class DuelObj:
                                     relation_kind = monster_effect["put_relation_kind"][
                                         index
                                     ]
+                                    if "put_relation_hide" in monster_effect:
+                                        relation_hide = int(
+                                            monster_effect["put_relation_hide"][index]
+                                        )
+                                    else:
+                                        relation_hide = False
                                     if "rel" not in field[x][y]["det"]:
                                         field[x][y]["det"]["rel"] = {}
                                     if relation_kind not in field[x][y]["det"]["rel"]:
@@ -25042,6 +25126,7 @@ class DuelObj:
                                         tmp2["monster"] = monster
                                         tmp2["name"] = relation_name
                                         tmp2["to"] = relation_to
+                                        tmp2["hide"] = relation_hide
                                         field[x][y]["det"]["rel"][relation_kind].append(
                                             tmp2
                                         )
@@ -25076,6 +25161,7 @@ class DuelObj:
                                             0,
                                             1,
                                             chain_user,
+                                            relation_hide
                                         )
                                     place1[mess_index]["det"] = field[x][y]["det"]
                                 self.field = field
@@ -25227,6 +25313,12 @@ class DuelObj:
                                             relation_kind = monster_effect[
                                                 "put_relation_kind"
                                             ][index2]
+                                            if "put_relation_hide" in monster_effect:
+                                                relation_hide = int(
+                                                    monster_effect["put_relation_hide"][index]
+                                                )
+                                            else:
+                                                relation_hide = False
                                             if "rel" not in user_decks[index]:
                                                 user_decks[index]["rel"] = {}
                                             if (
@@ -25250,6 +25342,7 @@ class DuelObj:
                                                 tmp2["monster"] = monster
                                                 tmp2["kind"] = relation_kind
                                                 tmp2["to"] = relation_to
+                                                tmp2["hide"] = relation_hide
                                                 user_decks[index][relation_kind].append(
                                                     tmp2
                                                 )
@@ -25273,6 +25366,7 @@ class DuelObj:
                                                         deck_id,
                                                         1,
                                                         chain_user,
+                                                        relaton_hide
                                                     )
                                                     related_monster.append(
                                                         relation_monster_det["det"]
@@ -25409,6 +25503,12 @@ class DuelObj:
                                             relation_kind = monster_effect[
                                                 "put_relation_kind"
                                             ][index2]
+                                            if "put_relation_hide" in monster_effect:
+                                                relation_hide = int(
+                                                    monster_effect["put_relation_hide"][index]
+                                                )
+                                            else:
+                                                relation_hide = False
                                             if "rel" not in user_graves[index]:
                                                 user_graves[index]["rel"] = {}
                                             if (
@@ -25432,6 +25532,7 @@ class DuelObj:
                                                 tmp2["monster"] = monster
                                                 tmp2["name"] = relation_name
                                                 tmp2["to"] = relation_to
+                                                tmp2["hide"] = relation_hide
                                                 user_graves[index][
                                                     relation_kind
                                                 ].append(tmp2)
@@ -25457,6 +25558,7 @@ class DuelObj:
                                                     deck_id,
                                                     1,
                                                     chain_user,
+                                                    relation_hide,
                                                 )
                                     if mine_or_other == "1":
                                         self.graves[deck_id]["mygrave"] = user_graves
@@ -25593,6 +25695,12 @@ class DuelObj:
                                             relation_kind = monster_effect[
                                                 "put_relation_kind"
                                             ][index2]
+                                            if "put_relation_hide" in monster_effect:
+                                                relation_hide = int(
+                                                    monster_effect["put_relation_hide"][index]
+                                                )
+                                            else:
+                                                relation_hide = False
                                             relation_to = int(
                                                 monster_effect["put_relation_to"][
                                                     index2
@@ -25621,6 +25729,7 @@ class DuelObj:
                                                 tmp2["monster"] = monster
                                                 tmp2["name"] = relation_name
                                                 tmp2["to"] = relation_to
+                                                tmp2["hide"] = relation_hide
                                                 user_hands[index][relation_name].append(
                                                     tmp2
                                                 )
@@ -25646,6 +25755,7 @@ class DuelObj:
                                                     deck_id,
                                                     1,
                                                     chain_user,
+                                                    relation_hide
                                                 )
                                     if mine_or_other == "1":
                                         self.hands[deck_id]["myhand"] = user_hands
@@ -25913,6 +26023,12 @@ class DuelObj:
                                     relation_to = int(
                                         monster_effect["put_relation_to"][index]
                                     )
+                                    if "put_relation_hide" in monster_effect:
+                                        relation_hide = int(
+                                            monster_effect["put_relation_hide"][index]
+                                        )
+                                    else:
+                                        relation_hide = False
                                     if "rel" not in field[x][y]["det"]:
                                         field[x][y]["det"]["rel"] = {}
                                     if relation_kind not in field[x][y]["det"]["rel"]:
@@ -25922,6 +26038,7 @@ class DuelObj:
                                         tmp2["monster"] = monster
                                         tmp2["name"] = relation_name
                                         tmp2["to"] = relation_to
+                                        tmp2["hide"] = relation_hide
                                         field[x][y]["det"]["rel"][relation_kind].append(
                                             tmp2
                                         )
@@ -25937,6 +26054,7 @@ class DuelObj:
                                     tmp2["deck_id"] = 0
                                     tmp2["x"] = x
                                     tmp2["y"] = y
+                                    tmp2["hide"] = relation_hide
                                     tmp2["place_unique_id"] = field[x][y]["det"][
                                         "place_unique_id"
                                     ]
@@ -25956,6 +26074,7 @@ class DuelObj:
                                             0,
                                             1,
                                             chain_user,
+                                            relation_hide
                                         )
                                     place1[mess_index]["det"] = field[x][y]["det"]
                                 self.field = field
@@ -26114,6 +26233,10 @@ class DuelObj:
                                             relation_kind = monster_effect[
                                                 "put_relation_kind"
                                             ][index2]
+                                            if "put_relation_hide" in monster_effect:
+                                                relation_hide = monster_effect["put_relation_hide"][index2]
+                                            else:
+                                                relation_hide = False
                                             relation_to = int(
                                                 monster_effect["put_relation_to"][
                                                     index2
@@ -26142,6 +26265,7 @@ class DuelObj:
                                                 tmp2["monster"] = monster
                                                 tmp2["kind"] = relation_kind
                                                 tmp2["to"] = relation_to
+                                                tmp2["hide"] = relation_hide
                                                 user_decks[index][relation_kind].append(
                                                     tmp2
                                                 )
@@ -26165,6 +26289,7 @@ class DuelObj:
                                                         deck_id,
                                                         1,
                                                         chain_user,
+                                                        relation_hide
                                                     )
                                                     related_monster.append(
                                                         relation_monster_det["det"]
@@ -26316,6 +26441,12 @@ class DuelObj:
                                             relation_kind = monster_effect[
                                                 "put_relation_kind"
                                             ][index2]
+                                            if "put_relation_hide" in monster_effect:
+                                                relation_hide = int(
+                                                    monster_effect["put_relation_hide"][index]
+                                                )
+                                            else:
+                                                relation_hide = False
                                             relation_to = int(
                                                 monster_effect["put_relation_to"][
                                                     index2
@@ -26344,6 +26475,7 @@ class DuelObj:
                                                 tmp2["monster"] = monster
                                                 tmp2["name"] = relation_name
                                                 tmp2["to"] = relation_to
+                                                tmp2["hide"] = relation_hide
                                                 user_graves[index][
                                                     relation_kind
                                                 ].append(tmp2)
@@ -26369,6 +26501,7 @@ class DuelObj:
                                                     deck_id,
                                                     1,
                                                     chain_user,
+                                                    relation_hide,
                                                 )
                                     if mine_or_other == "1":
                                         self.graves[deck_id]["mygrave"] = user_graves
@@ -26520,6 +26653,12 @@ class DuelObj:
                                             relation_kind = monster_effect[
                                                 "put_relation_kind"
                                             ][index2]
+                                            if "put_relation_hide" in monster_effect:
+                                                relation_hide = int(
+                                                    monster_effect["put_relation_hide"][index]
+                                                )
+                                            else:
+                                                relation_hide = False
                                             relation_to = int(
                                                 monster_effect["put_relation_to"][
                                                     index2
@@ -26548,6 +26687,7 @@ class DuelObj:
                                                 tmp2["monster"] = monster
                                                 tmp2["name"] = relation_name
                                                 tmp2["to"] = relation_to
+                                                tmp2["hide"] = relation_hide
                                                 user_hands[index][relation_name].append(
                                                     tmp2
                                                 )
@@ -26573,6 +26713,7 @@ class DuelObj:
                                                     deck_id,
                                                     1,
                                                     chain_user,
+                                                    relation_hide
                                                 )
                                     if mine_or_other == "1":
                                         self.hands[deck_id]["myhand"] = user_hands
@@ -26804,6 +26945,12 @@ class DuelObj:
                                         relation_kind = monster_effect[
                                             "put_relation_kind"
                                         ][index2]
+                                        if "put_relation_hide" in monster_effect:
+                                            relation_hide = int(
+                                                monster_effect["put_relation_hide"][index]
+                                            )
+                                        else:
+                                            relation_hide = False
                                         relation_to = int(
                                             monster_effect["put_relation_to"][index2]
                                         )
@@ -26830,6 +26977,7 @@ class DuelObj:
                                             tmp2["monster"] = monster
                                             tmp2["name"] = relation_name
                                             tmp2["to"] = relation_to
+                                            tmp2["hide"] = relation_hide
                                             user_decks[index3][relation_kind].append(
                                                 tmp2
                                             )
@@ -26853,6 +27001,7 @@ class DuelObj:
                                                     deck_id,
                                                     1,
                                                     chain_user,
+                                                    relation_hide
                                                 )
                                     else:
                                         cost_result = self.cost_result
@@ -26991,6 +27140,12 @@ class DuelObj:
                                         relation_kind = monster_effect[
                                             "put_relation_kind"
                                         ][index2]
+                                        if "put_relation_hide" in monster_effect:
+                                            relation_hide = int(
+                                                monster_effect["put_relation_hide"][index]
+                                            )
+                                        else:
+                                            relation_hide = False
                                         relation_to = int(
                                             monster_effect["put_relation_to"][index2]
                                         )
@@ -27017,6 +27172,7 @@ class DuelObj:
                                             tmp2["monster"] = monster
                                             tmp2["name"] = relation_name
                                             tmp2["to"] = relation_to
+                                            tmp2["hide"] = relation_hide
                                             user_decks[index3][relation_kind].append(
                                                 tmp2
                                             )
@@ -27039,6 +27195,7 @@ class DuelObj:
                                                     deck_id,
                                                     1,
                                                     chain_user,
+                                                    relation_hide
                                                 )
                                     else:
                                         cost_result = self.cost_result
@@ -27207,6 +27364,12 @@ class DuelObj:
                                         relation_kind = monster_effect[
                                             "put_relation_kind"
                                         ][index2]
+                                        if "put_relation_hide" in monster_effect:
+                                            relation_hide = int(
+                                                monster_effect["put_relation_hide"][index]
+                                            )
+                                        else:
+                                            relation_hide = False
                                         relation_to = int(
                                             monster_effect["put_relation_to"][index2]
                                         )
@@ -27233,6 +27396,7 @@ class DuelObj:
                                             tmp2["monster"] = monster
                                             tmp2["name"] = relation_name
                                             tmp2["to"] = relation_to
+                                            tmp2["hide"] = relation_hide
                                             user_graves[index3][relation_kind].append(
                                                 tmp2
                                             )
@@ -27256,6 +27420,7 @@ class DuelObj:
                                                     deck_id,
                                                     1,
                                                     chain_user,
+                                                    relation_hide
                                                 )
                                     else:
                                         cost_result = self.cost_result
@@ -27422,6 +27587,12 @@ class DuelObj:
                                         relation_kind = monster_effect[
                                             "put_relation_kind"
                                         ][index2]
+                                        if "put_relation_hide" in monster_effect:
+                                            relation_hide = int(
+                                                monster_effect["put_relation_hide"][index]
+                                            )
+                                        else:
+                                            relation_hide = False
                                         relation_to = int(
                                             monster_effect["put_relation_to"][index2]
                                         )
@@ -27448,6 +27619,7 @@ class DuelObj:
                                             tmp2["monster"] = monster
                                             tmp2["name"] = relation_name
                                             tmp2["to"] = relation_to
+                                            tmp2["hide"] = relation_hide
                                             user_graves[range_i][relation_kind].append(
                                                 tmp2
                                             )
@@ -27468,6 +27640,7 @@ class DuelObj:
                                                 deck_id,
                                                 1,
                                                 chain_user,
+                                                relation_hide
                                             )
                                     else:
                                         cost_result = self.cost_result
@@ -27662,6 +27835,12 @@ class DuelObj:
                                     relation_kind = monster_effect["put_relation_kind"][
                                         index2
                                     ]
+                                    if "put_relation_hide" in monster_effect:
+                                        relation_hide = int(
+                                            monster_effect["put_relation_hide"][index]
+                                        )
+                                    else:
+                                        relation_hide = False
                                     relation_to = int(
                                         monster_effect["put_relation_to"][index2]
                                     )
@@ -27685,6 +27864,7 @@ class DuelObj:
                                         tmp2["monster"] = monster
                                         tmp2["name"] = relation_name
                                         tmp2["to"] = relation_to
+                                        tmp2["hide"] = relation_hide
                                         user_hands[index3][relation_kind].append(tmp2)
                                     if relation_to == 0:
                                         relation_from = 1
@@ -27703,6 +27883,7 @@ class DuelObj:
                                             deck_id,
                                             1,
                                             chain_user,
+                                            relation_hide
                                         )
                     if cost == 0:
                         if (place_tmp[2] == "1" and effect_user == self.user) or (
@@ -27789,6 +27970,13 @@ class DuelObj:
                                     relation_kind = monster_effect["put_relation_kind"][
                                         index2
                                     ]
+                                    if "put_relation_hide" in monster_effect:
+                                        relation_hide = int(
+                                            monster_effect["put_relation_hide"][index]
+                                        )
+                                    else:
+                                        relation_hide = False
+
                                     relation_to = int(
                                         monster_effect["put_relation_to"][index2]
                                     )
@@ -27812,6 +28000,7 @@ class DuelObj:
                                         tmp2["monster"] = monster
                                         tmp2["kind"] = relation_kind
                                         tmp2["to"] = relation_to
+                                        tmp2["hide"] = relation_hide
                                     if relation_to == 0:
                                         relation_from = 1
                                     elif relation_to == 1:
@@ -27829,6 +28018,7 @@ class DuelObj:
                                             deck_id,
                                             1,
                                             chain_user,
+                                            relation_hide
                                         )
                                 else:
                                     cost_result = self.cost_result
@@ -27982,6 +28172,12 @@ class DuelObj:
                                         relation_name = monster_effect["relation_name"][
                                             index2
                                         ]
+                                        if "put_relation_hide" in monster_effect:
+                                            relation_hide = int(
+                                                monster_effect["put_relation_hide"][index]
+                                            )
+                                        else:
+                                            relation_hide = False
                                         relation_monster = self.get_as_monster(
                                             monster_effect["relation_monster"][index2]
                                         )
@@ -28018,6 +28214,7 @@ class DuelObj:
                                             tmp2["monster"] = monster
                                             tmp2["name"] = relation_name
                                             tmp2["to"] = relation_to
+                                            tmp2["hide"] = relation_hide
                                             field[x][y]["det"]["rel"][
                                                 relation_kind
                                             ].append(tmp)
@@ -28039,6 +28236,7 @@ class DuelObj:
                                                 0,
                                                 1,
                                                 chain_user,
+                                                relation_hide
                                             )
                                     else:
                                         cost_result = self.cost_result
@@ -36664,6 +36862,7 @@ class DuelObj:
                                     )
                                     return_value.append(return_tmp)
                                     self.effect += "field_move;"+str(x)+";"+str(y)+"|"
+                                    self.effect2 += "field_move;"+str(x)+";"+str(y)+"|"
                                     field[x][y]["det"] = None
                                     if self.config.sort is True:
                                         field = self.sortField(field,y)
@@ -36704,6 +36903,8 @@ class DuelObj:
 
                         mine_or_other2 = int(place2["mine_or_other"])
                         mine_or_other3 = mine_or_other2
+                        pprint(self.user)
+                        pprint(place2)
                         if self.user == 2:
                             if mine_or_other2 == 1:
                                 mine_or_other2 = 2
@@ -36714,6 +36915,7 @@ class DuelObj:
                         deck_id = place2["deck_id"]
                         place_unique_id = place2["place_unique_id"]
                         if place == "deck":
+                            pprint(mine_or_other2)
                             if mine_or_other2 == 1:
                                 deck = self.decks[deck_id]["mydeck"]
                             elif mine_or_other2 == 2:
@@ -36721,6 +36923,7 @@ class DuelObj:
                             elif mine_or_other2 == 3:
                                 deck = self.decks[deck_id]["commondeck"]
                             user_decks = deck
+                            pprint(place_unique_id)
                             for user_deck in user_decks:
                                 if place_unique_id == user_deck["place_unique_id"]:
                                     if self.check_not_effected(
@@ -37070,6 +37273,7 @@ class DuelObj:
                                         det = field[x][y]["det"].copy()
                                         field[x][y]["det"] = None
                                         self.effect += "field_move;"+str(x)+";"+str(y)+"|"
+                                        self.effect2 += "field_move;"+str(x)+";"+str(y)+"|"
                                         if self.config.sort is True:
                                             field = self.sortField(field,y)
                                         det = self.copy_monster_from_field(
@@ -37999,6 +38203,7 @@ class DuelObj:
                                         org_det = det
                                         field[x][y]["det"] = None
                                         self.effect += "field_move;"+str(x)+";"+str(y)+"|"
+                                        self.effect2 += "field_move;"+str(x)+";"+str(y)+"|"
                                         det = self.copy_monster_from_field(
                                             det,
                                             field[x][y]["kind"],
@@ -39502,6 +39707,7 @@ class DuelObj:
                             move_to["eternal"].append(change_val_eternal)
                         field[x][y]["det"] = move_to
                         self.effect += "field_move_to;"+str(x)+";"+str(y)+";"+field[x][y]["det"]["img"]+"|"
+                        self.effect2 += "field_move_to;"+str(x)+";"+str(y)+";"+field[x][y]["det"]["img"]+"|"
                         self.raise_trigger(
                             field[x][y]["det"],
                             move_to_org,
@@ -40261,6 +40467,7 @@ class DuelObj:
                             )
                             field[x][y]["det"] = move_to
                             self.effect += "field_move_to;"+str(x)+";"+str(y)+";"+field[x][y]["det"]["img"]+"|"
+                            self.effect2 += "field_move_to;"+str(x)+";"+str(y)+";"+field[x][y]["det"]["img"]+"|"
                             self.field = field
                             move_to_tmp = move_to.copy()
                             self.raise_trigger(
@@ -42748,6 +42955,7 @@ class DuelObj:
                 if place_tmp[0] == "deck":
                     chain_user2 = json.loads(duel.chain_user)
                     effect_user = chain_user2[str(duel.chain+minus_chain )]
+                    pprint(effect_user)
                     if tmp_deck is None:
                         if (place_tmp[2] == "1" and effect_user == 1) or (
                             place_tmp[2] == "2" and effect_user != 1
@@ -43097,6 +43305,8 @@ class DuelObj:
                             mine_or_other = 2
                         else:
                             mine_or_other = 3
+                        pprint("MINE_OR_OTHER")
+                        pprint(mine_or_other)
                         if (place_tmp[2] == "1" and effect_user == self.user) or (
                             place_tmp[2] == "2" and effect_user != self.user
                         ):
@@ -48258,6 +48468,7 @@ class DuelObj:
         deck_id,
         cost_or_effect=0,
         chain_user=None,
+        relation_hide = False
     ):
         place = place2["place"]
         field = self.field
@@ -48281,6 +48492,7 @@ class DuelObj:
                 tmp2 = {}
                 tmp2["monster"] = copy.deepcopy(monster)
                 tmp2["name"] = relation_name
+                tmp2["hide"] = relation_hide
                 tmp2["to"] = relation_from
                 field[x][y]["det"]["rel"][relation_kind].append(tmp2)
                 key = len(field[x][y]["det"]["rel"][relation_kind]) - 1
@@ -48335,6 +48547,7 @@ class DuelObj:
                         tmp2 = {}
                         tmp2["monster"] = copy.deepcopy(monster)
                         tmp2["name"] = relation_name
+                        tmp2["hide"] = relation_hide
                         tmp2["to"] = relation_from
                         user_decks[index]["rel"][relation_kind].append(tmp2)
                         key = len(user_decks[index]["rel"][relation_kind]) - 1
@@ -48394,6 +48607,7 @@ class DuelObj:
                             tmp2 = {}
                             tmp2["monster"] = copy.deepcopy(monster)
                             tmp2["name"] = relation_name
+                            tmp2["hide"] = relation_hide
                             tmp2["to"] = relation_from
                             user_graves[index]["rel"][relation_kind].append(tmp2)
                             key = len(user_graves[index]["rel"][relation_kind]) - 1
@@ -48453,6 +48667,7 @@ class DuelObj:
                             tmp2 = {}
                             tmp2["monster"] = copy.deepcopy(monster)
                             tmp2["name"] = relation_name
+                            tmp2["hide"] = relation_hide
                             tmp2["to"] = relation_from
                             user_hands[index]["rel"][relation_kind].append(tmp2)
                             key = len(user_hands[index]["rel"][relation_kind]) - 1
@@ -49662,7 +49877,7 @@ class DuelObj:
         cost_flag,
         exclude,
     ):
-        cost = json.loads(duel.cost)
+        cost = self.cost
         mess = json.loads(duel.mess)
         if cost_flag is True:
             if str(duel.chain) in cost:
@@ -52057,8 +52272,18 @@ class DuelObj:
                     return self.pop_pac(user)
 
 
+    def do_cost_next_ai(self,cost,user):
+        self.invoke_flag = False
+        if cost.pac:
+            return self._pac_cost(cost.pac)
+        else:
+            if cost.cost_next:
+                return cost.cost_next
+            else:
+                return self.pop_pac_cost(user)
     def do_cost_next(self,cost,user):
-        if cost.if_not_to_2 is False:
+        if cost.if_not_to_2 is False or self.invoke_flag is True:
+            self.invoke_flag = False
             if cost.pac:
                 return self._pac_cost(cost.pac)
             else:

@@ -206,9 +206,12 @@ table td{
 <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
 <script type="text/javascript" src="{% static 'tcgcreator/js/ajax.js'%}"></script>
 <script type="text/javascript">
+	var user = {{user}};
 	var turn_num=0;
+	var global_enemy_deck = -1;
     function getCookie(name) {
     var cookieValue = null;
+
     if (document.cookie && document.cookie !== '') {
         var cookies = document.cookie.split(';');
         for (var i = 0; i < cookies.length; i++) {
@@ -566,7 +569,7 @@ success: function(data){
  });
     }
     $(document).ready(function(){
-	    turn_num = 10000;
+	    turn_num = 0;
     $("body").on("click",function(){
         music_flag = true;
     });
@@ -679,16 +682,7 @@ function choosedFusionMaterial(place,deck_id,place_unique_id,mine_or_other,j,i,x
 	    result_monster["place_unique_id"] = place_unique_id;
 	    result_monster["x"] = x;
 	    result_monster["y"] = y;
-	    if(user == 1){
-	    	result_monster["mine_or_other"] = mine_or_other;
-	    }else{
-		    	if(mine_or_other == 1){
-	    	result_monster["mine_or_other"] = 2;
-			}else if(mine_or_other == 2){
-	    	result_monster["mine_or_other"] = 1;
-			}else{
-	    	result_monster["mine_or_other"] = mine_or_other;
-			}	    }
+	    result_monster["mine_or_other"] = mine_or_other;
 	    if($.inArray(result_monster,global_result_monster[j])!= -1){
 	    	alert("同じモンスターを選択しています。");
 	    	Cancel();
@@ -712,6 +706,7 @@ function choosedFusionMaterial(place,deck_id,place_unique_id,mine_or_other,j,i,x
 			}
 	    }
 	chooseFusionMaterial(j);
+                    result+="<div "+style+" card_id="+img_url+"  id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a target=\"_blank\" title=\""+hands[i]["myhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain" %}?id="+hands[i]["myhand"][j]["id"]+"\" {% endif %}><img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a></div>";
 
 }
 function sendFusionMaterial(){
@@ -835,11 +830,20 @@ function showChoosingArea(){
 	var position_w = (w_width - el_width) / 2;
 
     $("#choosing_area").draggable();
+	if (!navigator.userAgent.match(/iPhone|Android|iPad/)) {
     $("#choosing_area").css({
 		  position: 'absolute',
 		  'top': position_h + 'px',
 		  'left': position_w + 'px'
    }).show();
+  } else {
+	  var c_y = $("#control")[0].offsetTop + 50;
+    $("#choosing_area").css({
+		  position: 'absolute',
+		  'top': c_y + 'px',
+		  'left': position_w + 'px'
+   }).show();
+	    }
 }
 function chooseFusionMonster(data){
 	var monsters = data["monster"];
@@ -927,7 +931,7 @@ function showFusionMaterial(ary){
 	    	continue;
 	    }
         var img_url = tmp["img"];
-	     result_html += "<td><img card_id=\""+img_url+"\"  id=\""+monster["det"]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></td>";
+										    result_html += "<td><a href=\"javascript:choosedFusionMaterial('"+tmp["place"]+"',"+tmp["deck_id"]+",'"+tmp["place_unique_id"]+"','"+tmp["mine_or_other"]+"',"+tmp["j"]+","+tmp["i"]+",0,0)\"><img card_id=\""+img_url+"\"  id=\""+monster["det"]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a></td>";
 	  result_button += "<td><input value=\"選択\" type=\"button\" onclick=\"choosedFusionMaterial('"+tmp["place"]+"',"+tmp["deck_id"]+",'"+tmp["place_unique_id"]+"','"+tmp["mine_or_other"]+"',"+tmp["j"]+","+tmp["i"]+",0,0)\"  ></td>";
 	}
 											  return result_html+result_button+"</tr></table>";
@@ -951,7 +955,7 @@ function showFusion(ary){
 	for(var i =  0;i<ary.length;i++){
 			var tmp = ary[i];
         var img_url = tmp["img"];
-	     result_html += "<td><img card_id=\""+img_url+"\"  id=\""+monster["det"]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></td>";
+				       result_html += "<td><a href=\"javascript:sendFusionMonster('"+tmp["place"]+"',"+tmp["deck_id"]+",'"+tmp["place_unique_id"]+"',"+tmp["mine_or_other_num"]+","+tmp["fusion"]+")\"><img card_id=\""+img_url+"\"  id=\""+monster["det"]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a></td>";
 	  result_button += "<td><input value=\""+tmp["sentence"]+"\"  type=\"button\" onclick=\"sendFusionMonster('"+tmp["place"]+"',"+tmp["deck_id"]+",'"+tmp["place_unique_id"]+"',"+tmp["mine_or_other_num"]+","+tmp["fusion"]+")\"  ></td>";
 	}
 											  return result_html+result_button+"</tr></table>";
@@ -1057,7 +1061,7 @@ function ask_det2(type,k,l,under_id = ""){
 			deck_flag = true;
                         img_url = data[i]["cards"][j]["img"];
                         pid.push(data[i]["cards"][j]["place_unique_id"]);
-						   result_html += "<td><img card_id=\""+img_url+"\"  id=\""+data[i]["cards"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\">";
+				      result_html += "<td><a href=\"javascript:ask_det2('deck',"+deck_i+","+j+")\"><img card_id=\""+img_url+"\"  id=\""+data[i]["cards"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
 		        result_html += "<br><input type=\"button\" onclick=\"ask_det2('deck',"+deck_i+","+j+")\" value=\""+global_field_sentence+"\"></td>";
                     }
                 }
@@ -1073,7 +1077,7 @@ function ask_det2(type,k,l,under_id = ""){
 			grave_flag = true;
                         pid.push(data[i]["grave"][j]["place_unique_id"]);
                         img_url = data[i]["grave"][j]["img"];
-					   result_html += "<td><img card_id=\""+img_url+"\"  id=\""+data[i]["grave"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\">";
+				      result_html += "<td><a  href=\"javascript:ask_det2('grave',"+grave_i+","+j+")\"><img card_id=\""+img_url+"\"  id=\""+data[i]["grave"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
 		        result_html += "<br><input type=\"button\" onclick=\"ask_det2('grave',"+grave_i+","+j+")\" value=\""+global_field_sentence+"\"></td>";
                     }
                 }
@@ -1090,7 +1094,7 @@ function ask_det2(type,k,l,under_id = ""){
 			hand_flag = true;
                         pid.push("hand"+data[i]["hand"][j]["place_unique_id"]);
                         img_url = data[i]["hand"][j]["img"];
-						   result_html +="<td><img card_id=\""+img_url+"\"  id=\"hand"+data[i]["hand"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\">";
+			  	      result_html +="<td><a href=\"javascript:ask_det2('hand',"+hand_i+","+j+")\"><img card_id=\""+img_url+"\"  id=\"hand"+data[i]["hand"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
 					  result_html += "<br><input type=\"button\" onclick=\"ask_det2('hand',"+hand_i+","+j+")\" value=\""+global_field_sentence+"\"></td>";;
                         //$("#"+data[i]["hand"][j]["place_unique_id"]).html(result_html_hand);
                     }
@@ -1698,7 +1702,7 @@ function ask_det(data){
                 if(Validate(data[i]["cards"][j])){
                         img_url = data[i]["cards"][j]["img"];
                         pid.push(data[i]["cards"][j]["place_unique_id"]);
-				result_html +="<td><img class=\"img_card\" card_id=\""+img_url+"\"  id=\""+data[i]["cards"][j]["place_unique_id"]+"\"    src=\""+static_url+"/img/"+img_url+"\">";
+				      result_html += "<td><a href=\"javascript:ask_det2('deck',"+deck_i+","+j+")\"><img card_id=\""+img_url+"\"  id=\""+data[i]["cards"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
 		        result_html += "<br><input type=\"button\" onclick=\"ask_det2('deck',"+deck_i+","+j+")\" value=\""+global_field_sentence+"\"></td>";
 
                 auto_count++;
@@ -1728,7 +1732,7 @@ function ask_det(data){
                 if(Validate(data[i]["grave"][j])){
                         img_url = data[i]["grave"][j]["img"];
                         pid.push(data[i]["grave"][j]["place_unique_id"]);
-				result_html +="<td><img class=\"img_card\" card_id=\""+img_url+"\"  id=\""+data[i]["grave"][j]["place_unique_id"]+"\"    src=\""+static_url+"/img/"+img_url+"\">";
+			result_html += "<td><a  href=\"javascript:ask_det2('grave',"+grave_i+","+j+")\"><img card_id=\""+img_url+"\"  id=\""+data[i]["grave"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
 		        result_html += "<br><input type=\"button\" onclick=\"ask_det2('grave',"+grave_i+","+j+")\" value=\""+global_field_sentence+"\"></td>";
                 auto_count++;
                     tmp_auto = {};
@@ -1765,7 +1769,7 @@ function ask_det(data){
                     if($("#"+data[i]["hand"][j]["place_unique_id"]).length>0){
                         img_url = data[i]["hand"][j]["img"];
                         pid.push("hand"+data[i]["hand"][j]["place_unique_id"]);
-			    result_html +="<td><img class=\"img_card\" card_id=\""+img_url+"\"  id=\"hand"+data[i]["hand"][j]["place_unique_id"]+"\"    src=\""+static_url+"/img/"+img_url+"\">";
+			    result_html +="<td><a href=\"javascript:ask_det2('hand',"+hand_i+","+j+")\"><img card_id=\""+img_url+"\"  id=\"hand"+data[i]["hand"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
 			    result_html += "<br><input type=\"button\" onclick=\"ask_det2('hand',"+hand_i+","+j+")\" value=\""+global_field_sentence+"\"></td>";
                         //$("#"+data[i]["hand"][j]["place_unique_id"]).html(result_html_hand);
                     }else{
@@ -1939,6 +1943,8 @@ success: function(data){
         timer = setTimeout(sendFieldTrigger,1000);
         return;
     }
+	conosle.log(data);
+	alert(data["effect"]);
     sendFieldTriggerDet(data);
    },
    error:function(){
@@ -2520,7 +2526,7 @@ function sendFieldTriggerDet(data){
         data = global_data;
     }
     global_data = data;
-    Success2();
+    Success2(data);
     $.ajax({
    type: "POST",
    url: "{% url 'tcgcreator:battle_det'  %}",
@@ -2550,7 +2556,7 @@ function sendHandTriggerDet(data){
     }
 
     global_data = data;
-    Success2();
+    Success2(data);
     $.ajax({
    type: "POST",
    url: "{% url 'tcgcreator:battle_det'  %}",
@@ -2974,7 +2980,17 @@ function ChooseAi(){
         var default_deck_html = "";
     var enemy_deck_html='NPCのデッキ<select id="enemy_deck">';
         {% for enemy_deck in enemy_deck_groups %}
+	    {% if enemy_deck.id == ai_id %}
+	if(global_enemy_deck == -1 || global_enemy_deck == {{ai_id}}){
+            enemy_deck_html+='<option value="{{enemy_deck.id}}" selected>{{enemy_deck.deck_name}}</option>';
+	}
+	    {% else %}		
+		if(global_enemy_deck == {{enemy_deck.id}}){
+            		enemy_deck_html+='<option value="{{enemy_deck.id}}" selected>{{enemy_deck.deck_name}}</option>';
+		}else{
             enemy_deck_html+='<option value="{{enemy_deck.id}}">{{enemy_deck.deck_name}}</option>';
+	}
+	    {% endif %}
         {% endfor %}
     enemy_deck_html+="</select>";
     enemy_deck_html+='<input type="button" value="選択完了" onclick="SendChooseAi()">';
@@ -2988,6 +3004,7 @@ function SendChooseAi(){
     var default_deck = "-1";
     var user_deck = "-1";
     var enemy_deck = $("#enemy_deck").val();
+	global_enemy_deck = enemy_deck;
     $.ajax({
    type: "POST",
    url: "{% url 'tcgcreator:chooseai'  %}",
@@ -4031,7 +4048,8 @@ function sendFieldTriggerDet(data){
         data = global_data;
     }
     global_data = data;
-    Success2();
+
+    Success2(data);
     $.ajax({
    type: "POST",
    url: "{% url 'tcgcreator:battle_det'  %}",
@@ -4060,7 +4078,7 @@ function sendHandTriggerDet(data){
         data = global_data;
     }
     global_data = data;
-    Success2();
+    Success2(data);
     $.ajax({
    type: "POST",
    url: "{% url 'tcgcreator:battle_det'  %}",
@@ -4483,7 +4501,17 @@ function ChooseAi(){
         var default_deck_html = "";
     var enemy_deck_html='NPCのデッキ<select id="enemy_deck">';
         {% for enemy_deck in enemy_deck_groups %}
+	    {% if enemy_deck.id == ai_id %}
+	if(global_enemy_deck == -1 || global_enemy_deck ==  {{ai_id}}){
+            enemy_deck_html+='<option value="{{enemy_deck.id}}" selected>{{enemy_deck.deck_name}}</option>';
+	}
+	    {% else %}		
+		if(global_enemy_deck == {{enemy_deck.id}}){
+            		enemy_deck_html+='<option value="{{enemy_deck.id}}" selected>{{enemy_deck.deck_name}}</option>';
+		}else{
             enemy_deck_html+='<option value="{{enemy_deck.id}}">{{enemy_deck.deck_name}}</option>';
+	}
+	    {% endif %}
         {% endfor %}
     enemy_deck_html+="</select>";
     enemy_deck_html+='<input type="button" value="選択完了" onclick="SendChooseAi()">';
@@ -4497,6 +4525,7 @@ function SendChooseAi(){
     var default_deck = "-1";
     var user_deck = "-1";
     var enemy_deck = $("#enemy_deck").val();
+	global_enemy_deck = enemy_deck;
     $.ajax({
    type: "POST",
    url: "{% url 'tcgcreator:chooseai'  %}",
@@ -4753,7 +4782,14 @@ success: function(data){
     }
 }
     // 表示するために二つ目の関数を作る
-    function Success2(){
+    function Success2(data){
+	if(data != undefined && data != "error"){
+	    data = JSON.parse(data);
+								}	
+
+	if(data != undefined && data["effect"] != undefined && data["effect"] !=""){
+    		showEffect(data,1);
+								}
 
 	$("#player").html("");
 	$("#player2").html("");
@@ -4893,14 +4929,13 @@ success: function(data){
         $("#center_message").html("");
             global_all_fields = [];
     data = JSON.parse(data);
+	    console.log(data["effect"]);
 	EffectMove(data);
 	if(data["effect"] ){
     	showEffect(data,0);
 	return;						
 	}
-	    if(data["user"] == data["turn"]){
 		turn_num = 0;
-	    }
 	
            $(".swing").removeClass("swing")
 	    $(".animation_number").remove();
@@ -5295,7 +5330,7 @@ success: function(data){
                 var rotate_css = ""
             }
             var img_url = fields[x][y]["det"]["img"];
-            var result="<table class=\"field\"><tr><td style=\"background-color:"+color+"\"  colspan=\"2\"><img class=\"img_card\"  style=\""+gray_css+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\">"+fields[x][y]["det"]["monster_name"]+"</td></tr>";
+	  var result="<table class=\"field\"><tr><td style=\"background-color:"+color+"\"  colspan=\"2\"><a href=\"javascript:choosedFusionMaterial('field',0,'"+fields[x][y]["det"]["place_unique_id"]+"',"+fields[x][y]["mine_or_other"]+","+j+","+i+","+x+","+y+")\"><img class=\"img_card\"  style=\""+gray_css+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a></td></tr>";
             for(i=0;i<fields[x][y]["det"]["variables"].length;i++){
                 result += "<tr><td style=\"background-color:"+color+"\" >"+fields[x][y]["det"]["variables"][i]["name"]+"</td><td>"+fields[x][y]["det"]["variables"][i]["str"]+"</td></tr>";
             }
@@ -5449,7 +5484,7 @@ success: function(data){
                             }
                        {% endif %}
                         if(gray_flag == true){
-                            result_tmp="<table><tr><td style=\"background-color:"+color+"\" >"+arrow_html_before+"<a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\" onclick=\"makeFieldsChoose2("+x+","+y+")\"  {% if Config.card_href %} href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\"  style=\"opacity:0.4;background:gray;"+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+add_val_html+add_name_html+"</td></tr>";
+                            result_tmp="<table><tr><td style=\"background-color:"+color+"\" >"+arrow_html_before+"<a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\" onclick=\"makeFieldsChoose2("+x+","+y+")\"   > <img class=\"img_card\"  style=\"opacity:0.4;background:gray;"+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+add_val_html+add_name_html+"</td></tr>";
                         }else{
                             result_tmp="<table><tr><td style=\"background-color:"+color+"\" >"+arrow_html_before+"<a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\" onclick=\"makeFieldsChoose2("+x+","+y+")\" {% if Config.card_href %} href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\" style=\""+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+add_val_html+add_name_html+"</td></tr>";
                         }
@@ -5516,6 +5551,8 @@ function makeFields(data,koka,success2){
         var color;
         var sentence;
         var rotate_css = "";
+	var trigger_ids = "";				    
+	var trigger_names = "";				    
         var relate_str;
         var result;
         var gray_flag;
@@ -5571,7 +5608,10 @@ function makeFields(data,koka,success2){
                             for(relation in  fields[x][y]["det"]["rel"]){
 
                                 for(j=0;j<fields[x][y]["det"]["rel"][relation].length;j++){
-                                    relate_str+= fields[x][y]["det"]["rel"][relation][j]["monster"]["det"]["monster_name"]+"<br>";
+				    console.log(fields[x][y]["det"]["rel"]);
+				    if(!fields[x][y]["det"]["rel"][relation][j]["hide"]){
+                                    	relate_str+= fields[x][y]["det"]["rel"][relation][j]["monster"]["det"]["monster_name"]+"<br>";
+				    }
                                 }
                             }
                         }
@@ -5626,9 +5666,33 @@ function makeFields(data,koka,success2){
                             }
                        {% endif %}
                         if(gray_flag == true){
-                            result="<table><tr><td style=\""+style+"color:black;background-color:"+color+"\" >"+arrow_html_before+"<a target=\"_blank\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" {% if Config.card_href %}  href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img  class=\"img_card\" style=\"opacity:0.4;"+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+"<br>"+relate_str+add_val_html+add_name_html+"</td></tr>";
+                    		if(fields[x][y]["det"]["trigger"] != undefined && fields[x][y]["det"]["trigger"].length != 0 && success2 == false){
+					if(fields[x][y]["det"]["trigger"].length == 1){
+                            result="<table><tr><td style=\""+style+"color:black;background-color:"+color+"\" >"+arrow_html_before+"<a id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\"  href=\"javascript:sendFieldTrigger('"+x+"','"+y+"','"+fields[x][y]["det"]["place_unique_id"]+"','"+fields[x][y]["det"]["trigger"][0]["id"]+"',1)\" <img  class=\"img_card\" style=\"opacity:0.4;"+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+"<br>"+relate_str+add_val_html+add_name_html+"</td></tr>";
+			    		}else{
+						for( var k = 0;k<fields[x][y]["det"]["trigger"].length;k++){ 
+				trigger_ids += fields[x][y]["det"]["trigger"][k]["id"] + ",";
+				trigger_names += fields[x][y]["det"]["trigger"][k]["name"] + ",";
+				}
+                            result="<table><tr><td style=\""+style+"color:black;background-color:"+color+"\" >"+arrow_html_before+"<a id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\"  href=\"javascript:chooseFieldTrigger('"+x+"','"+y+"','"+fields[x][y]["det"]["place_unique_id"]+"','"+trigger_ids+"','"+trigger_names+"',1,'"+img_url+"')\" > <img  class=\"img_card\" style=\"opacity:0.4;"+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+"<br>"+relate_str+add_val_html+add_name_html+"</td></tr>";
+			    	}
+			    }else{
+                            result="<table><tr><td style=\""+style+"color:black;background-color:"+color+"\" >"+arrow_html_before+"<a id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\"  href=\"javascript:sendFieldTrigger('"+x+"','"+y+"','"+fields[x][y]["det"]["place_unique_id"]+"','"+fields[x][y]["det"]["trigger"][k]["id"]+"',1)\" > <img  class=\"img_card\" style=\"opacity:0.4;"+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+"<br>"+relate_str+add_val_html+add_name_html+"</td></tr>";
+			    }
                         }else{
-                            result="<table><tr><td style=\""+style+"color:black;background-color:"+color+"\" >"+arrow_html_before+"<a target=\"_blank\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\"   title=\""+fields[x][y]["det"]["monster_sentence"]+"\"  {% if Config.card_href %} href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\"  style=\""+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+"<br>"+relate_str+add_val_html+add_name_html+"</td></tr>";
+                    		if(fields[x][y]["det"]["trigger"] != undefined &&fields[x][y]["det"]["trigger"].length != 0 && success2 == false){
+					if(fields[x][y]["det"]["trigger"].length == 1){
+                            result="<table><tr><td style=\""+style+"color:black;background-color:"+color+"\" >"+arrow_html_before+"<a id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\"  href=\"javascript:sendFieldTrigger('"+x+"','"+y+"','"+fields[x][y]["det"]["place_unique_id"]+"','"+fields[x][y]["det"]["trigger"][0]["id"]+"',1)\" > <img  class=\"img_card\" style=\""+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+"<br>"+relate_str+add_val_html+add_name_html+"</td></tr>";
+			    }else {
+				for( var k = 0;k<fields[x][y]["det"]["trigger"].length;k++){ 
+				trigger_ids += fields[x][y]["det"]["trigger"][k]["id"] + ",";
+				trigger_names += fields[x][y]["det"]["trigger"][k]["name"] + ",";
+				}
+                            result="<table><tr><td style=\""+style+"color:black;background-color:"+color+"\" >"+arrow_html_before+"<a id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\"  href=\"javascript:chooseFieldTrigger('"+x+"','"+y+"','"+fields[x][y]["det"]["place_unique_id"]+"','"+trigger_ids+"','"+trigger_names+"',1,'"+img_url+"')\" > <img  class=\"img_card\" style=\""+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+"<br>"+relate_str+add_val_html+add_name_html+"</td></tr>";
+			    }
+			    }else{
+                            result="<table><tr><td style=\""+style+"color:black;background-color:"+color+"\" >"+arrow_html_before+"<a id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\"   title=\""+fields[x][y]["det"]["monster_sentence"]+"\"  > <img class=\"img_card\"  style=\"opacity:0.4;"+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+"<br>"+relate_str+add_val_html+add_name_html+"</td></tr>";
+			    }
                         }
                     }
                     if(fields[x][y]["det"]["trigger"] != undefined && success2 == false){
@@ -5681,7 +5745,7 @@ function makeFields(data,koka,success2){
                 img_url = hands[i]["myhand"][j]["img"];
                 // 選択中は出さない
                 pid.push(hands[i]["myhand"][j]["place_unique_id"]);
-                result+="<div card_id="+img_url+"  id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a target=\"_blank\" title=\""+hands[i]["myhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain" %}?id="+hands[i]["myhand"][j]["id"]+"\" {% endif %}><img class=\"img_card\" style=\"opacity:0.4;background:gray;\" src=\""+static_url+"/img/"+img_url+"\"></a></div>";
+                result+="<div card_id="+img_url+"  id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a target=\"_blank\" title=\""+hands[i]["myhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain" %}?id="+hands[i]["myhand"][j]["id"]+"\" {% endif %}><img class=\"img_card\" style=\"\" src=\""+static_url+"/img/"+img_url+"\"></a></div>";
                 result+="</td>";
             }
             result+="</tr>";
@@ -5716,9 +5780,9 @@ function makeFields(data,koka,success2){
             if(hands[i]["commonhandnum"] != undefined){
                 continue;
             }
-                        if("{{Config.hand_name_show_flag}}" == "True"){
-                    result+=hands[i]["hand_name"];
-                        }
+           if("{{Config.hand_name_show_flag}}" == "True"){
+               result+=hands[i]["hand_name"];
+           }
             tmp_width = {{Config.card_width}} * parseInt(hands[i]["myhandnum"]);
             result+="<tr style=\"width:"+tmp_width+"px;overflow-x:scroll\">";
             for(j=0;j<hands[i]["myhandnum"];j++){
@@ -5734,18 +5798,27 @@ function makeFields(data,koka,success2){
                         var style="";
                     }
                     if(hands[i]["myhand"][j]["trigger"] != undefined && hands[i]["myhand"][j]["trigger"].length  ){
-                        for(k=0;k<hands[i]["myhand"][j]["trigger"].length;k++){
-                            if(k==0){
-                                result+="<div "+style+" card_id="+img_url+" id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a target=\"_blank\" title=\""+hands[i]["myhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain" %}?id="+hands[i]["myhand"][j]["id"]+"\" {% endif %} ><img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
+		        if(hands[i]["myhand"][j]["trigger"].length == 1){ 
+			    result+="<div"+style+" card_id="+img_url+" id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a href=\"javascript:sendHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+hands[i]["myhand"][j]["trigger"][0]["id"]+"',1)\"><img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a></div>";
+                                result+= "<br><input type=\"button\" onclick=\"sendHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+hands[i]["myhand"][j]["trigger"][0]["id"]+"',1)\" value=\""+hands[i]["myhand"][j]["trigger"][0]["name"]+"\">";
+                       }else{
+			       var trigger_ids = "";
+			       var trigger_names = "";
+				for( var k = 0;k<hands[i]["myhand"][j]["trigger"].length;k++){ 
+				trigger_ids += hands[i]["myhand"][j]["trigger"][k]["id"] + ",";
+				trigger_names += hands[i]["myhand"][j]["trigger"][k]["name"] + ",";
+				}
+
+			    result+="<div"+style+" card_id="+img_url+" id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a href=\"javascript:chooseHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+trigger_ids+"','"+trigger_names+"',1,'"+img_url+"')\"><img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a></div>";
+			for(var k=0;k<hands[i]["myhand"][j]["trigger"].length;k++){ 
+//			    result+="<div"+style+" card_id="+img_url+" id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a href=\"javascript:sendHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+hands[i]["myhand"][j]["trigger"][k]["id"]+"',1)\"><img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a></div>";
                                 result+= "<br><input type=\"button\" onclick=\"sendHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+hands[i]["myhand"][j]["trigger"][k]["id"]+"',1)\" value=\""+hands[i]["myhand"][j]["trigger"][k]["name"]+"\">";
-                            }else{
-                                result+= "<br><input type=\"button\" onclick=\"sendHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+hands[i]["myhand"][j]["trigger"][k]["id"]+"',1)\" value=\""+hands[i]["myhand"][j]["trigger"][k]["name"]+"\">";
-                            }
-                        }
-                        result+="</div>";
-                    }else{
-                        result+="<div "+style+" card_id="+img_url+"  id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a target=\"_blank\" title=\""+hands[i]["myhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain" %}?id="+hands[i]["myhand"][j]["id"]+"\" {% endif %}><img class=\"img_card\"  style=\"\" src=\""+static_url+"/img/"+img_url+"\"></a></div>";
-                    }
+			}
+			}
+	       }else{
+                   var style="style='opacity:0.4;background-color:gray'";
+                    result+="<div "+style+" card_id="+img_url+"  id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a target=\"_blank\" title=\""+hands[i]["myhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain" %}?id="+hands[i]["myhand"][j]["id"]+"\" {% endif %}><img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a></div>";
+	       	}
                 }else{
                     if(hands[i]["show"] == 4 && checkVal(hands[i]["myhand"][j],"show") == 0){
                         var style="style='opacity:0.8;background-color:gray'";
@@ -5774,7 +5847,34 @@ function makeFields(data,koka,success2){
                 );
         }
     }
-
+     function chooseFieldTrigger(x,y,place_unique_id,trigger_ids,trigger_names,mode ,img_url){
+		var i;					  0
+		var result = "";
+		trigger_ids = trigger_ids.split(",");		
+		trigger_names = trigger_names.split(",");		
+					      result = "<table><tr>";
+	     for(i=0;i<trigger_ids.length-1;i++){ 
+					      result+="<td><td><a href=\"javascript\"sendFieldTrigger('"+x+"','"+y+"','"+place_unique_id+"','"+trigger_ids[i]+"',1)\"><img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
+		     result+= "<br><input type=\"button\" onclick=\"sendFieldTrigger('"+(x)+"','"+y+"','"+place_unique_id+"','"+trigger_ids[i]+"',1)\" value=\""+trigger_names[i]+"\"></td>";
+	     }
+	     	result += "</tr></table>";
+    		$("#choosing_area").html(result);
+		showChoosingArea();
+	}
+     function chooseHandTrigger(hand_number,hand_unique_id,trigger_ids,trigger_names,mode ,img_url){
+		var i;					  0
+		var result = "";
+		trigger_ids = trigger_ids.split(",");		
+		trigger_names = trigger_names.split(",");		
+					      result = "<table><tr>";
+	     for(i=0;i<trigger_ids.length-1;i++){ 
+					      result+="<td><td><a href=\"javascript:sendHandTrigger('"+(hand_number)+"','"+hand_unique_id+"','"+trigger_ids[i]+"',1)\"><img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
+		     result+= "<br><input type=\"button\" onclick=\"sendHandTrigger('"+(hand_number)+"','"+hand_unique_id+"','"+trigger_ids[i]+"',1)\" value=\""+trigger_names[i]+"\"></td>";
+	     }
+	     	result += "</tr></table>";
+    		$("#choosing_area").html(result);
+		showChoosingArea();
+	}
     function showEffect(data,mode){
            $(".swing").removeClass("swing")
 	    $(".animation_number").remove();
@@ -5837,7 +5937,6 @@ function makeFields(data,koka,success2){
 				move_flag = true;
 				break;
                           case "video":
-				console.log("video");					     
 				$("#effect_video").css("z-index:999999999")
 				$("#effect_video").show();
 				var video  = $("#effect_video").get(0);
@@ -5872,7 +5971,13 @@ function makeFields(data,koka,success2){
 		data["effect"] = null;
 	}
       data = JSON.stringify(data);
-       if(mode == 0){
+       if(mode == 2){
+		if(effect_flag == true){					     
+		var timer = setTimeout(Success2,1000,data);
+	      }else{
+			Success2(data);
+		}
+	}else if(mode == 0){
 		if(effect_flag == true){					     
 			var timer = setTimeout(Success,1000,data);
 	      }else{
@@ -5896,7 +6001,8 @@ function makeFields(data,koka,success2){
 
     }
      function doEachMonsterEffect(x,y,effect_kind_all){
-	
+	console.log(user);
+	console.log(y);	
 	effect_kind = effect_kind_all[3]
       	effect_kind = effect_kind.split("_");
       	switch(effect_kind[0]){
@@ -6406,7 +6512,7 @@ success: function(data){
 <body>
 	<div class="video-container">
 		<div class="video-wrap">
-<video id="effect_video"></video>
+<video id="effect_video" playsinline></video>
 		</div>
 	</div>
 {% if user_point2 %}
@@ -6538,6 +6644,7 @@ success: function(data){
 
 </table>
         </div>
+        <div id="choosing_area" style="z-index:1000;offset-position:auto;text-align:center;position:absolute;width:600px;background-color:white;display:none;border:1px solid #000000;"></div>
 
 {% if cheat == True %}
 <span id="cheat" style="font-size:50px;text-align:center"><input style="" name="cheat" type="button" value="cheat" onclick="javascript:Cheat()"/></span><br/>
@@ -6550,6 +6657,5 @@ success: function(data){
         <div id="ai_choosing" style="z-index:1000;offset-position:auto;width:600px;position:absolute;height:100px;background-color:white;display:none;border:1px solid #000000;"></div>
         <div id="own_choosing" style="z-index:1000;offset-position:auto;width:600px;position:absolute;height:100px;background-color:white;display:none;border:1px solid #000000;"></div>
         <div id="guest_name_choosing" style="z-index:1000;offset-position:auto;width:600px;position:absolute;height:100px;background-color:white;display:none;border:1px solid #000000;">名前を入力してください。<input type="text" id="choose_guest_name"><input type="button" onclick="SendGuestName()" value="送信"></div>
-        <div id="choosing_area" style="z-index:1000;offset-position:auto;text-align:center;position:absolute;width:600px;background-color:white;display:none;border:1px solid #000000;"></div>
     </body>
     </html>

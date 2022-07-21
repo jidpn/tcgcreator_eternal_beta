@@ -46,6 +46,12 @@ def battle3(request):
 
 
 def battle(request, room_number):
+    if "ai_id" in request.COOKIES:
+        ai_id = int(request.COOKIES["ai_id"])
+    else:
+        ai_id = 0
+    pprint("ai_id")
+    pprint(ai_id)
     config = Config.objects.first()
     gray_out = config.gray_out
     field_free = config.field_free
@@ -282,6 +288,7 @@ def battle(request, room_number):
             "kind_my_show": kind_whether_my_show,
             "phase_other_show": phase_whether_other_show,
             "timing_other_show": timing_whether_other_show,
-            "kind_other_show": kind_whether_other_show
+            "kind_other_show": kind_whether_other_show,
+            "ai_id" : ai_id
         },
     )
