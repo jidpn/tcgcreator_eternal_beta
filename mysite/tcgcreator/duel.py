@@ -1341,15 +1341,21 @@ class DuelObj:
                 eternal_names = json.loads(eternal_effect.val_name)
                 eternal_values = json.loads(eternal_effect.value)
                 val_name_det = val_name.split("_")
+                if mine_or_other == 1:
+                    mine_or_other_other = 2
+                elif mine_or_other == 2:
+                    mine_or_other_other = 1
                 if val_name_det[2] == "4":
-                    if monster["owner"] == user:
+                    if monster["owner"] == mine_or_other:
                         val_name_det[2] = "1"
-                    elif monster["owner"] == other_user:
+                    elif monster["owner"] != mine_or_other_other:
                         val_name_det[2] = "2"
                     else:
                         val_name_det[2] = "3"
                 for eternal_name in eternal_names:
                     eternal_name_det = eternal_name["det"].split("_")
+                    pprint(eternal_name_det)
+                    pprint(val_name_det)
                     if val_name_det[0] != eternal_name_det[0]:
                         continue
                     if int(val_name_det[1]) != int(eternal_name_det[1]):
@@ -3464,7 +3470,6 @@ class DuelObj:
             fusion_monster3["min"] = 0
             fusion_monster3["monster"] = []
         ary = [fusion_monster1,fusion_monster2,fusion_monster3]
-        pprint(ary)
         if mode == 0:
             if fusion_monster1 is False or fusion_monster2 is False or fusion_monster3 is False:
                 return False
@@ -7772,7 +7777,6 @@ class DuelObj:
                         if field[x][y]["det"]["place_unique_id"] != place_unique_id:
                             continue
                     field[x][y]["det"] = None
-                    pprint(cost)
                     self.effect += "field_move;"+str(x)+";"+str(y)+"|"
                     self.effect2 += "field_move;"+str(x)+";"+str(y)+"|"
                     if self.config.sort is True:
@@ -9281,9 +9285,7 @@ class DuelObj:
                 pass
         else:
             self.sound_effect = ""
-        pprint(duel.effect)
         #pprint(self.effect)
-        pprint(duel.change_turn_flag)
         self.effect = duel.effect
         self.effect2 = duel.effect2
         '''
@@ -13526,6 +13528,23 @@ class DuelObj:
         duel = self.duel
         self.duel.end_time = time()
         self.turn_changed = True
+        if self.duel.guest_flag is False:
+            user1_name = duel.user_1.first_name
+        else:    
+            user1_name = duel.guest_name
+        if self.duel.is_ai is False:
+            if self.duel.guest_flag2 is False:
+                user2_name = duel.user_2.first_name
+            else:    
+                user2_name = duel.guest_name2
+        else:            
+            user2_name = "NPC"
+        if user == 1:
+            duel.log_turn += user1_name+ "の勝ち"
+            duel.log += user1_name+ "の勝ち"
+        else:
+            duel.log_turn += user2_name+ "の勝ち"
+            duel.log += user2_name+ "の勝ち"
         if self.duel.winner == 0 and duel.is_ai is False:
             self.duel.winner = user
             self.duel.save()
@@ -36903,8 +36922,6 @@ class DuelObj:
 
                         mine_or_other2 = int(place2["mine_or_other"])
                         mine_or_other3 = mine_or_other2
-                        pprint(self.user)
-                        pprint(place2)
                         if self.user == 2:
                             if mine_or_other2 == 1:
                                 mine_or_other2 = 2
@@ -36915,7 +36932,6 @@ class DuelObj:
                         deck_id = place2["deck_id"]
                         place_unique_id = place2["place_unique_id"]
                         if place == "deck":
-                            pprint(mine_or_other2)
                             if mine_or_other2 == 1:
                                 deck = self.decks[deck_id]["mydeck"]
                             elif mine_or_other2 == 2:
@@ -36923,7 +36939,6 @@ class DuelObj:
                             elif mine_or_other2 == 3:
                                 deck = self.decks[deck_id]["commondeck"]
                             user_decks = deck
-                            pprint(place_unique_id)
                             for user_deck in user_decks:
                                 if place_unique_id == user_deck["place_unique_id"]:
                                     if self.check_not_effected(
@@ -39769,7 +39784,19 @@ class DuelObj:
                 place_tmp = place.split("_")
                 deck_id = int(place_tmp[1])
                 if place_tmp[0] != "field" and  move_to["token"] is True:
-                        continue
+                    self.null_relation(
+                        move_to,
+                        move_to,
+                        None,
+                        "field",
+                        0,
+                        0,
+                        0,
+                        0,
+                        chain_user,
+                        "effect",
+                        )
+                    continue
                 if (place_tmp[2] == "1" and user == self.user) or (
                     place_tmp[2] == "2" and user != self.user
                 ):
@@ -42955,7 +42982,6 @@ class DuelObj:
                 if place_tmp[0] == "deck":
                     chain_user2 = json.loads(duel.chain_user)
                     effect_user = chain_user2[str(duel.chain+minus_chain )]
-                    pprint(effect_user)
                     if tmp_deck is None:
                         if (place_tmp[2] == "1" and effect_user == 1) or (
                             place_tmp[2] == "2" and effect_user != 1
@@ -43305,8 +43331,6 @@ class DuelObj:
                             mine_or_other = 2
                         else:
                             mine_or_other = 3
-                        pprint("MINE_OR_OTHER")
-                        pprint(mine_or_other)
                         if (place_tmp[2] == "1" and effect_user == self.user) or (
                             place_tmp[2] == "2" and effect_user != self.user
                         ):

@@ -145,7 +145,7 @@ def battle_det(request, duelobj=None, choices=None):
                     return HttpResponse("true")
                 return HttpResponse("waiting_choosing_deck")
     if "wait_ai" in request.POST:
-        if duel.user_turn == 2 and duel.ask == 0:
+        if duel.user_turn == 2 and duel.ask == 0 and duel.is_ai is True:
             decks = Deck.objects.all()
             graves = Grave.objects.all()
             hands = Hand.objects.all()
@@ -1073,6 +1073,8 @@ def battle_det(request, duelobj=None, choices=None):
 def battle_det_return(
     duelobj, decks, graves, hands, user, other_user, choices, room_number
 ):
+    pprint("battle_det_return")
+    pprint(user)
     duel = duelobj.duel
     if duel.winner != 0 or duel.winner_ai != 0:
         return battle_det_return_org(
@@ -1226,6 +1228,8 @@ def battle_det_return(
 def battle_det_return_org(
     duelobj, decks, graves, hands, user, other_user, choices, room_number
 ):
+    pprint("battle_det_return_org")
+    pprint(user)
     if choices is None:
         choices = []
         choices.append(None)
@@ -1250,7 +1254,7 @@ def battle_det_return_org(
             return_value["user_name1"] = escape(duel.user_1.first_name)
         else:    
             return_value["user_name1"] = escape(duel.guest_name)
-        if duel.is_ai  == False:
+        if duel.is_ai  is False:
             if duel.guest_flag2 is False:
                 return_value["user_name2"] = escape(duel.user_2.first_name)
             else:
@@ -1258,7 +1262,7 @@ def battle_det_return_org(
         else: 
             return_value["user_name2"] = "NPC"
     else:
-        if duel.is_ai  == False:
+        if duel.is_ai  is False:
             if duel.guest_flag2 is False:
                 return_value["user_name1"] = escape(duel.user_2.first_name)
             else:
@@ -1338,6 +1342,8 @@ def battle_det_return_org(
 def battle_det_return_org_ai(
         duelobj, decks, graves, hands, user, other_user, choices, room_number
 ):
+    pprint(user)
+    pprint("battle_det_return_org_ai")
     duel = duelobj.duel
     duelobj.check_eternal_effect(
         decks, graves, hands, duel.phase, duel.user_turn, user, other_user
@@ -1361,7 +1367,7 @@ def battle_det_return_org_ai(
             return_value["user_name1"] = escape(duel.guest_name)
         return_value["user_name2"] = "NPC"
     else:
-        if duel.is_ai  == False:
+        if duel.is_ai is False:
             if duel.guest_flag2 is False:
                 return_value["user_name1"] = escape(duel.user_2.first_name)
             else:

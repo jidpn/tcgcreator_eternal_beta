@@ -860,7 +860,6 @@ function chooseFusionMonster(data){
         }
 	for(i = 0;i<monsters.length;i++){
 	    monster = monsters[i];
-		console.log(monster);
 	    	if(monster["mine_or_other"] == user){
 	    		mine_or_other = "あなたの";
 	    		mine_or_other_num = user;
@@ -1592,7 +1591,6 @@ function ask_det(data){
     }
     if(data["fusion"] == true){
     	global_field_info = data["field_info"];
-	console.log(data);
 	chooseFusionMonster(data);
 	return;
     }
@@ -1815,296 +1813,6 @@ function ask_det(data){
                 );
         }
 }
-function ForceEffect(data){
-    var i;
-    var result_html = "";
-    for(i=0;i<data.length;i++){
-        if(data[i]["able"] == 1){
-            result_html += "<input type=\"button\" onclick=\"SendForceEffect('"+data[i]["det"]["place_unique_id"]+"')\" value=\""+data[i]["det"]["monster_name"]+"\">";
-        }else{
-            result_html += "("+data[i]["det"]["monster_name"]+")";
-        }
-    }
-    $("#choosing_area").html(result_html);
-  showChoosingArea();
-}
-function SendForceEffect(id){
-    $("#choosing_area").hide();
-    if(id == undefined){
-        id = global_data;
-    }
-    global_data = id;
-    Success2();
-    $.ajax({
-   type: "POST",
-   url: "{% url 'tcgcreator:force_trigger'  %}",
-   data: "room_number={{room_number}}&place_unique_id="+id,
-   timeout: 60000,
-success: function(data){
-    if(data == "waiting"){
-        clearTimeout(timer);
-        timer = setTimeout(SendForceEffect,1000);
-        return;
-    }
-    Success(data);
-   },
-   error:function(){
-        //alert("error");
-    }
-
- });
- {% if Duel.is_ai is True %}
-    ai_doing_flag = true;
-        WaitAi();
- {% endif %}
-}
-function InvokeChoice(id){
-    if(id == undefined){
-        id = global_data;
-    }
-    global_data = id;
-    Success2();
-    $.ajax({
-   type: "POST",
-   url: "{% url 'tcgcreator:choices'  %}",
-   data: "room_number={{room_number}}&trigger_id="+id,
-   timeout: 60000,
-success: function(data){
-    if(data == "waiting"){
-        clearTimeout(timer);
-        timer = setTimeout(InvokeChoice,1000);
-        return;
-    }
-    InvokeChoiceDet(data);
-   },
-   error:function(){
-        //alert("error");
-    }
-
- });
- {% if Duel.is_ai is True %}
-    ai_doing_flag = true;
-    WaitAi();
- {% endif %}
-}
-function InvokeChoiceDet(data){
-	/*
-    if(data == undefined){
-        data = global_data;
-
-    }
-    global_data = data;
-		*/
-    Success(data);
-	/*
-    $.ajax({
-   type: "POST",
-   url: "{% url 'tcgcreator:battle_det'  %}",
-   data: "room_number={{room_number}}",
-   timeout: 60000,
-success: function(data){
-    if(data == "waiting"){
-        clearTimeout(timer);
-        timer = setTimeout(InvokeChoiceDet,1000);
-        return;
-    }else{
-        Success(data);
-    }
-   },
-   error:function(){
-        alert("error");
-    }
-});
-	*/
-}
-function sendFieldTrigger(x,y,place_unique_id,trigger_id,mine_or_other){
-    if(x==undefined || y == undefined || place_unique_id == undefined || trigger_id == undefined || mine_or_other == undefined || mine_or_other == undefined){
-        x = global_data["x"];
-        y = global_data["y"];
-        place_unique_id = global_data["place_unique_id"];
-        trigger_id = global_data["trigger_id"];
-        mine_or_other = global_data["mine_or_other"];
-    }
-    global_data = {};
-    global_data["x"] = x;
-    global_data["y"] = y;
-    global_data["place_unique_id"] = place_unique_id;
-    global_data["trigger_id"] = trigger_id;
-    global_data["mine_or_other"] = mine_or_other;
-    Success2();
-    $.ajax({
-   type: "POST",
-   url: "{% url 'tcgcreator:field_trigger'  %}",
-   data: "room_number={{room_number}}&trigger_id="+trigger_id+"&x="+x+"&y="+y+"&place_unique_id="+place_unique_id+"&mine_or_other="+mine_or_other,
-   timeout: 60000,
-success: function(data){
-    if(data == "waiting"){
-        clearTimeout(timer);
-        timer = setTimeout(sendFieldTrigger,1000);
-        return;
-    }
-	conosle.log(data);
-	alert(data["effect"]);
-    sendFieldTriggerDet(data);
-   },
-   error:function(){
-        alert("error");
-    }
-
- });
- {% if Duel.is_ai is True %}
-    ai_doing_flag = true;
-    WaitAi();
- {% endif %}
-}
-function sendGraveTrigger(grave_id,place_unique_id,trigger_id,mine_or_other){
-    if(grave_id == undefined){
-        grave_id= global_data["grave_id"];
-        place_unique_id= global_data["place_unique_id"];
-        mine_or_other =  global_data["mine_or_other"];
-        trigger_id == global_data["trigger_id"];
-    }
-    global_data = {};
-    global_data["grave_id"] = grave_id;
-    global_data["place_unique_id"] = place_unique_id;
-    global_data["mine_or_other"] = mine_or_other;
-    global_data["trigger_id"] = trigger_id;
-    Success2();
-    $.ajax({
-   type: "POST",
-   url: "{% url 'tcgcreator:grave_trigger'  %}",
-   data: "room_number={{room_number}}&trigger_id="+trigger_id+"&grave_id="+grave_id+"&place_unique_id="+place_unique_id+"&mine_or_other="+mine_or_other,
-   timeout: 60000,
-success: function(data){
-    if(data == "waiting"){
-        clearTimeout(timer);
-        timer = setTimeout(sendGraveTrigger,1000);
-        return;
-    }else{
-    sendHandTriggerDet(data);
-    }
-   },
-   error:function(){
-        alert("error");
-    }
-
- });
- {% if Duel.is_ai is True %}
-    ai_doing_flag = true;
-    WaitAi();
- {% endif %}
-}
-function sendDeckTrigger(deck_id,place_unique_id,trigger_id,mine_or_other){
-    if(deck_id == undefined){
-        deck_id= global_data["deck_id"];
-        place_unique_id= global_data["place_unique_id"];
-        mine_or_other =  global_data["mine_or_other"];
-        trigger_id == global_data["trigger_id"];
-    }
-    global_data = {};
-    global_data["deck_id"] = deck_id;
-    global_data["place_unique_id"] = place_unique_id;
-    global_data["mine_or_other"] = mine_or_other;
-    global_data["trigger_id"] = trigger_id;
-    Success2();
-    $.ajax({
-   type: "POST",
-   url: "{% url 'tcgcreator:deck_trigger'  %}",
-   data: "room_number={{room_number}}&trigger_id="+trigger_id+"&deck_id="+deck_id+"&place_unique_id="+place_unique_id+"&mine_or_other="+mine_or_other,
-   timeout: 60000,
-success: function(data){
-    if(data == "waiting"){
-        clearTimeout(timer);
-        timer = setTimeout(sendDeckTrigger,1000);
-        return;
-    }else{
-    sendHandTriggerDet(data);
-    }
-   },
-   error:function(){
-        alert("error");
-    }
-
- });
- {% if Duel.is_ai is True %}
-    ai_doing_flag = true;
-    WaitAi();
- {% endif %}
-}
-function sendHandTrigger(hand_id,place_unique_id,trigger_id,mine_or_other){
-    if(hand_id == undefined){
-        hand_id= global_data["hand_id"];
-        trigger_id= global_data["trigger_id"];
-        place_unique_id= global_data["place_unique_id"];
-        mine_or_other =  global_data["mine_or_other"];
-    }
-    global_data = {};
-    global_data["hand_id"] = hand_id;
-    global_data["trigger_id"] = trigger_id;
-    global_data["place_unique_id"] = place_unique_id;
-    global_data["mine_or_other"] = mine_or_other;
-    Success2();
-    $.ajax({
-   type: "POST",
-   url: "{% url 'tcgcreator:hand_trigger'  %}",
-   data: "room_number={{room_number}}&trigger_id="+trigger_id+"&hand_id="+hand_id+"&place_unique_id="+place_unique_id+"&mine_or_other="+mine_or_other,
-   timeout: 60000,
-success: function(data){
-    if(data == "waiting"){
-        clearTimeout(timer);
-        timer = setTimeout(sendHandTrigger,1000);
-        return;
-    }else{
-        sendHandTriggerDet(data);
-    }
-   },
-   error:function(){
-        alert("error");
-    }
-
- });
- {% if Duel.is_ai is True %}
-    ai_doing_flag = true;
-    WaitAi();
- {% endif %}
-}
-function sendMultipleAnswer(answer){
-    $("#choosing_area").hide();
-    if(answer == undefined){
-        answer = global_data;
-    }
-    global_data = answer;
-    answer = JSON.stringify(answer);
-    Success2();
-    $.ajax({
-   type: "POST",
-   url: "{% url 'tcgcreator:multiple_answer'  %}",
-   data: "room_number={{room_number}}&answer="+answer,
-   timeout: 60000,
-success: function(data){
-    if(data == "error"){
-        ask();
-        return;
-    }
-    if(data == "waiting"){
-        clearTimeout(timer);
-        timer = setTimeout(sendMultipleAnswer,1000);
-        return;
-    }else{
-        Success(data);
-    }
-   },
-   error:function(){
-        alert("error");
-    }
-
- });
- {% if Duel.is_ai is True %}
-    ai_doing_flag = true;
-    WaitAi();
- {% endif %}
-}
-var fusion_global_obj = {};
 function sendFusionField(x,y){
 	if(x == undefined){
 		x = fusion_global_obj["x"];
@@ -2188,428 +1896,6 @@ success: function(data){
  {% endif %}
 }
 
-function sendAnswerOrder(){
-    $("#choosing_area").hide();
-    var result = "";
-    for(var i=0;i<global_order.length;i++){
-        result += String(i) + "_";
-    }
-    result = result.substr(0,result.length-1);
-    Success2();
-    $.ajax({
-   type: "POST",
-   url: "{% url 'tcgcreator:answerorder'  %}",
-   data: "room_number={{room_number}}&order="+result,
-   timeout: 60000,
-success: function(data){
-    if(data == "error"){
-        alert("正しい対象を選択してください。");
-        ask();
-        return;
-    }
-    if(data == "waiting"){
-        clearTimeout(timer);
-        timer = setTimeout(sendAnswerOrder,1000);
-        return;
-    }else{
-        Success(data);
-    }
-   },
-   error:function(){
-        alert("error");
-    }
-
- });
- {% if Duel.is_ai is True %}
-    ai_doing_flag = true;
-    WaitAi();
- {% endif %}
-}
-function sendAnswerAll(){
-        var i;
-        var return_value = [];
-        var tmp,tmp2;
-        for(i=0;i<global_all_fields.length;i++){
-            tmp2 = global_all_fields[i].split("_");
-        tmp = {};
-        tmp["x"] = tmp2[0];
-        tmp["y"] = tmp2[1];
-        tmp["place"] = "field";
-        return_value.push(tmp);
-
-        }
-    if(return_value.length <min_equation_number || return_value.length >max_equation_number){
-        alert("選択できるのは"+min_equation_number+"以上"+max_equation_number+"以下です");
-
-        return;
-    }
-    var answer = JSON.stringify(return_value);
-    Success2();
-    $('#choosing_area').hide();
-
-    $.ajax({
-   type: "POST",
-   url: "{% url 'tcgcreator:answer'  %}",
-   data: "room_number={{room_number}}&answer="+answer,
-   timeout: 60000,
-success: function(data){
-    if(data == "error"){
-        alert("正しい対象を選択してください。");
-        ask();
-        return;
-    }
-    if(data == "waiting"){
-        clearTimeout(timer);
-        timer = setTimeout(sendAnswerAll,1000);
-        return;
-    }else{
-        Success(data);
-    }
-   },
-   error:function(){
-        alert("error");
-    }
-
- });
- {% if Duel.is_ai is True %}
-    ai_doing_flag = true;
-    WaitAi();
- {% endif %}
-}
-function sendFromLeft(){
-    var decks = global_ask_decks;
-    var graves = global_ask_graves;
-    var hands = global_ask_hands;
-    var answer;
-    var i,j,k;
-    var tmp;
-    Success2();
-    var return_value = [];
-    var data = global_auto_data;
-    for(k=0;k<Math.min(max_equation_number,data.length);k++){
-        if(data[k]["place"] == "deck"){
-            i = data[k]["i"];
-            j = data[k]["j"];
-            tmp = decks[i]["det"][j];
-            tmp["deck_id"] = decks[i]["key"];
-            tmp["place"] = "deck";;
-            return_value.push(tmp);
-        }
-        if(data[k]["place"] == "grave"){
-            i = data[k]["i"];
-            j = data[k]["j"];
-            tmp = graves[i]["det"][j];
-            tmp["grave_id"] = graves[i]["key"];
-            tmp["place"] = "grave";;
-            return_value.push(tmp);
-        }
-        if(data[k]["place"] == "hand"){
-            i = data[k]["i"];
-            j = data[k]["j"];
-            tmp = hands[i]["det"][j];
-            tmp["hand_id"] = hands[i]["key"];
-            tmp["place"] = "hand";;
-            return_value.push(tmp);
-        }
-    }
-    answer = JSON.stringify(return_value);
-    $('#choosing_area').hide();
-
-    $.ajax({
-   type: "POST",
-   url: "{% url 'tcgcreator:answer'  %}",
-   data: "room_number={{room_number}}&answer="+answer,
-   timeout: 60000,
-success: function(data){
-    if(data == "error"){
-        alert("正しい対象を選択してください。");
-        ask();
-        return;
-    }
-    if(data == "waiting"){
-        clearTimeout(timer);
-        timer = setTimeout(sendFromLeft,1000);
-        return;
-    }else{
-        Success(data);
-    }
-   },
-   error:function(){
-        alert("error");
-    }
-
- });
- {% if Duel.is_ai is True %}
-    ai_doing_flag = true;
-    WaitAi();
- {% endif %}
-}
-function autoSend(data){
-    var tmp;
-    var answer;
-    if(data == undefined){
-        data = stored_data2;
-    }
-    stored_data2 = data;
-    var decks = global_ask_decks;
-    var graves = global_ask_graves;
-    var hands = global_ask_hands;
-    var i,j,k;
-    Success2();
-
-    var return_value = [];
-    for(k=0;k<data.length;k++){
-        if(data[k]["place"] == "deck"){
-            i = data[k]["i"];
-            j = data[k]["j"];
-            tmp = decks[i]["det"][j];
-            tmp["deck_id"] = decks[i]["key"];
-            tmp["place"] = "deck";;
-            return_value.push(tmp);
-        }
-        if(data[k]["place"] == "grave"){
-            i = data[k]["i"];
-            j = data[k]["j"];
-            tmp = graves[i]["det"][j];
-            tmp["grave_id"] = graves[i]["key"];
-            tmp["place"] = "grave";;
-            return_value.push(tmp);
-        }
-        if(data[k]["place"] == "hand"){
-            i = data[k]["i"];
-            j = data[k]["j"];
-            tmp = hands[i]["det"][j];
-            tmp["hand_id"] = hands[i]["key"];
-            tmp["place"] = "hand";;
-            return_value.push(tmp);
-        }
-    }
-    answer = JSON.stringify(return_value);
-
-    $.ajax({
-   type: "POST",
-   url: "{% url 'tcgcreator:answer'  %}",
-   data: "room_number={{room_number}}&answer="+answer,
-   timeout: 60000,
-success: function(data){
-    if(data == "error"){
-        alert("正しい対象を選択してください。");
-        ask();
-        return;
-    }
-    if(data == "waiting"){
-        clearTimeout(timer);
-        timer = setTimeout(autoSend,1000);
-        return;
-    }else{
-        Success(data);
-    }
-   },
-   error:function(){
-        alert("error");
-    }
-
- });
- {% if Duel.is_ai is True %}
-    ai_doing_flag = true;
-    WaitAi();
- {% endif %}
-}
-function sendAnswer(){
-    var decks = global_ask_decks;
-    var graves = global_ask_graves;
-    var hands = global_ask_hands;
-    var return_value = [];
-    var tmp,tmp2;
-    var key_all;
-    var i,j;
-    var answer;
-    for(key_all in global_all_result){
-        if(global_all_result[key_all]["type"] == "field"){
-            tmp2 = global_all_result[key_all]["val"].split("_");
-            tmp = {};
-            tmp["x"] = tmp2[0];
-            tmp["y"] = tmp2[1];
-            tmp["place"] = "field";
-            return_value.push(tmp);
-	}else if(global_all_result[key_all]["type"] == "player"){
-            tmp["place"] = "player";
-		tmp["mine_or_other"] = 1;
-            return_value.push(tmp);
-	}else if(global_all_result[key_all]["type"] == "other_player"){
-            tmp["place"] = "player";
-		tmp["mine_or_other"] = 2;
-            return_value.push(tmp);
-        }else if(global_all_result[key_all]["type"] == "under"){
-            tmp2 = global_all_result[key_all]["val"].split("_");
-            tmp = {};
-            tmp["x"] = tmp2[0];
-            tmp["y"] = tmp2[1];
-            tmp["under_id"] = global_all_result[key_all]["under_id"];
-            tmp["place"] = "under";
-            return_value.push(tmp);
-        }else if(global_all_result[key_all]["type"] == "deck"){
-            for(i=0;i<decks.length;i++){
-                for(j=0;j<decks[i]["val"];j++){
-                    if(global_all_result[key_all]["val"] == i+"_"+j){
-                        tmp = decks[i]["det"][j];
-                        tmp["deck_id"] = decks[i]["key"];
-                        tmp["place"] = "deck";;
-                        return_value.push(tmp);
-                    }
-                }
-            }
-        }else if(global_all_result[key_all]["type"] == "grave"){
-            for(var i=0;i<graves.length;i++){
-                for(j=0;j<graves[i]["val"];j++){
-                    if(global_all_result[key_all]["val"] == i+"_"+j){
-                        tmp = graves[i]["det"][j];
-                        tmp["grave_id"] = graves[i]["key"];
-                        tmp["place"] = "grave";;
-                        return_value.push(tmp);
-                    }
-                }
-            }
-        }else if(global_all_result[key_all]["type"] == "hand"){
-            for(var i=0;i<hands.length;i++){
-                for(j=0;j<hands[i]["val"];j++){
-                    if(global_all_result[key_all]["val"] == i+"_"+j){
-                        tmp = hands[i]["det"][j];
-                        tmp["hand_id"] = hands[i]["key"];
-                        tmp["place"] = "hand";;
-                        return_value.push(tmp);
-                    }
-                }
-            }
-        }
-    }
-    if(return_value.length <min_equation_number || return_value.length >max_equation_number){
-        alert("選択できるのは"+min_equation_number+"以上"+max_equation_number+"以下です");
-
-        return;
-    }
-    answer = JSON.stringify(return_value);
-    Success2();
-    $('#choosing_area').hide();
-
-    $.ajax({
-   type: "POST",
-   url: "{% url 'tcgcreator:answer'  %}",
-   data: "room_number={{room_number}}&answer="+answer,
-   timeout: 60000,
-success: function(data){
-    if(data == "error"){
-        alert("正しい対象を選択してください。");
-        ask();
-        return;
-    }
-    if(data == "waiting"){
-        clearTimeout(timer);
-        timer = setTimeout(sendAnswer,1000);
-        return;
-    }else{
-        Success(data);
-    }
-   },
-   error:function(){
-        alert("error");
-    }
-
- });
- {% if Duel.is_ai is True %}
-    ai_doing_flag = true;
-        WaitAi();
- {% endif %}
-}
-function sendFieldTriggerDet(data){
-    if(data == undefined){
-        data = global_data;
-    }
-    global_data = data;
-    Success2(data);
-    $.ajax({
-   type: "POST",
-   url: "{% url 'tcgcreator:battle_det'  %}",
-   data: "room_number={{room_number}}",
-   timeout: 60000,
-success: function(data){
-    if(data == "waiting"){
-        clearTimeout(timer);
-        timer = setTimeout(sendFieldTriggerDet,1000);
-        return;
-    }else{
-        Success(data);
-    }
-   },
-   error:function(){
-        alert("error");
-    }
-});
- {% if Duel.is_ai is True %}
-    ai_doing_flag = true;
-        WaitAi();
- {% endif %}
-}
-function sendHandTriggerDet(data){
-    if(data == undefined){
-        data = global_data;
-    }
-
-    global_data = data;
-    Success2(data);
-    $.ajax({
-   type: "POST",
-   url: "{% url 'tcgcreator:battle_det'  %}",
-   data: "room_number={{room_number}}",
-   timeout: 60000,
-success: function(data){
-    if(data == "waiting"){
-        clearTimeout(timer);
-        timer = setTimeout(sendHandTriggerDet,1000);
-        return;
-    }else{
-	    console.log(data["effect"]);
-        Success(data);
-    }
-   },
-   error:function(){
-        alert("error");
-    }
-});
- {% if Duel.is_ai is True %}
-    ai_doing_flag = true;
-        WaitAi();
- {% endif %}
-}
-function answerDet(data){
-    if(data == undefined){
-        data = global_data;
-    }
-    global_data = data;
-    Success2();
-    $.ajax({
-   type: "POST",
-   url: "{% url 'tcgcreator:battle_det'  %}",
-   data: "room_number={{room_number}}",
-   timeout: 60000,
-success: function(data){
-    if(data == "waiting"){
-        clearTimeout(timer);
-        timer = setTimeout(answerDet,1000);
-        return;
-    }else{
-        Success(data);
-    }
-   },
-   error:function(){
-        alert("error");
-    }
-});
- {% if Duel.is_ai is True %}
-    ai_doing_flag = true;
-        WaitAi();
- {% endif %}
-}
 function ask(){
     Success2();
     $("#center_message").html("");
@@ -3260,127 +2546,6 @@ success: function(data){
         }
     }
 }
-    // 表示するために二つ目の関数を作る
-    function Success2(){
-
-	$("#player").html("");
-	$("#player2").html("");
-    for(i = 0;i<data.length;i++){
-        if(data[i]["mine_or_other"]){
-            result_html += "<br>"+data[i]["mine_or_other"]+"<br>";
-        }
-        if(data[i]["cards"] != undefined){
-            tmp_det  = [];
-            for(j=0;j<data[i]["cards"].length;j++){
-                if(Validate(data[i]["cards"][j])){
-                        img_url = data[i]["cards"][j]["img"];
-                        pid.push(data[i]["cards"][j]["place_unique_id"]);
-                        result_html +="<a target=\"_blank\" onclick=\"ask_det2('deck',"+deck_i+","+j+")\"  ><img class=\"img_card\" card_id=\""+img_url+"\"  id=\""+data[i]["cards"][j]["place_unique_id"]+"\"    src=\""+static_url+"/img/"+img_url+"\"></a>";
-
-                auto_count++;
-                    tmp_auto = {};
-                    tmp_auto["place"] = "deck";
-                    tmp_auto["i"] = i;
-                    tmp_auto["j"] = j;
-                    auto_data.push(tmp_auto);
-                }
-                tmp= data[i]["cards"][j];
-                tmp["type"] = "deck";
-                tmp["mine_or_other"] = data[i]["mine_or_other_val"];
-                tmp_det.push(tmp);
-            }
-            deck_i++;
-            tmp2 = {};
-            tmp2["key"] = data[i]["deck_id"];
-            tmp2["val"]= j;
-            tmp2["det"]= tmp_det;
-            decks.push(tmp2);
-        }
-        if(data[i]["grave"] != undefined){
-            tmp_det  = [];
-            for(j=0;j<data[i]["grave"].length;j++){
-                if(Validate(data[i]["grave"][j])){
-                        img_url = data[i]["grave"][j]["img"];
-                        pid.push(data[i]["grave"][j]["place_unique_id"]);
-                        result_html +="<a target=\"_blank\" onclick=\"ask_det2('grave',"+grave_i+","+j+")\"  ><img class=\"img_card\" card_id=\""+img_url+"\"  id=\""+data[i]["grave"][j]["place_unique_id"]+"\"    src=\""+static_url+"/img/"+img_url+"\"></a>";
-                auto_count++;
-                    tmp_auto = {};
-                    tmp_auto["place"] = "grave";
-                    tmp_auto["i"] = i;
-                    tmp_auto["j"] = j;
-                    auto_data.push(tmp_auto);
-                }
-                tmp = data[i]["grave"][j];
-                tmp["type"] = "grave";
-                tmp["mine_or_other"] = data[i]["mine_or_other_val"];
-                tmp_det.push(tmp);
-            }
-            grave_i++;
-            tmp2 = {};
-            tmp2["key"] = data[i]["grave_id"];
-            tmp2["val"]= j;
-            tmp2["det"]= tmp_det;
-            graves.push(tmp2);
-        }
-        if(data[i]["hand"] != undefined){
-            //makeHandsGray();
-            tmp_det  = [];
-            for(j=0;j<data[i]["hand"].length;j++){
-                if(Validate(data[i]["hand"][j])){
-                    auto_count++;
-                    tmp_auto = {};
-                    tmp_auto["place"] = "hand";
-                    tmp_auto["i"] = i;
-                    tmp_auto["j"] = j;
-                    auto_data.push(tmp_auto);
-                    if($("#"+data[i]["hand"][j]["place_unique_id"]).length>0){
-                        img_url = data[i]["hand"][j]["img"];
-                        pid.push("hand"+data[i]["hand"][j]["place_unique_id"]);
-                        result_html +="<a target=\"_blank\" onclick=\"ask_det2('hand',"+hand_i+","+j+")\"  ><img class=\"img_card\" card_id=\""+img_url+"\"  id=\"hand"+data[i]["hand"][j]["place_unique_id"]+"\"    src=\""+static_url+"/img/"+img_url+"\"></a>";
-                        //result_html_hand += "<br><input type=\"button\" onclick=\"ask_det2('hand',"+i+","+j+")\" value=\""+data[i]["hand"][j]["monster_name"]+"\">";;
-                        //$("#"+data[i]["hand"][j]["place_unique_id"]).html(result_html_hand);
-                    }else{
-                        result_html += "<input type=\"button\" onclick=\"ask_det2('hand',"+i+","+j+")\" value=\""+data[i]["hand"][j]["monster_name"]+"\">";
-                    }
-                }
-                tmp = data[i]["hand"][j];
-                tmp["type"] = "hand";
-                tmp["mine_or_other"] = data[i]["mine_or_other_val"];
-                tmp_det.push(tmp);
-            }
-            tmp2 = {};
-            tmp2["key"] = data[i]["hand_id"];
-            tmp2["val"]= j;
-            tmp2["det"]= tmp_det;
-            hands.push(tmp2);
-            hand_i++;
-        }
-    }
-    global_ask_decks = decks;
-    global_ask_graves = graves;
-    global_ask_hands = hands;
-    global_auto_data = auto_data;
-    if(auto_flag == true && auto_count == max_equation_number){
-        autoSend(auto_data);
-        return;
-    }
-    result_html += "<br><input type=\"button\" value=\"選択完了\" onclick=\"sendAnswer()\"><input type=\"button\" style=\"width:100px\" value=\"{{Config.cancel_name}}\" onclick=\"javascript:Cancel()\">";
-    if(from_left != undefined && from_left == true){
-        result_html += "<input style=\"margin-left:20px\" type=\"button\" value=\"左から選択\" onclick=\"sendFromLeft()\">";
-    }
-    $("#choosing_area").html(result_html);
-  	showChoosingArea();
-        for(i =0;i<pid.length;i++){
-                $("#"+pid[i]).hover(
-                    function(){
-                    $("#card_img").html("<img class=\"explain_card\" src=\""+static_url+"/img/"+$(this).attr("card_id")+"\">");
-                },
-                    function(){
-                    //$("#card_img").html("");
-                }
-                );
-        }
-}
 function ForceEffect(data){
     var i;
     var result_html = "";
@@ -3563,7 +2728,7 @@ function sendDeckTrigger(deck_id,place_unique_id,trigger_id,mine_or_other){
         deck_id= global_data["deck_id"];
         place_unique_id= global_data["place_unique_id"];
         mine_or_other =  global_data["mine_or_other"];
-        trigger_id == global_data["trigger_id"];
+        trigger_id = global_data["trigger_id"];
     }
     global_data = {};
     global_data["deck_id"] = deck_id;
@@ -4929,7 +4094,6 @@ success: function(data){
         $("#center_message").html("");
             global_all_fields = [];
     data = JSON.parse(data);
-	    console.log(data["effect"]);
 	EffectMove(data);
 	if(data["effect"] ){
     	showEffect(data,0);
@@ -5187,7 +4351,6 @@ success: function(data){
 
                         }
                         result="<input type=\"button\" style=\"height:30px;background-color:"+color+"\" value=\""+global_field_sentence+"\" onclick=\"makeFieldsChoose2("+x+","+y+")\")>";
-
                         if(user == 1){
                             $("#"+x+"_"+y).html(result);
                         }else{
@@ -5419,6 +4582,7 @@ success: function(data){
                         result="<input type=\"button\" style=\"background-color:"+color+";height:30px\" value=\""+global_field_sentence+"\" onclick=\"ask_det2('field',"+x+","+y+")\")>";
                         tmp = x+"_"+y;
                         global_ask_fields2.push(tmp);
+
                         if(user == 1){
                             $("#"+x+"_"+y).html(result);
                         }else{
@@ -5544,7 +4708,6 @@ function makeFields(data,koka,success2){
         var arrow_html_before = "";
         var fields = data["field_info"];
         global_field_fields = fields;
-        var user = data["user"];
         var x,y;
         var i,j,k;
         var relation;
@@ -5608,7 +4771,6 @@ function makeFields(data,koka,success2){
                             for(relation in  fields[x][y]["det"]["rel"]){
 
                                 for(j=0;j<fields[x][y]["det"]["rel"][relation].length;j++){
-				    console.log(fields[x][y]["det"]["rel"]);
 				    if(!fields[x][y]["det"]["rel"][relation][j]["hide"]){
                                     	relate_str+= fields[x][y]["det"]["rel"][relation][j]["monster"]["det"]["monster_name"]+"<br>";
 				    }
@@ -5704,6 +4866,7 @@ function makeFields(data,koka,success2){
                     if(user == 1){
                         $("#"+x+"_"+y).html(result);
                     }else{
+
                         $("#"+x+"_"+({{ field_y}}-y-1)).html(result);
                     }
                 }
@@ -5879,7 +5042,6 @@ function makeFields(data,koka,success2){
            $(".swing").removeClass("swing")
 	    $(".animation_number").remove();
 	var data_effect = data["effect"];
-	console.log(data_effect);
 	// 連続で動くか
 	var move_flag = false;
 
@@ -5887,7 +5049,6 @@ function makeFields(data,koka,success2){
         data_effect_tmp = data_effect.split("&");
 	data_effect_tmp.shift();	
 	data_effects = []
-	 console.log(data_effect_tmp);
 	for(var j=0;j<data_effect_tmp.length;j++){
         		data_effect_turn = data_effect_tmp[j].split("*");
 		      if(parseInt(data_effect_turn[0])< turn_num || !data_effect_turn[1]){
@@ -5990,19 +5151,25 @@ function makeFields(data,koka,success2){
 				var timer = setTimeout(Success3,1000,data);
 				return;
 			}else{
-				var timer = setTimeout(WaitAi,1000);
+ 				{% if Duel.is_ai is True %}
+					var timer = setTimeout(WaitAi,1000);
+				{% else %}
+					var timer = setTimeout(Wait,1000);
+				{% endif %}
 				return;
 			}					   
 	      }else{
-				var timer = setTimeout(WaitAi,1000);
+ 				{% if Duel.is_ai is True %}
+					var timer = setTimeout(WaitAi,1000);
+				{% else %}
+					var timer = setTimeout(Wait,1000);
+				{% endif %}
 				return;
 	       	}
 }
 
     }
      function doEachMonsterEffect(x,y,effect_kind_all){
-	console.log(user);
-	console.log(y);	
 	effect_kind = effect_kind_all[3]
       	effect_kind = effect_kind.split("_");
       	switch(effect_kind[0]){

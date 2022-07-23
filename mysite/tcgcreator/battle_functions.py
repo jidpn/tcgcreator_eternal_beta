@@ -360,6 +360,7 @@ def init_duel(room_number, user,default_deck = None,enemy_deck=None,user1_choosi
     duel.tmponce_per_turn_relate2 = ""
     duel.effect_flag = 0
     duel.effect = ""
+    duel.effect2 = ""
     effect_timings =  Timing.objects.filter(timing_whether_show = False)
     timing_whether_1_1 = ""
     timing_whether_1_2 = ""
