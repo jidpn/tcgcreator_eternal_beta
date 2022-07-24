@@ -1354,8 +1354,6 @@ class DuelObj:
                         val_name_det[2] = "3"
                 for eternal_name in eternal_names:
                     eternal_name_det = eternal_name["det"].split("_")
-                    pprint(eternal_name_det)
-                    pprint(val_name_det)
                     if val_name_det[0] != eternal_name_det[0]:
                         continue
                     if int(val_name_det[1]) != int(eternal_name_det[1]):
@@ -16583,10 +16581,9 @@ class DuelObj:
                                 life = 1
                         if (
                             life == 3
-                            or (turn == 1  and ((life == 1 and self.user == 1)
-                            or (life == 2 and self.user == 2)))
-                            or (turn == 2  and ((life == 1 and self.user == 2)
-                            or (life == 2 and self.user == 1)))):
+                            or (life == 1 and self.duel.user_turn == 1)
+                            or (life == 2 and self.duel.user_turn == 2)
+                        ):
                             myhand["eternal"][index][
                                 "monster_variable_change_life_length"
                             ] -= 1
@@ -16626,10 +16623,8 @@ class DuelObj:
                                 life = 1
                         if (
                             life == 3
-                            or (turn == 1 and ((life == 1 and self.user == 2)
-                            or (life == 2 and self.user == 1)))
-                            or (turn == 2 and ((life == 2 and self.user == 2)
-                            or (life == 1 and self.user == 1)))
+                            or (life == 1 and self.duel.user_turn == 2)
+                            or (life == 2 and self.duel.user_turn == 1)
                         ):
                             otherhand["eternal"][index][
                                 "monster_variable_change_life_length"
@@ -16716,10 +16711,8 @@ class DuelObj:
                                 life = 1
                         if (
                             life == 3
-                            or (turn == 1 and ((life == 1 and self.user == 1)
-                            or (life == 2 and self.user == 2)))
-                            or (turn == 2 and ((life == 1 and self.user == 2)
-                            or (life == 2 and self.user == 1)))
+                            or (life == 1 and self.duel.user_turn == 1)
+                            or (life == 2 and self.duel.user_turn == 2)
                         ):
                             mygrave["eternal"][index][
                                 "monster_variable_change_life_length"
@@ -16760,10 +16753,8 @@ class DuelObj:
                                 life = 1
                         if (
                             life == 3
-                            or (turn == 1 and ((life == 1 and self.user == 2)
-                            or (life == 2 and self.user == 1)))
-                            or (turn == 2 and ((life == 1 and self.user == 1)
-                            or (life == 1 and self.user == 1)))
+                            or (life == 1 and self.duel.user_turn == 2)
+                            or (life == 2 and self.duel.user_turn == 1)
                         ):
                             othergrave["eternal"][index][
                                 "monster_variable_change_life_length"
@@ -17054,7 +17045,6 @@ class DuelObj:
                         if life[0] != "turn":
                             index += 1
                             continue
-                        life = int(life[1])
                         if self.user == 1:
                             pass
                         else:
@@ -17063,11 +17053,9 @@ class DuelObj:
                             elif life == 2:
                                 life = 1
                         if (
-                                life == 3
-                                or (turn == 1  and (life == 1 and self.user == 1)
-                                or (life == 2 and self.user == 2))
-                                or (turn == 2  and (life == 1 and self.user == 2)
-                                or (life == 2 and self.user == 1))
+                            life == 3
+                            or (life == 1 and self.duel.user_turn == 1)
+                            or (life == 2 and self.duel.user_turn == 2)
                         ):
                             mydeck["eternal"][index][
                                 "monster_variable_change_life_length"
@@ -17108,10 +17096,8 @@ class DuelObj:
                                 life = 1
                         if (
                             life == 3
-                            or (turn == 1 and (life == 1 and self.user == 2)
-                            or (life == 2 and self.user == 1))
-                            or (turn == 2 and (life == 2 and self.user == 2)
-                            or (life == 2 and self.user == 1))
+                            or (life == 1 and self.duel.user_turn == 2)
+                            or (life == 2 and self.duel.user_turn == 1)
                         ):
                             otherdeck["eternal"][index][
                                 "monster_variable_change_life_length"
@@ -17397,51 +17383,6 @@ class DuelObj:
                     for index3 in reversed(index_list):
                         del otherhand["eternal"][index3]
                     otherhands[index2] = otherhand
-                index2 = -1
-                for otherhand in otherhands:
-                    index2 += 1
-                    if "eternal" not in otherhand:
-                        continue
-                    index = 0
-                    index_list = []
-                    for eternal in otherhand["eternal"]:
-                        if eternal is None:
-                            index += 1
-                            continue
-                        life = eternal["monster_variable_change_life"].split("_")
-                        if life[0] != "timingbegin":
-                            index += 1
-                            continue
-                        if int(life[2]) != next_timing.id:
-                            index += 1
-                            continue
-                        life = int(life[1])
-                        if self.user == 1:
-                            pass
-                        else:
-                            if life == 1:
-                                life = 2
-                            elif life == 2:
-                                life = 1
-                        if (
-                            life == 3
-                            or (life == 1 and self.duel.user_turn == 2)
-                            or (life == 2 and self.duel.user_turn == 1)
-                        ):
-                            otherhand["eternal"][index][
-                                "monster_variable_change_life_length"
-                            ] -= 1
-                        if (
-                            otherhand["eternal"][index][
-                                "monster_variable_change_life_length"
-                            ]
-                            == 0
-                        ):
-                            index_list.append(index)
-                        index += 1
-                    for index3 in reversed(index_list):
-                        del otherhand["eternal"][index3]
-                    otherhands[index2] = otherhand
                 self.hands[i]["myhand"] = myhands
                 self.hands[i]["otherhand"] = otherhands
 
@@ -17572,51 +17513,6 @@ class DuelObj:
                         del mygrave["eternal"][index3]
                     mygraves[index2] = mygrave
                 index2 = -1
-                for mygrave in mygraves:
-                    index2 += 1
-                    if "eternal" not in mygrave:
-                        continue
-                    index = 0
-                    index_list = []
-                    for eternal in mygrave["eternal"]:
-                        if eternal is None:
-                            index += 1
-                            continue
-                        life = eternal["monster_variable_change_life"].split("_")
-                        if life[0] != "timingbegin":
-                            index += 1
-                            continue
-                        if int(life[2]) != next_timing.id:
-                            index += 1
-                            continue
-                        life = int(life[1])
-                        if self.user == 1:
-                            pass
-                        else:
-                            if life == 1:
-                                life = 2
-                            elif life == 2:
-                                life = 1
-                        if (
-                            life == 3
-                            or (life == 1 and self.duel.user_turn == 1)
-                            or (life == 2 and self.duel.user_turn == 2)
-                        ):
-                            mygrave["eternal"][index][
-                                "monster_variable_change_life_length"
-                            ] -= 1
-                        if (
-                            mygrave["eternal"][index][
-                                "monster_variable_change_life_length"
-                            ]
-                            == 0
-                        ):
-                            index_list.append(index)
-                        index += 1
-                    for index3 in reversed(index_list):
-                        del mygrave["eternal"][index3]
-                    mygraves[index2] = mygrave
-                index2 = -1
                 for othergrave in othergraves:
                     index2 += 1
                     if "eternal" not in othergrave:
@@ -17632,51 +17528,6 @@ class DuelObj:
                             index += 1
                             continue
                         if int(life[2]) != timing.id:
-                            index += 1
-                            continue
-                        life = int(life[1])
-                        if self.user == 1:
-                            pass
-                        else:
-                            if life == 1:
-                                life = 2
-                            elif life == 2:
-                                life = 1
-                        if (
-                            life == 3
-                            or (life == 1 and self.duel.user_turn == 2)
-                            or (life == 2 and self.duel.user_turn == 1)
-                        ):
-                            othergrave["eternal"][index][
-                                "monster_variable_change_life_length"
-                            ] -= 1
-                        if (
-                            othergrave["eternal"][index][
-                                "monster_variable_change_life_length"
-                            ]
-                            == 0
-                        ):
-                            index_list.append(index)
-                        index += 1
-                    for index3 in reversed(index_list):
-                        del othergrave["eternal"][index3]
-                    othergraves[index2] = othergrave
-                index2 = -1
-                for othergrave in othergraves:
-                    index2 += 1
-                    if "eternal" not in othergrave:
-                        continue
-                    index = 0
-                    index_list = []
-                    for eternal in othergrave["eternal"]:
-                        if eternal is None:
-                            index += 1
-                            continue
-                        life = eternal["monster_variable_change_life"].split("_")
-                        if life[0] != "timingbegin":
-                            index += 1
-                            continue
-                        if int(life[2]) != next_timing.id:
                             index += 1
                             continue
                         life = int(life[1])
@@ -17774,52 +17625,7 @@ class DuelObj:
                             index += 1
                             continue
                         life = int(life[1])
-                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
-                            pass
-                        else:
-                            if life == 1:
-                                life = 2
-                            elif life == 2:
-                                life = 1
-                        if (
-                            life == 3
-                            or (life == 1 and self.duel.user_turn == 1)
-                            or (life == 2 and self.duel.user_turn == 2)
-                        ):
-                            mydeck["eternal"][index][
-                                "monster_variable_change_life_length"
-                            ] -= 1
-                        if (
-                            mydeck["eternal"][index][
-                                "monster_variable_change_life_length"
-                            ]
-                            == 0
-                        ):
-                            index_list.append(index)
-                        index += 1
-                    for index3 in reversed(index_list):
-                        del mydeck["eternal"][index3]
-                    mydecks[index2] = mydeck
-                index2 = -1
-                for mydeck in mydecks:
-                    index2 += 1
-                    if "eternal" not in mydeck:
-                        continue
-                    index = 0
-                    index_list = []
-                    for eternal in mydeck["eternal"]:
-                        if eternal is None:
-                            index += 1
-                            continue
-                        life = eternal["monster_variable_change_life"].split("_")
-                        if life[0] != "timingbegin":
-                            index += 1
-                            continue
-                        if int(life[2]) != next_timing.id:
-                            index += 1
-                            continue
-                        life = int(life[1])
-                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
+                        if self.user == 1 and self.duel.user_turn == 1 or self.user == 2 and self.duel.user_turn == 2:
                             pass
                         else:
                             if life == 1:
@@ -17864,52 +17670,7 @@ class DuelObj:
                             index += 1
                             continue
                         life = int(life[1])
-                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
-                            pass
-                        else:
-                            if life == 1:
-                                life = 2
-                            elif life == 2:
-                                life = 1
-                        if (
-                            life == 3
-                            or (life == 1 and self.duel.user_turn == 2)
-                            or (life == 2 and self.duel.user_turn == 1)
-                        ):
-                            otherdeck["eternal"][index][
-                                "monster_variable_change_life_length"
-                            ] -= 1
-                        if (
-                            otherdeck["eternal"][index][
-                                "monster_variable_change_life_length"
-                            ]
-                            == 0
-                        ):
-                            index_list.append(index)
-                        index += 1
-                    for index3 in reversed(index_list):
-                        del otherdeck["eternal"][index3]
-                    otherdecks[index2] = otherdeck
-                index2 = -1
-                for otherdeck in otherdecks:
-                    index2 += 1
-                    if "eternal" not in otherdeck:
-                        continue
-                    index = 0
-                    index_list = []
-                    for eternal in otherdeck["eternal"]:
-                        if eternal is None:
-                            index += 1
-                            continue
-                        life = eternal["monster_variable_change_life"].split("_")
-                        if life[0] != "timingbegin":
-                            index += 1
-                            continue
-                        if int(life[2]) != next_timing.id:
-                            index += 1
-                            continue
-                        life = int(life[1])
-                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
+                        if self.user == 1 and self.duel.user_turn == 1 or self.user == 2 and self.duel.user_turn == 2:
                             pass
                         else:
                             if life == 1:
@@ -18127,52 +17888,7 @@ class DuelObj:
                             index += 1
                             continue
                         life = int(life[1])
-                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
-                            pass
-                        else:
-                            if life == 1:
-                                life = 2
-                            elif life == 2:
-                                life = 1
-                        if (
-                            life == 3
-                            or (life == 1 and self.duel.user_turn == 1)
-                            or (life == 2 and self.duel.user_turn == 2)
-                        ):
-                            myhand["eternal"][index][
-                                "monster_variable_change_life_length"
-                            ] -= 1
-                        if (
-                            myhand["eternal"][index][
-                                "monster_variable_change_life_length"
-                            ]
-                            == 0
-                        ):
-                            index_list.append(index)
-                        index += 1
-                    for index3 in reversed(index_list):
-                        del myhand["eternal"][index3]
-                    myhands[index2] = myhand
-                index2 = -1
-                for myhand in myhands:
-                    index2 += 1
-                    if "eternal" not in myhand:
-                        continue
-                    index = 0
-                    index_list = []
-                    for eternal in myhand["eternal"]:
-                        if eternal is None:
-                            index += 1
-                            continue
-                        life = eternal["monster_variable_change_life"].split("_")
-                        if life[0] != "phaseend":
-                            index += 1
-                            continue
-                        if int(life[2]) != org.id:
-                            index += 1
-                            continue
-                        life = int(life[1])
-                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
+                        if self.user == 1 and self.duel.user_turn == 1 or self.user == 2 and self.duel.user_turn == 2:
                             pass
                         else:
                             if life == 1:
@@ -18210,51 +17926,6 @@ class DuelObj:
                             index += 1
                             continue
                         life = eternal["monster_variable_change_life"].split("_")
-                        if life[0] != "phase":
-                            index += 1
-                            continue
-                        if int(life[2]) != phase.id:
-                            index += 1
-                            continue
-                        life = int(life[1])
-                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
-                            pass
-                        else:
-                            if life == 1:
-                                life = 2
-                            elif life == 2:
-                                life = 1
-                        if (
-                            life == 3
-                            or (life == 1 and self.duel.user_turn == 2)
-                            or (life == 2 and self.duel.user_turn == 1)
-                        ):
-                            otherhand["eternal"][index][
-                                "monster_variable_change_life_length"
-                            ] -= 1
-                        if (
-                            otherhand["eternal"][index][
-                                "monster_variable_change_life_length"
-                            ]
-                            == 0
-                        ):
-                            index_list.append(index)
-                        index += 1
-                    for index3 in reversed(index_list):
-                        del otherhand["eternal"][index3]
-                    otherhands[index2] = otherhand
-                index2 = -1
-                for otherhand in otherhands:
-                    index2 += 1
-                    if "eternal" not in otherhand:
-                        continue
-                    index = 0
-                    index_list = []
-                    for eternal in otherhand["eternal"]:
-                        if eternal is None:
-                            index += 1
-                            continue
-                        life = eternal["monster_variable_change_life"].split("_")
                         if life[0] != "phaseend":
                             index += 1
                             continue
@@ -18262,7 +17933,7 @@ class DuelObj:
                             index += 1
                             continue
                         life = int(life[1])
-                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
+                        if self.user == 1 and self.duel.user_turn == 1 or self.user == 2 and self.duel.user_turn == 2:
                             pass
                         else:
                             if life == 1:
@@ -18312,7 +17983,7 @@ class DuelObj:
                             index += 1
                             continue
                         life = int(life[1])
-                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
+                        if self.user == 1 and self.duel.user_turn == 1 or self.user == 2 and self.duel.user_turn == 2:
                             pass
                         else:
                             if life == 1:
@@ -18353,7 +18024,7 @@ class DuelObj:
                             index += 1
                             continue
                         life = int(life[1])
-                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
+                        if self.user == 1 and self.duel.user_turn == 1 or self.user == 2 and self.duel.user_turn == 2:
                             pass
                         else:
                             if life == 1:
@@ -18405,52 +18076,7 @@ class DuelObj:
                             index += 1
                             continue
                         life = int(life[1])
-                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
-                            pass
-                        else:
-                            if life == 1:
-                                life = 2
-                            elif life == 2:
-                                life = 1
-                        if (
-                            life == 3
-                            or (life == 1 and self.duel.user_turn == 1)
-                            or (life == 2 and self.duel.user_turn == 2)
-                        ):
-                            mygrave["eternal"][index][
-                                "monster_variable_change_life_length"
-                            ] -= 1
-                        if (
-                            mygrave["eternal"][index][
-                                "monster_variable_change_life_length"
-                            ]
-                            == 0
-                        ):
-                            index_list.append(index)
-                        index += 1
-                    for index3 in reversed(index_list):
-                        del mygrave["eternal"][index3]
-                    mygraves[index2] = mygrave
-                index2 = -1
-                for mygrave in mygraves:
-                    index2 += 1
-                    if "eternal" not in mygrave:
-                        continue
-                    index = 0
-                    index_list = []
-                    for eternal in mygrave["eternal"]:
-                        if eternal is None:
-                            index += 1
-                            continue
-                        life = eternal["monster_variable_change_life"].split("_")
-                        if life[0] != "phaseend":
-                            index += 1
-                            continue
-                        if int(life[2]) != org.id:
-                            index += 1
-                            continue
-                        life = int(life[1])
-                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
+                        if self.user == 1 and self.duel.user_turn == 1 or self.user == 2 and self.duel.user_turn == 2:
                             pass
                         else:
                             if life == 1:
@@ -18495,52 +18121,7 @@ class DuelObj:
                             index += 1
                             continue
                         life = int(life[1])
-                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
-                            pass
-                        else:
-                            if life == 1:
-                                life = 2
-                            elif life == 2:
-                                life = 1
-                        if (
-                            life == 3
-                            or (life == 1 and self.user == 2)
-                            or (life == 2 and self.user == 1)
-                        ):
-                            othergrave["eternal"][index][
-                                "monster_variable_change_life_length"
-                            ] -= 1
-                        if (
-                            othergrave["eternal"][index][
-                                "monster_variable_change_life_length"
-                            ]
-                            == 0
-                        ):
-                            index_list.append(index)
-                        index += 1
-                    for index3 in reversed(index_list):
-                        del othergrave["eternal"][index3]
-                    othergraves[index2] = othergrave
-                index2 = -1
-                for othergrave in othergraves:
-                    index2 += 1
-                    if "eternal" not in othergrave:
-                        continue
-                    index = 0
-                    index_list = []
-                    for eternal in othergrave["eternal"]:
-                        if eternal is None:
-                            index += 1
-                            continue
-                        life = eternal["monster_variable_change_life"].split("_")
-                        if life[0] != "phaseend":
-                            index += 1
-                            continue
-                        if int(life[2]) != org.id:
-                            index += 1
-                            continue
-                        life = int(life[1])
-                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
+                        if self.user == 1 and self.duel.user_turn == 1 or self.user == 2 and self.duel.user_turn == 2:
                             pass
                         else:
                             if life == 1:
@@ -18669,52 +18250,7 @@ class DuelObj:
                             index += 1
                             continue
                         life = int(life[1])
-                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
-                            pass
-                        else:
-                            if life == 1:
-                                life = 2
-                            elif life == 2:
-                                life = 1
-                        if (
-                            life == 3
-                            or (life == 1 and self.duel.user_turn == 1)
-                            or (life == 2 and self.duel.user_turn == 2)
-                        ):
-                            mydeck["eternal"][index][
-                                "monster_variable_change_life_length"
-                            ] -= 1
-                        if (
-                            mydeck["eternal"][index][
-                                "monster_variable_change_life_length"
-                            ]
-                            == 0
-                        ):
-                            index_list.append(index)
-                        index += 1
-                    for index3 in reversed(index_list):
-                        del mydeck["eternal"][index3]
-                    mydecks[index2] = mydeck
-                index2 = -1
-                for mydeck in mydecks:
-                    index2 += 1
-                    if "eternal" not in mydeck:
-                        continue
-                    index = 0
-                    index_list = []
-                    for eternal in mydeck["eternal"]:
-                        if eternal is None:
-                            index += 1
-                            continue
-                        life = eternal["monster_variable_change_life"].split("_")
-                        if life[0] != "phaseend":
-                            index += 1
-                            continue
-                        if int(life[2]) != org.id:
-                            index += 1
-                            continue
-                        life = int(life[1])
-                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
+                        if self.user == 1 and self.duel.user_turn == 1 or self.user == 2 and self.duel.user_turn == 2:
                             pass
                         else:
                             if life == 1:
@@ -18742,6 +18278,7 @@ class DuelObj:
                     mydecks[index2] = mydeck
                 index2 = -1
                 for otherdeck in otherdecks:
+                    index_list = []
                     index2 += 1
                     if "eternal" not in otherdeck:
                         continue
@@ -18759,7 +18296,7 @@ class DuelObj:
                             index += 1
                             continue
                         life = int(life[1])
-                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
+                        if self.user == 1 and self.duel.user_turn == 1 or self.user == 2 and self.duel.user_turn == 2:
                             pass
                         else:
                             if life == 1:
@@ -18786,50 +18323,6 @@ class DuelObj:
                         del otherdeck["eternal"][index3]
                     otherdecks[index2] = otherdeck
                 index2 = -1
-                for otherdeck in otherdecks:
-                    index2 += 1
-                    if "eternal" not in otherdeck:
-                        continue
-                    index = 0
-                    index_list = []
-                    for eternal in otherdeck["eternal"]:
-                        if eternal is None:
-                            index += 1
-                            continue
-                        life = eternal["monster_variable_change_life"].split("_")
-                        if life[0] != "phaseend":
-                            index += 1
-                            continue
-                        if int(life[2]) != org.id:
-                            index += 1
-                            continue
-                        life = int(life[1])
-                        if self.user == 1 and self.user_turn == 1 or self.user == 2 and self.user_turn == 2:
-                            pass
-                        else:
-                            if life == 1:
-                                life = 2
-                            elif life == 2:
-                                life = 1
-                        if (
-                            life == 3
-                            or (life == 1 and self.duel.user_turn == 2)
-                            or (life == 2 and self.duel.user_turn == 1)
-                        ):
-                            otherdeck["eternal"][index][
-                                "monster_variable_change_life_length"
-                            ] -= 1
-                        if (
-                            otherdeck["eternal"][index][
-                                "monster_variable_change_life_length"
-                            ]
-                            == 0
-                        ):
-                            index_list.append(index)
-                        index += 1
-                    for index3 in reversed(index_list):
-                        del otherdeck["eternal"][index3]
-                    otherdecks[index2] = otherdeck
                 self.decks[i]["mydeck"] = mydecks
                 self.decks[i]["otherdeck"] = otherdecks
 

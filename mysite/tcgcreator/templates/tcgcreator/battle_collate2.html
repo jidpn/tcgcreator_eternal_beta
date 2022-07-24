@@ -3296,24 +3296,6 @@ success: function(data){
         WaitAi();
  {% endif %}
 }
-function ask(){
-    Success2();
-    $("#center_message").html("");
-    $.ajax({
-   type: "POST",
-   url: "{% url 'tcgcreator:ask_place'  %}",
-   data: "room_number={{room_number}}",
-   timeout: 60000,
-success: function(data){
-    clearTimeout(timer);
-    ask_det(data);
-   },
-   error:function(){
-        alert("error");
-    }
-
- });
-}
 function None(){
     Success2();
     $.ajax({
@@ -5135,14 +5117,14 @@ function makeFields(data,koka,success2){
        if(mode == 2){
 		if(effect_flag == true){					     
 		var timer = setTimeout(Success2,1000,data);
-	      }else{
-			Success2(data);
+		  }else{
+			 Success2(data);
 		}
 	}else if(mode == 0){
 		if(effect_flag == true){					     
 			var timer = setTimeout(Success,1000,data);
 	      }else{
-			Success(data);
+			 Success(data);
 		}
 					      
        }else{
@@ -5159,12 +5141,14 @@ function makeFields(data,koka,success2){
 				return;
 			}					   
 	      }else{
+		      /*
  				{% if Duel.is_ai is True %}
 					var timer = setTimeout(WaitAi,1000);
 				{% else %}
 					var timer = setTimeout(Wait,1000);
 				{% endif %}
 				return;
+		      */
 	       	}
 }
 
