@@ -51888,6 +51888,7 @@ class DuelObj:
         tmp["org_id"] = monster.id
         tmp["monster_sentence"] = monster.monster_sentence
         tmp["img"] = monster.img
+        tmp["instead_img"] = monster.instead_img
         monsteritems = (
             MonsterItem.objects.all()
                 .filter(monster_id__id=id)

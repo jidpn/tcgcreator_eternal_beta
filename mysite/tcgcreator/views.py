@@ -3178,8 +3178,6 @@ def init_battle3(request):
 
 
 def init_battle(request, room_number):
-    pprint("AAA")
-    pprint(request.COOKIES)
     guest_flag = False
     guest_name = ""
     ai_choosing = False
@@ -3192,8 +3190,6 @@ def init_battle(request, room_number):
     else:
         ai_id = None
         ai = False
-    pprint("ai_id");
-    pprint(ai_id);
     redirect_flag = False
     deck_id_flag = False
     guest_name_flag = False
@@ -3267,7 +3263,6 @@ def init_battle(request, room_number):
                 tr.set_cookie('default_deck_id', default_deck_id)
             if deck_id_flag is True:
                 tr.set_cookie('deck_id', deck_id)
-        pprint("AAA")
         return tr
     if (duel.user_2 == request.user and duel.user_2 is not None and duel.guest_flag2 is False) or (guest_flag is True and duel.guest_flag2 is True and duel.guest_id2 == ID):
         tr =  HttpResponseRedirect(reverse("tcgcreator:battle"+str(room_number)))
@@ -3280,7 +3275,6 @@ def init_battle(request, room_number):
                 tr.set_cookie('default_deck_id', default_deck_id)
             if ai_id:
                  tr.set_cookie('ai_id',ai_id) 
-        pprint("ABBB")
         return tr
     if not duel.user_1 and duel.guest_flag is False:
         if check_in_other_room(request.user, room_number,ID):
@@ -3294,7 +3288,6 @@ def init_battle(request, room_number):
                     tr.set_cookie('default_deck_id', default_deck_id)
                 if ai_id:
                      tr.set_cookie('ai_id',ai_id) 
-            pprint("CBBB")
             return tr
         if  guest_flag is False and not ai and user_choosing is False:
             tmp = check_user_deck(request.user,deck_id)
@@ -3309,7 +3302,6 @@ def init_battle(request, room_number):
                         tr.set_cookie('default_deck_id', default_deck_id)
                     if ai_id:
                         tr.set_cookie('ai_id',ai_id) 
-                pprint("DBBB")
                 return tr
         if ai and ai_id:
             tmp2 = check_enemy_deck(request.user,ai_id)
@@ -3324,7 +3316,6 @@ def init_battle(request, room_number):
                         tr.set_cookie('default_deck_id', default_deck_id)
                     if ai_id:
                         tr.set_cookie('ai_id',ai_id) 
-                pprint("EBBB")
                 return tr
         if(guest_flag is False):
             duel.user_1 = request.user
@@ -3375,9 +3366,7 @@ def init_battle(request, room_number):
                     if default_deck_id_flag is True:
                         tr.set_cookie('default_deck_id', default_deck_id)
                 if ai_id:
-                   pprint("LKJLKJ")
                    tr.set_cookie('ai_id',ai_id) 
-                pprint("FEBBB")
                 return tr
             else:
                 duel.ai_choosing = True
@@ -3410,7 +3399,6 @@ def init_battle(request, room_number):
                         tr.set_cookie('default_deck_id', default_deck_id)
                     if ai_id:
                         tr.set_cookie('ai_id',ai_id) 
-                pprint("GEBBB")
                 return tr
         else:
             duel.is_ai = False
@@ -3429,7 +3417,6 @@ def init_battle(request, room_number):
                 tr.set_cookie('default_deck_id', default_deck_id)
             if ai_id:
                 tr.set_cookie('ai_id',ai_id) 
-        pprint("iEBBB")
         return tr
 
     if duel.is_ai is True:
@@ -3451,7 +3438,6 @@ def init_battle(request, room_number):
                 tr.set_cookie('default_deck_id', default_deck_id)
             if ai_id:
                 tr.set_cookie('ai_id',ai_id) 
-        pprint("LKJKL")
         return tr
     if not duel.user_2 and duel.guest_flag2 is False:
         if check_in_other_room(request.user, room_number,ID):
@@ -3460,7 +3446,6 @@ def init_battle(request, room_number):
             if guest_flag is False:
                 tmp = check_user_deck(request.user,deck_id)
                 if tmp:
-                    pprint("LKJLKJ")
                     return HttpResponse(tmp)
             if guest_flag is False:
                 tmp2 = UserDeckChoice.objects.filter(user=request.user).first()
@@ -3494,10 +3479,8 @@ def init_battle(request, room_number):
                 tr.set_cookie('guest_name', guest_name)
             if default_deck_id_flag is True:
                 tr.set_cookie('default_deck_id', default_deck_id)
-            pprint(ai_id)
             if ai_id:
                 tr.set_cookie('ai_id',ai_id) 
-        pprint("DDDDD")
         return tr
     else:
         tr = HttpResponseRedirect(reverse("tcgcreator:watch"+str(room_number)))
@@ -3510,7 +3493,6 @@ def init_battle(request, room_number):
                 tr.set_cookie('default_deck_id', default_deck_id)
             if ai_id:
                 tr.set_cookie('ai_id',ai_id) 
-        pprint("EEEEEE")
         return tr
 
 
@@ -4586,7 +4568,6 @@ def get_pac_wrapper(req):
 
 
 def choose(request):
-    pprint(request.COOKIES)
     if "ID" in request.COOKIES:
         ID = request.COOKIES["ID"]
     else:

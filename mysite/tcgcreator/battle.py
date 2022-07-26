@@ -50,8 +50,6 @@ def battle(request, room_number):
         ai_id = int(request.COOKIES["ai_id"])
     else:
         ai_id = 0
-    pprint("ai_id")
-    pprint(ai_id)
     config = Config.objects.first()
     gray_out = config.gray_out
     field_free = config.field_free

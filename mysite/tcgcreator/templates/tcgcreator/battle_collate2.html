@@ -706,7 +706,6 @@ function choosedFusionMaterial(place,deck_id,place_unique_id,mine_or_other,j,i,x
 			}
 	    }
 	chooseFusionMaterial(j);
-                    result+="<div "+style+" card_id="+img_url+"  id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a target=\"_blank\" title=\""+hands[i]["myhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain" %}?id="+hands[i]["myhand"][j]["id"]+"\" {% endif %}><img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a></div>";
 
 }
 function sendFusionMaterial(){
@@ -1059,8 +1058,13 @@ function ask_det2(type,k,l,under_id = ""){
                     if(Validate(data[i]["cards"][j])){
 			deck_flag = true;
                         img_url = data[i]["cards"][j]["img"];
+		        if(data[i]["cards"][j]["instead_img"]){
+			    instead_img = data[i]["cards"][j]["instead_img"];
+		      }else{
+			    instead_img = data[i]["cards"][j]["img"];
+		      }
                         pid.push(data[i]["cards"][j]["place_unique_id"]);
-				      result_html += "<td><a href=\"javascript:ask_det2('deck',"+deck_i+","+j+")\"><img card_id=\""+img_url+"\"  id=\""+data[i]["cards"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
+				      result_html += "<td><a href=\"javascript:ask_det2('deck',"+deck_i+","+j+")\"><img card_id=\""+instead_img+"\"  id=\""+data[i]["cards"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
 		        result_html += "<br><input type=\"button\" onclick=\"ask_det2('deck',"+deck_i+","+j+")\" value=\""+global_field_sentence+"\"></td>";
                     }
                 }
@@ -1076,7 +1080,12 @@ function ask_det2(type,k,l,under_id = ""){
 			grave_flag = true;
                         pid.push(data[i]["grave"][j]["place_unique_id"]);
                         img_url = data[i]["grave"][j]["img"];
-				      result_html += "<td><a  href=\"javascript:ask_det2('grave',"+grave_i+","+j+")\"><img card_id=\""+img_url+"\"  id=\""+data[i]["grave"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
+		        if(data[i]["grave"][j]["instead_img"]){
+			    instead_img = data[i]["grave"][j]["instead_img"];
+		      }else{
+			    instead_img = data[i]["grave"][j]["img"];
+		      }
+				      result_html += "<td><a  href=\"javascript:ask_det2('grave',"+grave_i+","+j+")\"><img card_id=\""+instead_img+"\"  id=\""+data[i]["grave"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
 		        result_html += "<br><input type=\"button\" onclick=\"ask_det2('grave',"+grave_i+","+j+")\" value=\""+global_field_sentence+"\"></td>";
                     }
                 }
@@ -1093,7 +1102,12 @@ function ask_det2(type,k,l,under_id = ""){
 			hand_flag = true;
                         pid.push("hand"+data[i]["hand"][j]["place_unique_id"]);
                         img_url = data[i]["hand"][j]["img"];
-			  	      result_html +="<td><a href=\"javascript:ask_det2('hand',"+hand_i+","+j+")\"><img card_id=\""+img_url+"\"  id=\"hand"+data[i]["hand"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
+		        if(data[i]["hand"][j]["instead_img"]){
+			    instead_img = data[i]["hand"][j]["instead_img"];
+		      }else{
+			    instead_img = data[i]["hand"][j]["img"];
+		      }
+			  	      result_html +="<td><a href=\"javascript:ask_det2('hand',"+hand_i+","+j+")\"><img card_id=\""+instead_img+"\"  id=\"hand"+data[i]["hand"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
 					  result_html += "<br><input type=\"button\" onclick=\"ask_det2('hand',"+hand_i+","+j+")\" value=\""+global_field_sentence+"\"></td>";;
                         //$("#"+data[i]["hand"][j]["place_unique_id"]).html(result_html_hand);
                     }
@@ -1337,6 +1351,11 @@ function showChooseMonsterField(monster){
         var img_url="";
         pid.push(fields[x][y]["det"]["place_unique_id"]);
         img_url = fields[x][y]["det"]["img"];
+	if(fields[x][y]["det"]["instead_img"]){
+	     instead_img = fields[x][y]["det"]["instead_img"];
+	}else{
+	     instead_img = fields[x][y]["det"]["img"];
+	 }
 
         result="<table><tr><td style=\"border:1px solid red;background-color:"+color+"\"><a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" {% if Config.card_href %} href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {%endif%}> <img class=\"img_card\" src=\""+static_url+"/img/"+fields[x][y]["det"]["img"]+"\" width=\"\" height=\"210px\" ></a>"+sentence+"</td></tr></table>";
         if(user == 1){
@@ -1507,7 +1526,12 @@ function ChooseMonsterForMultiple(current_choice){
                     }
         pid.push(fields[x][y]["det"]["place_unique_id"]);
         img_url = fields[x][y]["det"]["img"];
-            result="<table><tr><td style=\"background-color:"+color+"\"><a onclick=\"ChooseMonsterForMultiple('"+String(i)+"')\"  target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\"  {%if Config.card_href%}  href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {%endif%}> <img class=\"img_card\"  src=\""+static_url+"/img/"+fields[x][y]["det"]["img"]+"\"></a><br><input type=\"button\" onclick=\"ChooseMonsterForMultiple('"+String(i)+"')\" value=\"選択\">"+sentence+"</td></tr></table>";
+	if(fields[x][y]["det"]["instead_img"]){
+	     instead_img = fields[x][y]["det"]["instead_img"];
+	}else{
+	     instead_img = fields[x][y]["det"]["img"];
+	 }
+            result="<table><tr><td style=\"background-color:"+color+"\"><a onclick=\"ChooseMonsterForMultiple('"+String(i)+"')\"  target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+instead_img+"\"  {%if Config.card_href%}  href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {%endif%}> <img class=\"img_card\"  src=\""+static_url+"/img/"+fields[x][y]["det"]["img"]+"\"></a><br><input type=\"button\" onclick=\"ChooseMonsterForMultiple('"+String(i)+"')\" value=\"選択\">"+sentence+"</td></tr></table>";
         }
         if(user == 1){
             $("#"+x+"_"+y).html(result);
@@ -1699,8 +1723,13 @@ function ask_det(data){
 	  	result_html +="<table style=\"display:inline;text-align:center;\"><tr>";
                 if(Validate(data[i]["cards"][j])){
                         img_url = data[i]["cards"][j]["img"];
+		        if(data[i]["cards"][j]["instead_img"]){
+			    instead_img = data[i]["cards"][j]["instead_img"];
+		      }else{
+			    instead_img = data[i]["cards"][j]["img"];
+		      }
                         pid.push(data[i]["cards"][j]["place_unique_id"]);
-				      result_html += "<td><a href=\"javascript:ask_det2('deck',"+deck_i+","+j+")\"><img card_id=\""+img_url+"\"  id=\""+data[i]["cards"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
+				      result_html += "<td><a href=\"javascript:ask_det2('deck',"+deck_i+","+j+")\"><img card_id=\""+instead_img+"\"  id=\""+data[i]["cards"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
 		        result_html += "<br><input type=\"button\" onclick=\"ask_det2('deck',"+deck_i+","+j+")\" value=\""+global_field_sentence+"\"></td>";
 
                 auto_count++;
@@ -1729,8 +1758,13 @@ function ask_det(data){
             for(j=0;j<data[i]["grave"].length;j++){
                 if(Validate(data[i]["grave"][j])){
                         img_url = data[i]["grave"][j]["img"];
+		        if(data[i]["grave"][j]["instead_img"]){
+			    instead_img = data[i]["grave"][j]["instead_img"];
+		      }else{
+			    instead_img = data[i]["grave"][j]["img"];
+		      }
                         pid.push(data[i]["grave"][j]["place_unique_id"]);
-			result_html += "<td><a  href=\"javascript:ask_det2('grave',"+grave_i+","+j+")\"><img card_id=\""+img_url+"\"  id=\""+data[i]["grave"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
+			result_html += "<td><a  href=\"javascript:ask_det2('grave',"+grave_i+","+j+")\"><img card_id=\""+instead_img+"\"  id=\""+data[i]["grave"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
 		        result_html += "<br><input type=\"button\" onclick=\"ask_det2('grave',"+grave_i+","+j+")\" value=\""+global_field_sentence+"\"></td>";
                 auto_count++;
                     tmp_auto = {};
@@ -1766,8 +1800,13 @@ function ask_det(data){
                     auto_data.push(tmp_auto);
                     if($("#"+data[i]["hand"][j]["place_unique_id"]).length>0){
                         img_url = data[i]["hand"][j]["img"];
+		        if(data[i]["hand"][j]["instead_img"]){
+			    instead_img = data[i]["hand"][j]["instead_img"];
+		      }else{
+			    instead_img = data[i]["hand"][j]["img"];
+		      }
                         pid.push("hand"+data[i]["hand"][j]["place_unique_id"]);
-			    result_html +="<td><a href=\"javascript:ask_det2('hand',"+hand_i+","+j+")\"><img card_id=\""+img_url+"\"  id=\"hand"+data[i]["hand"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
+			    result_html +="<td><a href=\"javascript:ask_det2('hand',"+hand_i+","+j+")\"><img card_id=\""+instead_img+"\"  id=\"hand"+data[i]["hand"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
 			    result_html += "<br><input type=\"button\" onclick=\"ask_det2('hand',"+hand_i+","+j+")\" value=\""+global_field_sentence+"\"></td>";
                         //$("#"+data[i]["hand"][j]["place_unique_id"]).html(result_html_hand);
                     }else{
@@ -2494,21 +2533,25 @@ success: function(data){
         })
     }
     function PlayWinMusic(){
+       if("{{Config.win_audio}}" != ""){
             music.pause();
             sound_effect.pause();
             sound_effect.volume = {{Config.audio_volume}};
             sound_effect.src = static_url+"/audio/{{Config.win_audio}}";
             sound_effect.play();
+	}
     }
     function PlayLoseMusic(){
+       if("{{Config.lose_audio}}" != ""){
             music.pause();
             sound_effect.volume = {{Config.audio_volume}};
             sound_effect.pause();
             sound_effect.src = static_url+"/audio/{{Config.lose_audio}}";
             sound_effect.play();
+	}
     }
     function PlayMusic(audio_name){
-        if(music_flag == false){
+        if(music_flag == false || audio_name == ""){
             return;
         }
         if(audio_name != music_name){
@@ -3824,16 +3867,20 @@ success: function(data){
 
 }
     function PlayAskMusic(){
+       	if("{{Config.ask_audio}}" != ""){
             sound_effect.pause();
             sound_effect.volume = {{Config.audio_volume}};
             sound_effect.src = static_url+"/audio/{{Config.ask_audio}}";
             sound_effect.play();
+	}
     }
     function PlayMessageMusic(){
+       	if("{{Config.chat_audio}}" != ""){
             sound_effect.pause();
             sound_effect.volume = {{Config.audio_volume}};
             sound_effect.src = static_url+"/audio/{{Config.chat_audio}}";
             sound_effect.play();
+	}
     }
     function PlaySoundEffect(audio_name){
         var audio_names = audio_name.split(",");
@@ -3874,20 +3921,6 @@ success: function(data){
                 }
             }
         })
-    }
-    function PlayWinMusic(){
-            music.pause();
-            sound_effect.pause();
-            sound_effect.volume = {{Config.audio_volume}};
-            sound_effect.src = static_url+"/audio/{{Config.win_audio}}";
-            sound_effect.play();
-    }
-    function PlayLoseMusic(){
-            music.pause();
-            sound_effect.volume = {{Config.audio_volume}};
-            sound_effect.pause();
-            sound_effect.src = static_url+"/audio/{{Config.lose_audio}}";
-            sound_effect.play();
     }
     function PlayMusic(audio_name){
         if(music_flag == false){
@@ -3935,7 +3968,7 @@ success: function(data){
 								}	
 
 	if(data != undefined && data["effect"] != undefined && data["effect"] !=""){
-    		showEffect(data,1);
+    		showEffect(data,2);
 								}
 
 	$("#player").html("");
@@ -4250,8 +4283,13 @@ success: function(data){
                             }
                         pid.push(fields[x][y]["det"]["place_unique_id"]);
                         var img_url = fields[x][y]["det"]["img"];
+			if(fields[x][y]["det"]["instead_img"]){
+			     instead_img = fields[x][y]["det"]["instead_img"];
+			}else{
+			     instead_img = fields[x][y]["det"]["img"];
+			 }
 
-                        result="<table><tr><td style=\"background-color:"+color+"\">"+arrow_html_before+"<a target=\"_blank\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\"   {% if Config.card_href %} href=\"{% url "tcgcreator:explain" %}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\"  style=\"opacity:0.4:background:gray;"+rotate_css+"\" src=\""+static_url+"/img/"+fields[x][y]["det"]["img"]+"\" ></a>"+sentence+arrow_html+"</td></tr>";
+                        result="<table><tr><td style=\"background-color:"+color+"\">"+arrow_html_before+"<a target=\"_blank\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+instead_img+"\"   {% if Config.card_href %} href=\"{% url "tcgcreator:explain" %}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\"  style=\"opacity:0.4:background:gray;"+rotate_css+"\" src=\""+static_url+"/img/"+fields[x][y]["det"]["img"]+"\" ></a>"+sentence+arrow_html+"</td></tr>";
                         result+="<tr><td \"style=height:30px\">対象 </td></tr>";
                         result+="</table>";
                         if(user == 1){
@@ -4382,6 +4420,11 @@ success: function(data){
                         pid.push(fields[x][y]["det"]["place_unique_id"]);
                         {% if config.up_reverse is False %}
                         var img_url = fields[x][y]["det"]["img"];
+			if(fields[x][y]["det"]["instead_img"]){
+			     instead_img = fields[x][y]["det"]["instead_img"];
+			}else{
+			     instead_img = fields[x][y]["det"]["img"];
+			 }
                         var add_name_html = "";
                             if(fields[x][y]["det"]["under"] != undefined){
                                 under = fields[x][y]["det"]["under"];
@@ -4392,16 +4435,26 @@ success: function(data){
                             if(fields[x][y]["det"]["under"] != undefined){
                                 under = fields[x][y]["det"]["under"];
                                 var img_url = under[0]["img"];
+			if(under[0]["instead_img"]){
+			     instead_img = under[0]["instead_img"];
+			}else{
+			     instead_img = under[0]["img"];
+			 }
                                 add_name_html = "<br>"+fields[x][y]["det"]["monster_name"];
                             }else{
                                 var img_url = fields[x][y]["det"]["img"];
+			if(fields[x][y]["det"]["instead_img"]){
+			     instead_img = fields[x][y]["det"]["instead_img"];
+			}else{
+			     instead_img = fields[x][y]["det"]["img"];
+			 }
                                 add_name_html = "";
                             }
                        {% endif %}
                         if(gray_flag == true){
                             result="<table><tr><td style=\"background-color:"+color+"\"><a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" onclick=\"makeFieldsChoose2("+x+","+y+")\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\"  {% if Config.card_href %} href=\"{% url "tcgcreator:explain" %}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\"  style=\"opacity:0.4:background:gray;"+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+add_val_html+add_name_html+"</td></tr>";
                         }else{
-                            result="<table><tr><td style=\"background-color:"+color+"\">"+arrow_html_before+"<a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" onclick=\"makeFieldsChoose2("+x+","+y+")\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\"  {% if Config.card_href %}  href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\"  style=\""+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+add_val_html+add_name_html+"</td></tr>";
+                            result="<table><tr><td style=\"background-color:"+color+"\">"+arrow_html_before+"<a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" onclick=\"makeFieldsChoose2("+x+","+y+")\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+instead_img+"\"  {% if Config.card_href %}  href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\"  style=\""+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+add_val_html+add_name_html+"</td></tr>";
                         }
                     }
                     if(under_flag == false){
@@ -4613,6 +4666,11 @@ success: function(data){
                         pid.push(fields[x][y]["det"]["place_unique_id"]);
                         {% if config.up_reverse is False %}
                         var img_url = fields[x][y]["det"]["img"];
+			if(fields[x][y]["det"]["instead_img"]){
+			     var instead_img = fields[x][y]["det"]["instead_img"];
+			}else{
+			     var instead_img = fields[x][y]["det"]["img"];
+			 }
                         var add_name_html = "";
                             if(fields[x][y]["det"]["under"] != undefined){
                                 under = fields[x][y]["det"]["under"];
@@ -4623,16 +4681,26 @@ success: function(data){
                             if(fields[x][y]["det"]["under"] != undefined){
                                 under = fields[x][y]["det"]["under"];
                                 var img_url = under[0]["img"];
+			if(under[0]["instead_img"]){
+			     var instead_img = under[0]["instead_img"];
+			}else{
+			     var instead_img = under[0]["img"];
+			 }
                                 add_name_html = "<br>"+fields[x][y]["det"]["monster_name"];
                             }else{
                                 var img_url = fields[x][y]["det"]["img"];
+			if(fields[x][y]["det"]["instead_img"]){
+			     var instead_img = fields[x][y]["det"]["instead_img"];
+			}else{
+			     var instead_img = fields[x][y]["det"]["img"];
+			 }
                                 add_name_html = "";
                             }
                        {% endif %}
                         if(gray_flag == true){
-                            result_tmp="<table><tr><td style=\"background-color:"+color+"\" >"+arrow_html_before+"<a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\" onclick=\"makeFieldsChoose2("+x+","+y+")\"   > <img class=\"img_card\"  style=\"opacity:0.4;background:gray;"+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+add_val_html+add_name_html+"</td></tr>";
+                            result_tmp="<table><tr><td style=\"background-color:"+color+"\" >"+arrow_html_before+"<a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+instead_img+"\" onclick=\"makeFieldsChoose2("+x+","+y+")\"   > <img class=\"img_card\"  style=\"opacity:0.4;background:gray;"+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+add_val_html+add_name_html+"</td></tr>";
                         }else{
-                            result_tmp="<table><tr><td style=\"background-color:"+color+"\" >"+arrow_html_before+"<a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\" onclick=\"makeFieldsChoose2("+x+","+y+")\" {% if Config.card_href %} href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\" style=\""+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+add_val_html+add_name_html+"</td></tr>";
+                            result_tmp="<table><tr><td style=\"background-color:"+color+"\" >"+arrow_html_before+"<a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+instead_img+"\" onclick=\"makeFieldsChoose2("+x+","+y+")\" {% if Config.card_href %} href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\" style=\""+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+add_val_html+add_name_html+"</td></tr>";
                         }
                     }
 
@@ -4643,7 +4711,7 @@ success: function(data){
                             global_ask_fields2.push(tmp);
 			    return_flag = true;
                             if(under_flag == false){
-                                result="<table><tr><td style=\"background-color:"+color+"\" >"+arrow_html_before+"<a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" onclick=\"ask_det2('field',"+x+","+y+")\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\"   {% if Config.card_href %} href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\"  style=\""+rotate_css+"\" src=\""+static_url+"/img/"+fields[x][y]["det"]["img"]+"\"></a>"+sentence+arrow_html+add_val_html+"</td></tr>";
+                                result="<table><tr><td style=\"background-color:"+color+"\" >"+arrow_html_before+"<a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" onclick=\"ask_det2('field',"+x+","+y+")\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+instead_img+"\"   {% if Config.card_href %} href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\"  style=\""+rotate_css+"\" src=\""+static_url+"/img/"+fields[x][y]["det"]["img"]+"\"></a>"+sentence+arrow_html+add_val_html+"</td></tr>";
                                 result+="<tr><td style=\"height:30px;background-color:"+color+"\" ><input type=\"button\" value=\""+global_field_sentence+"\" onclick=\"ask_det2('field',"+x+","+y+")\"></td></tr>";
                                 tmp_flag = true;
                             }else{
@@ -4793,6 +4861,11 @@ function makeFields(data,koka,success2){
                         pid.push(fields[x][y]["det"]["place_unique_id"]);
                         {% if config.up_reverse is False %}
                         var img_url = fields[x][y]["det"]["img"];
+			if(fields[x][y]["det"]["instead_img"]){
+			     var instead_img = fields[x][y]["det"]["instead_img"];
+			}else{
+			     var instead_img = fields[x][y]["det"]["img"];
+			 }
                         var add_name_html = "";
                             if(fields[x][y]["det"]["under"] != undefined){
                                 under = fields[x][y]["det"]["under"];
@@ -4803,39 +4876,49 @@ function makeFields(data,koka,success2){
                             if(fields[x][y]["det"]["under"] != undefined){
                                 under = fields[x][y]["det"]["under"];
                                 var img_url = under[0]["img"];
+				if(under[0]["instead_img"]){
+				     var instead_img = under[0]["instead_img"];
+				}else{
+				     var instead_img = under[0]["img"];
+				 }
                                 add_name_html = "<br>"+fields[x][y]["det"]["monster_name"];
                             }else{
                                 var img_url = fields[x][y]["det"]["img"];
+				if(fields[x][y]["det"]["instead_img"]){
+				     var instead_img = fields[x][y]["det"]["instead_img"];
+				}else{
+				     var instead_img = fields[x][y]["det"]["img"];
+				 }
                                 add_name_html = "";
                             }
                        {% endif %}
                         if(gray_flag == true){
                     		if(fields[x][y]["det"]["trigger"] != undefined && fields[x][y]["det"]["trigger"].length != 0 && success2 == false){
 					if(fields[x][y]["det"]["trigger"].length == 1){
-                            result="<table><tr><td style=\""+style+"color:black;background-color:"+color+"\" >"+arrow_html_before+"<a id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\"  href=\"javascript:sendFieldTrigger('"+x+"','"+y+"','"+fields[x][y]["det"]["place_unique_id"]+"','"+fields[x][y]["det"]["trigger"][0]["id"]+"',1)\" <img  class=\"img_card\" style=\"opacity:0.4;"+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+"<br>"+relate_str+add_val_html+add_name_html+"</td></tr>";
+                            result="<table><tr><td style=\""+style+"color:black;background-color:"+color+"\" >"+arrow_html_before+"<a id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+instead_img+"\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\"  href=\"javascript:sendFieldTrigger('"+x+"','"+y+"','"+fields[x][y]["det"]["place_unique_id"]+"','"+fields[x][y]["det"]["trigger"][0]["id"]+"',1)\" <img  class=\"img_card\" style=\"opacity:0.4;"+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+"<br>"+relate_str+add_val_html+add_name_html+"</td></tr>";
 			    		}else{
 						for( var k = 0;k<fields[x][y]["det"]["trigger"].length;k++){ 
 				trigger_ids += fields[x][y]["det"]["trigger"][k]["id"] + ",";
 				trigger_names += fields[x][y]["det"]["trigger"][k]["name"] + ",";
 				}
-                            result="<table><tr><td style=\""+style+"color:black;background-color:"+color+"\" >"+arrow_html_before+"<a id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\"  href=\"javascript:chooseFieldTrigger('"+x+"','"+y+"','"+fields[x][y]["det"]["place_unique_id"]+"','"+trigger_ids+"','"+trigger_names+"',1,'"+img_url+"')\" > <img  class=\"img_card\" style=\"opacity:0.4;"+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+"<br>"+relate_str+add_val_html+add_name_html+"</td></tr>";
+                            result="<table><tr><td style=\""+style+"color:black;background-color:"+color+"\" >"+arrow_html_before+"<a id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+instead_img+"\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\"  href=\"javascript:chooseFieldTrigger('"+x+"','"+y+"','"+fields[x][y]["det"]["place_unique_id"]+"','"+trigger_ids+"','"+trigger_names+"',1,'"+img_url+"')\" > <img  class=\"img_card\" style=\"opacity:0.4;"+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+"<br>"+relate_str+add_val_html+add_name_html+"</td></tr>";
 			    	}
 			    }else{
-                            result="<table><tr><td style=\""+style+"color:black;background-color:"+color+"\" >"+arrow_html_before+"<a id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\"  href=\"javascript:sendFieldTrigger('"+x+"','"+y+"','"+fields[x][y]["det"]["place_unique_id"]+"','"+fields[x][y]["det"]["trigger"][k]["id"]+"',1)\" > <img  class=\"img_card\" style=\"opacity:0.4;"+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+"<br>"+relate_str+add_val_html+add_name_html+"</td></tr>";
+                            result="<table><tr><td style=\""+style+"color:black;background-color:"+color+"\" >"+arrow_html_before+"<a id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+instead_img+"\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\"  href=\"javascript:sendFieldTrigger('"+x+"','"+y+"','"+fields[x][y]["det"]["place_unique_id"]+"','"+fields[x][y]["det"]["trigger"][k]["id"]+"',1)\" > <img  class=\"img_card\" style=\"opacity:0.4;"+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+"<br>"+relate_str+add_val_html+add_name_html+"</td></tr>";
 			    }
                         }else{
                     		if(fields[x][y]["det"]["trigger"] != undefined &&fields[x][y]["det"]["trigger"].length != 0 && success2 == false){
 					if(fields[x][y]["det"]["trigger"].length == 1){
-                            result="<table><tr><td style=\""+style+"color:black;background-color:"+color+"\" >"+arrow_html_before+"<a id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\"  href=\"javascript:sendFieldTrigger('"+x+"','"+y+"','"+fields[x][y]["det"]["place_unique_id"]+"','"+fields[x][y]["det"]["trigger"][0]["id"]+"',1)\" > <img  class=\"img_card\" style=\""+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+"<br>"+relate_str+add_val_html+add_name_html+"</td></tr>";
+                            result="<table><tr><td style=\""+style+"color:black;background-color:"+color+"\" >"+arrow_html_before+"<a id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+instead_img+"\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\"  href=\"javascript:sendFieldTrigger('"+x+"','"+y+"','"+fields[x][y]["det"]["place_unique_id"]+"','"+fields[x][y]["det"]["trigger"][0]["id"]+"',1)\" > <img  class=\"img_card\" style=\""+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+"<br>"+relate_str+add_val_html+add_name_html+"</td></tr>";
 			    }else {
 				for( var k = 0;k<fields[x][y]["det"]["trigger"].length;k++){ 
 				trigger_ids += fields[x][y]["det"]["trigger"][k]["id"] + ",";
 				trigger_names += fields[x][y]["det"]["trigger"][k]["name"] + ",";
 				}
-                            result="<table><tr><td style=\""+style+"color:black;background-color:"+color+"\" >"+arrow_html_before+"<a id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\"  href=\"javascript:chooseFieldTrigger('"+x+"','"+y+"','"+fields[x][y]["det"]["place_unique_id"]+"','"+trigger_ids+"','"+trigger_names+"',1,'"+img_url+"')\" > <img  class=\"img_card\" style=\""+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+"<br>"+relate_str+add_val_html+add_name_html+"</td></tr>";
+                            result="<table><tr><td style=\""+style+"color:black;background-color:"+color+"\" >"+arrow_html_before+"<a id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+instead_img+"\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\"  href=\"javascript:chooseFieldTrigger('"+x+"','"+y+"','"+fields[x][y]["det"]["place_unique_id"]+"','"+trigger_ids+"','"+trigger_names+"',1,'"+img_url+"')\" > <img  class=\"img_card\" style=\""+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+"<br>"+relate_str+add_val_html+add_name_html+"</td></tr>";
 			    }
 			    }else{
-                            result="<table><tr><td style=\""+style+"color:black;background-color:"+color+"\" >"+arrow_html_before+"<a id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+img_url+"\"   title=\""+fields[x][y]["det"]["monster_sentence"]+"\"  > <img class=\"img_card\"  style=\"opacity:0.4;"+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+"<br>"+relate_str+add_val_html+add_name_html+"</td></tr>";
+                            result="<table><tr><td style=\""+style+"color:black;background-color:"+color+"\" >"+arrow_html_before+"<a id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+instead_img+"\"   title=\""+fields[x][y]["det"]["monster_sentence"]+"\"  > <img class=\"img_card\"  style=\"opacity:0.4;"+rotate_css+"\" src=\""+static_url+"/img/"+img_url+"\"></a>"+sentence+arrow_html+"<br>"+relate_str+add_val_html+add_name_html+"</td></tr>";
 			    }
                         }
                     }
@@ -4888,9 +4971,14 @@ function makeFields(data,koka,success2){
 
                 result+="<td >";
                 img_url = hands[i]["myhand"][j]["img"];
+				 if(hands[i]["myhand"][j]["instead_img"]){
+	             var instead_img = hands[i]["myhand"][j]["instead_img"];
+	        }else{
+	             var instead_img = hands[i]["myhand"][j]["img"];
+	         }
                 // 選択中は出さない
                 pid.push(hands[i]["myhand"][j]["place_unique_id"]);
-                result+="<div card_id="+img_url+"  id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a target=\"_blank\" title=\""+hands[i]["myhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain" %}?id="+hands[i]["myhand"][j]["id"]+"\" {% endif %}><img class=\"img_card\" style=\"\" src=\""+static_url+"/img/"+img_url+"\"></a></div>";
+                result+="<div card_id="+instead_img+"  id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a target=\"_blank\" title=\""+hands[i]["myhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain" %}?id="+hands[i]["myhand"][j]["id"]+"\" {% endif %}><img class=\"img_card\" style=\"\" src=\""+static_url+"/img/"+img_url+"\"></a></div>";
                 result+="</td>";
             }
             result+="</tr>";
@@ -4934,6 +5022,11 @@ function makeFields(data,koka,success2){
 
                 result+="<td style=\"width:{{Config.card_width}}px\"  >";
                 img_url = hands[i]["myhand"][j]["img"];
+			     if(hands[i]["myhand"][j]["instead_img"]){
+	             var instead_img = hands[i]["myhand"][j]["instead_img"];
+	        }else{
+	             var instead_img = hands[i]["myhand"][j]["img"];
+	         }
                 // 選択中は出さない
                 if(mode == 0){
                     pid.push(hands[i]["myhand"][j]["place_unique_id"]);
@@ -4944,7 +5037,7 @@ function makeFields(data,koka,success2){
                     }
                     if(hands[i]["myhand"][j]["trigger"] != undefined && hands[i]["myhand"][j]["trigger"].length  ){
 		        if(hands[i]["myhand"][j]["trigger"].length == 1){ 
-			    result+="<div"+style+" card_id="+img_url+" id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a href=\"javascript:sendHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+hands[i]["myhand"][j]["trigger"][0]["id"]+"',1)\"><img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a></div>";
+			    result+="<div"+style+" card_id="+instead_img+" id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a href=\"javascript:sendHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+hands[i]["myhand"][j]["trigger"][0]["id"]+"',1)\"><img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a></div>";
                                 result+= "<br><input type=\"button\" onclick=\"sendHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+hands[i]["myhand"][j]["trigger"][0]["id"]+"',1)\" value=\""+hands[i]["myhand"][j]["trigger"][0]["name"]+"\">";
                        }else{
 			       var trigger_ids = "";
@@ -4954,15 +5047,15 @@ function makeFields(data,koka,success2){
 				trigger_names += hands[i]["myhand"][j]["trigger"][k]["name"] + ",";
 				}
 
-			    result+="<div"+style+" card_id="+img_url+" id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a href=\"javascript:chooseHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+trigger_ids+"','"+trigger_names+"',1,'"+img_url+"')\"><img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a></div>";
+			    result+="<div"+style+" card_id="+instead_img+" id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a href=\"javascript:chooseHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+trigger_ids+"','"+trigger_names+"',1,'"+img_url+"')\"><img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a></div>";
 			for(var k=0;k<hands[i]["myhand"][j]["trigger"].length;k++){ 
-//			    result+="<div"+style+" card_id="+img_url+" id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a href=\"javascript:sendHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+hands[i]["myhand"][j]["trigger"][k]["id"]+"',1)\"><img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a></div>";
+//			    result+="<div"+style+" card_id="+instead_img+" id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a href=\"javascript:sendHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+hands[i]["myhand"][j]["trigger"][k]["id"]+"',1)\"><img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a></div>";
                                 result+= "<br><input type=\"button\" onclick=\"sendHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+hands[i]["myhand"][j]["trigger"][k]["id"]+"',1)\" value=\""+hands[i]["myhand"][j]["trigger"][k]["name"]+"\">";
 			}
 			}
 	       }else{
                    var style="style='opacity:0.4;background-color:gray'";
-                    result+="<div "+style+" card_id="+img_url+"  id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a target=\"_blank\" title=\""+hands[i]["myhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain" %}?id="+hands[i]["myhand"][j]["id"]+"\" {% endif %}><img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a></div>";
+                    result+="<div "+style+" card_id="+instead_img+"  id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a target=\"_blank\" title=\""+hands[i]["myhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain" %}?id="+hands[i]["myhand"][j]["id"]+"\" {% endif %}><img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a></div>";
 	       	}
                 }else{
                     if(hands[i]["show"] == 4 && checkVal(hands[i]["myhand"][j],"show") == 0){
@@ -4971,7 +5064,7 @@ function makeFields(data,koka,success2){
                         var style="";
                     }
                     pid.push(hands[i]["myhand"][j]["place_unique_id"]);
-                    result+="<div "+style+" card_id="+img_url+"  id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a target=\"_blank\" title=\""+hands[i]["myhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain" %}?id="+hands[i]["myhand"][j]["id"]+"\" {% endif %}><img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a></div>";
+                    result+="<div "+style+" card_id="+instead_img+"  id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a target=\"_blank\" title=\""+hands[i]["myhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain" %}?id="+hands[i]["myhand"][j]["id"]+"\" {% endif %}><img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a></div>";
                 }
                 result+="</td>";
             }
@@ -5116,7 +5209,7 @@ function makeFields(data,koka,success2){
       data = JSON.stringify(data);
        if(mode == 2){
 		if(effect_flag == true){					     
-		var timer = setTimeout(Success2,1000,data);
+		//var timer = setTimeout(Success2,1000,data);
 		  }else{
 			 Success2(data);
 		}
@@ -5222,6 +5315,11 @@ function makeFields(data,koka,success2){
                         continue;
                 }
                 img_url = hands[i]["otherhand"][j]["img"];
+	    if(hands[i]["otherhand"][j]["instead_img"]){
+	             var instead_img = hands[i]["otherhand"][j]["instead_img"];
+	        }else{
+	             var instead_img = hands[i]["otherhand"][j]["img"];
+	         }
                 if(hands[i]["otherhand"][j]["trigger"] != undefined && hands[i]["otherhand"][j]["trigger"].length != 0  ){
                     for(k=0;k<hands[i]["otherhand"][j]["trigger"].length;k++){
                         if(k==0){

@@ -1086,6 +1086,7 @@ class Monster(models.Model):
     trigger = models.ManyToManyField(Trigger, blank=True)
     eternal_effect = models.ManyToManyField("EternalEffect", blank=True)
     img = models.CharField(max_length=32, default="", blank=True)
+    instead_img = models.CharField(max_length=32, default="", blank=True)
     token_flag = models.BooleanField(default=False)
 
     def __str__(self):

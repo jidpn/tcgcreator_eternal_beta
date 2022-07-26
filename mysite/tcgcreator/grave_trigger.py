@@ -53,7 +53,6 @@ def grave_trigger(request):
         other_user = 1
     else:
         return HttpResponse("error")
-    pprint(user)
     duelobj.init_all(user, other_user, room_number,1)
     graves = Grave.objects.all()
     graves = Grave.objects.all()

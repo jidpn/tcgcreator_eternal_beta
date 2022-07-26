@@ -1073,8 +1073,6 @@ def battle_det(request, duelobj=None, choices=None):
 def battle_det_return(
     duelobj, decks, graves, hands, user, other_user, choices, room_number
 ):
-    pprint("battle_det_return")
-    pprint(user)
     duel = duelobj.duel
     if duel.winner != 0 or duel.winner_ai != 0:
         return battle_det_return_org(
@@ -1218,18 +1216,12 @@ def battle_det_return(
         return_value["effect"] = duelobj.effect
     elif user == 2:
         return_value["effect"] = duelobj.effect2
-    pprint("EFFECT")
-    pprint(duelobj.effect)
-    pprint(duelobj.effect2)
-    pprint(return_value["effect"])
     return HttpResponse(json.dumps(return_value))
 
 
 def battle_det_return_org(
     duelobj, decks, graves, hands, user, other_user, choices, room_number
 ):
-    pprint("battle_det_return_org")
-    pprint(user)
     if choices is None:
         choices = []
         choices.append(None)
@@ -1329,8 +1321,6 @@ def battle_det_return_org(
         return_value["winner_who"] = duel.winner
     else:
         return_value["winner_who"] = duel.winner_ai
-    pprint("BBB")
-    pprint(duelobj.effect)
     if user == 1:
         if duel.effect != "":
             return_value["effect"] = duelobj.effect
@@ -1342,8 +1332,6 @@ def battle_det_return_org(
 def battle_det_return_org_ai(
         duelobj, decks, graves, hands, user, other_user, choices, room_number
 ):
-    pprint(user)
-    pprint("battle_det_return_org_ai")
     duel = duelobj.duel
     duelobj.check_eternal_effect(
         decks, graves, hands, duel.phase, duel.user_turn, user, other_user

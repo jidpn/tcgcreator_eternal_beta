@@ -2237,7 +2237,6 @@ def yes_or_no(request):
         else:
             next_effect = effect.monster_effect_next
         if next_effect != 0 and next_effect is not None:
-            pprint(next_effect)
             chain_det[str(duel.chain - 1)] = next_effect.id
         else:
             next_effect = duelobj.pop_pac(user)
