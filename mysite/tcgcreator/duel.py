@@ -9010,7 +9010,6 @@ class DuelObj:
         else:
             chain_det_json[str(org_chain)] = 0
         self.duel.chain_det = json.dumps(chain_det_json)
-        duel.current_trigger = trigger.id
         '''
         if copy == 0:
             self.duel.canbechained = trigger.canbechained
@@ -9023,11 +9022,12 @@ class DuelObj:
             else:
                 duel.appoint = other_user
 
-
         return flag
 
     def check_trigger(self, decks, graves, hands, phase, turn, user, other_user,force_flag=0):
         duel = self.duel
+        pprint(duel.appoint)
+        pprint(user)
         force_count = 0
         return_value = []
         if duel.canbechained is False:
@@ -9066,7 +9066,8 @@ class DuelObj:
             triggers = triggers.filter(Q(timing3=duel.timing3))
         else:
             triggers = triggers.filter(Q(none_timing3=True))
-
+        pprint(duel.current_priority)
+        pprint(triggers)
         triggers = triggers.filter(priority__lt=duel.current_priority)
         triggers = triggers.filter(trigger_timing=False)
         #if user == duel.user_turn:
@@ -9081,6 +9082,7 @@ class DuelObj:
         else:
             triggers = triggers.filter(Q(enemy_own = 0) |  Q(enemy_own = 1))
         triggers = triggers.order_by("-priority").all()
+        pprint(triggers)
         trigger_first = triggers.first()
         if trigger_first is None:
             if force_flag == 1:
@@ -9088,6 +9090,7 @@ class DuelObj:
             return_value.append(None)
             return_value.append(0)
             return_value.append(0)
+            pprint("00000")
             return return_value
         priority = trigger_first.priority
         none_triggers = triggers.filter(priority=priority, trigger_none_monster=True)
@@ -9119,21 +9122,24 @@ class DuelObj:
 
         self.update = True
         self.trigger_waiting_for_ai = []
-        pprint(duel.trigger_waiting)
         if len(available_trigger)  > 1 or trigger_num :
             if self.config.order != 0 and duel.already_choosed != 1 and duel.trigger_waiting != "[]" and duel.ask == 0:
                 duel.ask = 4
                 return_value.append(None)
                 return_value.append(duel.current_priority)
                 return_value.append(0)
+                pprint("AAA")
                 return return_value
             elif self.config.order == 0 or duel.already_choosed == 1:
                 self.invoke_trigger_waiting(None,duel.current_priority ,0)
-                duel.already_choosed = 0
+            if duel.appoint == 2 and duel.is_ai is True:
+                self.invoke_trigger_waiting(None,0,2)
         if len(available_trigger) > 1 and (self.duel.is_ai is False or user == 1):
             return_value.append(available_trigger)
             return_value.append(priority)
             return_value.append(force_count)
+            pprint("xGGGF")
+            return return_value
         elif len(available_trigger) > 1 and (self.duel.is_ai is True and user == 2):
             flag = False
             for a in available_trigger:
@@ -9175,6 +9181,8 @@ class DuelObj:
                 return_value.append(None)
             return_value.append(priority)
             return_value.append(force_count)
+            pprint("FFF")
+            return return_value
                 
             self.update = True
         elif len(available_trigger) == 1 and trigger_num is False:
@@ -9221,10 +9229,14 @@ class DuelObj:
                 return_value.append(available_trigger)
                 return_value.append(priority)
                 return_value.append(force_count)
+                pprint("EEE")
+                return return_value
             else:
                 return_value.append(available_trigger)
                 return_value.append(priority)
                 return_value.append(force_count)
+                pprint("DDD")
+                return return_value
         elif len(available_trigger) == 1 and trigger_num is True:
             if available_trigger[0]["force"] is True or (user == 2 and duel.is_ai is True):
                 force_trigger = Trigger.objects.get(id=available_trigger[0]["id"])
@@ -9266,19 +9278,29 @@ class DuelObj:
                     return_value.append(True)
                 self.update = True
                 return_value.append(priority)
+                if duel.appoint == 2 and duel.is_ai == True and duel.trigger_force != "[]":
+                    self.invoke_trigger_waiting(None,0,2)
                 return return_value
             return_value.append(available_trigger)
             return_value.append(priority)
             return_value.append(force_count)
+            pprint("CCC")
+            return return_value
 
         elif len(available_trigger) == 0 and trigger_num is False:
             return_value.append(None)
             return_value.append(priority)
             return_value.append(0)
+            pprint("BBB")
+            return return_value
         else:
             return_value.append("monster_trigger")
             return_value.append(priority)
             return_value.append(force_count)
+            if duel.appoint == 2 and duel.is_ai is True:
+                self.invoke_trigger_waiting(None,0,2)
+            pprint("AAA")
+            return return_value
         return return_value
 
     def check_monster_trigger(self, decks, graves, hands, user, other_user, priority,mode2 = 0):
@@ -9290,7 +9312,8 @@ class DuelObj:
         tmp =  self.modify_deck_info(
             return_value["deck_info"], self.count_deck(decks), user, other_user, priority, 1,mode2
         )
-        flag =  tmp[0]
+        if tmp[0] is True:
+            flag =  True
         force_count += tmp[1]
         grave_info = self.get_grave_info(graves, user, other_user)
         return_value["grave_info"] = copy.deepcopy(grave_info)
@@ -9298,7 +9321,8 @@ class DuelObj:
         tmp = self.modify_grave_info(
                 return_value["grave_info"], graves.count(), user, other_user, priority, 1,mode2
         )
-        flag =  tmp[0]
+        if tmp[0] is True:
+            flag =  True
         force_count += tmp[1]
         hand_info = self.get_hand_info(hands, user, other_user)
         return_value["hand_info"] = copy.deepcopy(hand_info)
@@ -9306,11 +9330,13 @@ class DuelObj:
         tmp = self.modify_hand_info(
             return_value["hand_info"], hands.count(), user, other_user, priority, 1,mode2
         )
-        flag =  tmp[0]
+        if tmp[0] is True:
+            flag =  True
         force_count += tmp[1]
         field = copy.deepcopy(self.field)
         tmp =  self.modify_field_info(field, user, other_user, priority, 1)
-        flag =  tmp[0]
+        if tmp[0] is True:
+            flag =  True
         force_count += tmp[1]
         return [flag,force_count]
 
@@ -40893,7 +40919,8 @@ class DuelObj:
                 deck_info[i], i, user, other_user, priority, mode,mode2
             )
             if mode == 1 :
-                return_value = True
+                if flag == True:
+                    return_value = True
                 force_num += flag[1]
             elif mode == 0: 
                 deck_info = flag[0]
@@ -40929,7 +40956,7 @@ class DuelObj:
                     mode,
                 )
                 if mode == 1:
-                    if tmp is True:
+                    if tmp[0] is True:
                         return_value =  True
                         force_num += tmp[1]
                 elif mode == 0:
@@ -40952,7 +40979,7 @@ class DuelObj:
                     mode,
                 )
                 if mode == 1 :
-                    if tmp is True:
+                    if tmp[0] is True:
                         return_value =  True
                         force_num += tmp[1]
                 elif mode == 0:
@@ -40972,14 +40999,14 @@ class DuelObj:
                     mode,
                 )
                 if mode == 1:
-                    if tmp is True:
+                    if tmp[0] is True:
                         return_value =  True
                         force_num += tmp[1]
                 elif mode == 0:
                     deck_info["commondeck"][i] = tmp[0]
                     force_num += tmp[1]
         if mode == 1:
-            return [return_value,False]
+            return False
 
         return [deck_info,force_num]
 
@@ -40991,9 +41018,9 @@ class DuelObj:
                 grave_info[i], i, user, other_user, priority, mode,mode2
             )
             if mode == 1:
-                if tmp is True:
+                if tmp[0] is True:
                     return_value = True
-                    force_num += tmp[1]
+                force_num += tmp[1]
             else:
                 grave_info[i] = tmp[0]
                 force_num += tmp[1]
@@ -41009,9 +41036,9 @@ class DuelObj:
                 hand_info[i], i, user, other_user, priority, mode,mode2
             )
             if mode == 1:
-                if tmp is True:
+                if tmp[0] is True:
                     return_value = True
-                    force_num += tmp[1]
+                force_num += tmp[1]
 
             else:
                 hand_info[i] = tmp[0]
@@ -41048,7 +41075,7 @@ class DuelObj:
                     mode,
                     )
                 if mode == 1: 
-                    if tmp is True:
+                    if tmp[0] is True:
                         return_value = True
                         force_num += tmp[1]
 
@@ -41072,8 +41099,9 @@ class DuelObj:
                     mode,
                     )
                 if mode == 1 :
-                    if tmp is True:
-                        return True
+                    if tmp[0] is True:
+                        return_value = True
+                        force_num += tmp[1]
                 else:
                     grave_info["othergrave"][i] = tmp[0]
                     force_num = tmp[1]
@@ -41090,13 +41118,14 @@ class DuelObj:
                     mode,
                     )
                 if mode == 1 :
-                    if tmp is True:
-                        return True
+                    if tmp[0] is True:
+                        return_value = True
+                        force_num += tmp[1]
                 else:
                     grave_info["commongrave"][i] = tmp[0]
                     force_num += tmp[1]
         if mode == 1:
-            return False
+            return [return_value,force_num]
         return [grave_info,force_num]
     def modify_hand_info_det(
         self, hand_info, hand_number, user, other_user, priority, mode=0,mode2=0
@@ -41105,7 +41134,7 @@ class DuelObj:
         return_value = False
         if hand_info["invoke"] is False:
             if mode == 1:
-                return False
+                return [False,0]
             else:
                 return [hand_info,0]
         if "myhand" in hand_info and (user == self.user or mode2 == 0):
@@ -41126,8 +41155,9 @@ class DuelObj:
                     mode,
                 )
                 if mode == 1 :
-                    if tmp is True:
-                        return True
+                    if tmp[0] is True:
+                        return_value =  True
+                        force_num += tmp[1]
                 else:
                     hand_info["myhand"][i] = tmp[0]
                     force_num += tmp[1]
@@ -41150,8 +41180,9 @@ class DuelObj:
                     mode,
                 )
                 if mode == 1 :
-                    if tmp is True:
-                        return True
+                    if tmp[0] is True:
+                        return_value =  True
+                        force_num += tmp[1]
                 else:
                     hand_info["otherhand"][i] = tmp[0]
                     force_num += tmp[1]
@@ -41168,13 +41199,14 @@ class DuelObj:
                     mode,
                 )
                 if mode == 1: 
-                    if tmp is True:
-                        return   True
+                    if tmp[0] is True:
+                        return_value =  True
+                        force_num += tmp[1]
                 else:
                     hand_info["commonhand"][i] = tmp[0]
                     force_num += tmp[1]
         if mode == 1:
-            return  False
+            return  [return_value,force_num]
         return [hand_info,force_num]
 
     def check_field_eternal_det(
@@ -41357,6 +41389,7 @@ class DuelObj:
     ):
         force_num = 0
         duel = self.duel
+        trigger_force = json.loads(duel.trigger_force)
         flag = False
         id = self.get_monster_id(monster, "field", user, 0, x, y, mine_or_other)
         monster_det = Monster.objects.get(id=id)
@@ -41436,6 +41469,7 @@ class DuelObj:
                         tmp["from_x"] = 0
                         tmp["from_y"] = 0
                         tmp["strategy_value"] = value
+                        trigger_force.append(tmp)
                         flag = True
                 else:
                     tmp = {}
@@ -41444,6 +41478,7 @@ class DuelObj:
                     if trigger.force is True:
                         force_num += 1
                     return_trigger.append(tmp)
+        duel.trigger_force = json.dumps(trigger_force)
         if mode == 1:
             return [flag,force_num]
 
@@ -41460,6 +41495,7 @@ class DuelObj:
         priority,
         mode=0,
     ):
+        flag = False
         force_num = 0
         duel = self.duel
         return_trigger = []
@@ -41469,6 +41505,7 @@ class DuelObj:
         monster_det = Monster.objects.get(id=id)
         triggers = monster_det.trigger.filter(priority=priority).all()
         triggers = triggers.filter(trigger_timing=False)
+        trigger_force = json.loads(duel.trigger_force)
         if duel.is_ai is False:
             triggers = triggers.filter(
                 Q(enemy = 0) | Q(enemy = 1)
@@ -41547,15 +41584,18 @@ class DuelObj:
                         tmp["y"] = 0
                         tmp["from_x"] = 0
                         tmp["from_y"] = 0
-                        tmp["strategy_value"] = value if trigger.strategy_up_or_down == 0 else -value
-                    return True
+                        tmp["strategy_value"] = 0
+                        trigger_force.append(tmp)
+
+                    flag = True
                 tmp = {}
                 tmp["id"] = trigger.id
                 tmp["name"] = trigger.trigger_sentence
                 return_trigger.append(tmp)
 
+        duel.trigger_force = json.dumps(trigger_force)
         if mode == 1:
-            return False
+            return [flag,force_num]
         monster["trigger"] = return_trigger
         return [monster,force_num]
 
@@ -41571,6 +41611,7 @@ class DuelObj:
             mode=0,
     ):
         duel = self.duel
+        trigger_force = json.loads(duel.trigger_force)
         flag = False
         force_num = 0
         return_trigger = []
@@ -41659,6 +41700,7 @@ class DuelObj:
                         tmp["from_x"] = 0
                         tmp["from_y"] = 0
                         tmp["strategy_value"] = 0
+                        trigger_force.append(tmp)
                     flag = True
 
                 tmp = {}
@@ -41668,6 +41710,7 @@ class DuelObj:
                     force_num += 1
                 return_trigger.append(tmp)
 
+        duel.trigger_force = json.dumps(trigger_force)
         if mode == 1:
             return [flag,force_num]
         monster["trigger"] = return_trigger
@@ -41692,6 +41735,7 @@ class DuelObj:
         monster_det = Monster.objects.get(id=id)
         triggers = monster_det.trigger.filter(priority=priority).all()
         triggers = triggers.filter(trigger_timing=False)
+        trigger_force = json.loads(duel.trigger_force)
         if duel.is_ai is False:
             triggers = triggers.filter(
                 Q(enemy = 0) | Q(enemy = 1)
@@ -41717,6 +41761,7 @@ class DuelObj:
             trigger_waiting = json.loads(duel.trigger_waiting)
         flag = False
         for trigger in triggers:
+            pprint(trigger)
             if self.check_launch_trigger(
                 trigger,
                 phase,
@@ -41773,6 +41818,7 @@ class DuelObj:
                         tmp["from_x"] = 0
                         tmp["from_y"] = 0
                         tmp["strategy_value"] = value if trigger.strategy_up_or_down == 0 else -value
+                        trigger_force.append(tmp)
                     flag = True
                 tmp = {}
                 tmp["id"] = trigger.id
@@ -41781,6 +41827,7 @@ class DuelObj:
                     force_num+=1
                 return_trigger.append(tmp)
 
+        duel.trigger_force = json.dumps(trigger_force)
         if mode == 1:
             return [flag,force_num]
         monster["trigger"] = return_trigger
@@ -46961,7 +47008,7 @@ class DuelObj:
                     tmp["trigger"] = timing.trigger.id
                     tmp["priority"] = timing.trigger.priority
                     tmp["storategy_priority"] = timing.trigger.storategy_priority
-                    tmp["mine_or_other"] = to_mine_or_other
+                    tmp["mine_or_other"] = user
                     tmp["user"] = user
                     tmp["place"] = place_to
                     tmp["deck_id"] = to_deck_id
@@ -46973,6 +47020,8 @@ class DuelObj:
                     tmp["deck_id_from"] = from_deck_id
                     tmp["strategy_value"] = value if timing.trigger.strategy_up_or_down == 0 else -value
                     trigger_waiting.append(tmp)
+                    if self.config.order != 0 and duel.already_choosed != 1 and duel.ask == 0:
+                        duel.ask = 4
             else:
                 if timing.win_or_lose == 1:
                     self.win_the_game_user(user)
@@ -47007,7 +47056,7 @@ class DuelObj:
                 tmp["trigger"] = timing.trigger.id
                 tmp["priority"] = timing.trigger.priority
                 tmp["storategy_priority"] = timing.trigger.storategy_priority
-                tmp["mine_or_other"] = to_mine_or_other
+                tmp["mine_or_other"] = user
                 tmp["user"] = user
                 tmp["place"] = place_to
                 tmp["deck_id"] = to_deck_id
@@ -47019,6 +47068,8 @@ class DuelObj:
                 tmp["deck_id_from"] = from_deck_id
                 tmp["strategy_value"] = value if timing.trigger.strategy_up_or_down == 0 else -value
                 trigger_waiting.append(tmp)
+                if self.config.order != 0 and duel.already_choosed != 1 and duel.ask == 0:
+                    duel.ask = 4
         for timing in timings3:
             timing_kinds = timing.kinds
             if not self.check_effect_kind(timing_kinds, from_kinds):
@@ -47206,7 +47257,7 @@ class DuelObj:
                         tmp["trigger"] = timing.trigger.id
                         tmp["priority"] = timing.trigger.priority
                         tmp["storategy_priority"] = timing.trigger.storategy_priority
-                        tmp["mine_or_other"] = to_mine_or_other
+                        tmp["mine_or_other"] = user
                         tmp["user"] = user
                         tmp["place"] = place_to
                         tmp["deck_id"] = to_deck_id
@@ -47229,6 +47280,8 @@ class DuelObj:
                         tmp["deck_id_from_relate"] = None
                         tmp["strategy_value"] = value if timing.trigger.strategy_up_or_down == 0 else -value
                         trigger_waiting.append(tmp)
+                        if self.config.order != 0 and duel.already_choosed != 1 and duel.ask == 0:
+                            duel.ask = 4
         for timing in timings2:
             timing_kinds = timing.kinds
             if not self.check_effect_kind(timing_kinds, from_kinds):
@@ -47352,7 +47405,7 @@ class DuelObj:
                                 tmp["trigger"] = timing.trigger.id
                                 tmp["priority"] = timing.trigger.priority
                                 tmp["storategy_priority"] = timing.trigger.storategy_priority
-                                tmp["mine_or_other"] = monster["mine_or_other"]
+                                tmp["mine_or_other"] = user 
                                 tmp["user"] = user
                                 tmp["place"] = monster["place"]
                                 tmp["deck_id"] = monster["deck_id"]
@@ -47364,6 +47417,8 @@ class DuelObj:
                                 tmp["deck_id_from"] = None
                                 tmp["strategy_value"] = value if timing.trigger.strategy_up_or_down == 0 else -value
                                 trigger_waiting.append(tmp)
+                                if self.config.order != 0 and duel.already_choosed != 1 and duel.ask == 0:
+                                    duel.ask = 4
 
                 else:
                     if timing.win_or_lose == 1:
@@ -47399,7 +47454,7 @@ class DuelObj:
                     tmp["trigger"] = timing.trigger.id
                     tmp["priority"] = timing.trigger.priority
                     tmp["storategy_priority"] = timing.trigger.storategy_priority
-                    tmp["mine_or_other"] = to_mine_or_other
+                    tmp["mine_or_other"] = user
                     tmp["user"] = user
                     tmp["place"] = place_to
                     tmp["deck_id"] = to_deck_id
@@ -47411,6 +47466,8 @@ class DuelObj:
                     tmp["deck_id_from"] = from_deck_id
                     tmp["strategy_value"] = value if timing.trigger.strategy_up_or_down == 0 else -value
                     trigger_waiting.append(tmp)
+                    if self.config.order != 0 and duel.already_choosed != 1 and duel.ask == 0:
+                        duel.ask = 4
         duel.trigger_waiting = json.dumps(trigger_waiting)
         self.null_relation(
             move_to,
@@ -47428,6 +47485,8 @@ class DuelObj:
     def invoke_trigger_waiting(self, trigger_waiting, tmp_priority=0,mode=0):
         duel = self.duel
         flag2 = False
+        if duel.ask > 0 and mode != 2:
+            return False
         if mode == 0:
             trigger_waitings = json.loads(duel.trigger_waiting)
         elif mode == 1:
@@ -47439,6 +47498,9 @@ class DuelObj:
         count = 0
         remove_waitings = []
         for trigger_waiting in trigger_waitings[:]:
+            if mode == 2 and flag is True:
+                duel.trigger_force = "[]"
+                return
             trigger = Trigger.objects.get(id=trigger_waiting["trigger"])
             if trigger.priority < tmp_priority:
                 continue
@@ -47717,6 +47779,7 @@ class DuelObj:
             remove_waitings.append(trigger_waiting)
             if len(trigger_waitings) == 0:
                 duel.in_trigger_waiting = False
+                duel.already_choosed = 0
             if flag is False or flag == 2:
                 break
         # invoke_triggerでtriggerが引かれる場合がある
@@ -47725,6 +47788,10 @@ class DuelObj:
             for remove_waiting in remove_waitings:
                 trigger_waitings2.remove(remove_waiting)
             duel.trigger_waiting = json.dumps(trigger_waitings2)
+            if len(trigger_waitings2) == 0:
+                duel.in_trigger_waiting = False
+                duel.already_choosed = 0
+
         if flag2 is True:
             duel.current_priority = 10000
         return flag

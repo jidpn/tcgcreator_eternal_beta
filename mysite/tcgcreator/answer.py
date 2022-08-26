@@ -1844,7 +1844,6 @@ def choose_trigger_det(duelobj,duel,user,answer,request,room_number,lock):
              duel.already_choosed = 1
              duel.ask = 0
      if len(trigger_waitings) == 0:
-             duel.already_choosed = 1
              duel.in_trigger_waiting = False
              duel.already_choosed = 1
              duel.ask = 0

@@ -69,6 +69,7 @@ def ask_place(request):
                 return wait_choose_trigger(duel, 1, room_number, duel.ask, decks, graves, hands)
         elif duel.ask == 5 :
             if duel.user_turn == 1:
+                print("BBB")
                 return choose_trigger(duel, 1, room_number, duel.ask, decks, graves, hands)
             else:
                 if duel.is_ai is True:
@@ -2211,7 +2212,7 @@ def choose_trigger(duel, user, room_number, ask, decks, graves, hands):
         if trigger_waiting["priority"] != priority:
             continue
         tmp = {}
-        tmp["name"] = trigger.trigger_name
+        tmp["name"] = trigger.trigger_sentence
         tmp["id"] = trigger.id
         if int(mine_or_other) != user:
             tmp["other"] = True
