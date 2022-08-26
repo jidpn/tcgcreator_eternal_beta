@@ -1833,15 +1833,19 @@ def choose_trigger_det(duelobj,duel,user,answer,request,room_number,lock):
             if duel.already_choosed == 2:
                 duel.already_choosed = 1
                 duel.trigger_waiting = "[]"
+                duel.in_trigger_waiting = False
                 duel.ask = 0
             else:
                 duel.already_choosed = 2
 
      if order == 1:
          if duel.trigger_waiting == "[]":
+             duel.in_trigger_waiting = False
              duel.already_choosed = 1
              duel.ask = 0
      if len(trigger_waitings) == 0:
+             duel.already_choosed = 1
+             duel.in_trigger_waiting = False
              duel.already_choosed = 1
              duel.ask = 0
      duelobj.save_all(user, other_user, room_number)

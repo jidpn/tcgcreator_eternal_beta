@@ -282,7 +282,6 @@ def copy_to_deck_text(user_id, post, deck_group):
         return "制約に違反しています。"
 
     i = 0
-    pprint(result_decks)
     for deck in decks:
         user_deck = user_decks.filter(deck_type_id=deck.id).first()
         user_deck.deck = "_".join(result_decks[i])

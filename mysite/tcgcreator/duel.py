@@ -8795,8 +8795,13 @@ class DuelObj:
         x_exist=None,
         y_exist=None,
         copy_flag = False,
-        who=0
+        who=0,
+        waiting = False
     ):
+        if user == 1:
+            other_user = 2
+        else:
+            other_user = 1
         if trigger.immidiate_flag is True:
             self.do_immidiate_trigger(trigger,user)
             return;
@@ -9012,6 +9017,13 @@ class DuelObj:
         else:
             self.duel.canbechained = False
         '''
+        if flag:
+            if duel.appoint == other_user:
+                duel.appoint = user
+            else:
+                duel.appoint = other_user
+
+
         return flag
 
     def check_trigger(self, decks, graves, hands, phase, turn, user, other_user,force_flag=0):
@@ -9071,13 +9083,14 @@ class DuelObj:
         triggers = triggers.order_by("-priority").all()
         trigger_first = triggers.first()
         if trigger_first is None:
+            if force_flag == 1:
+                return 0
             return_value.append(None)
             return_value.append(0)
             return_value.append(0)
             return return_value
         priority = trigger_first.priority
         none_triggers = triggers.filter(priority=priority, trigger_none_monster=True)
-
         for trigger in none_triggers:
             if not self.check_launch_trigger( trigger, self.duel.phase, self.duel.user_turn, user, other_user, user):
                 continue
@@ -9098,20 +9111,25 @@ class DuelObj:
                 available_trigger.append(tmp)
         if force_flag == 1:
             return force_count
-        self.trigger_waiting_for_ai = []
         trigger_monster = self.check_monster_trigger(
             decks, graves, hands, user, other_user, priority,1
         )
         trigger_num = trigger_monster[0]
         force_count += trigger_monster[1]
-        flag = self.invoke_trigger_waiting(self.trigger_waiting_for_ai, 0,1)
-        if flag is True:
-            return_value.append(None)
-            return_value.append(10000)
-            return_value.append(0)
 
         self.update = True
         self.trigger_waiting_for_ai = []
+        pprint(duel.trigger_waiting)
+        if len(available_trigger)  > 1 or trigger_num :
+            if self.config.order != 0 and duel.already_choosed != 1 and duel.trigger_waiting != "[]" and duel.ask == 0:
+                duel.ask = 4
+                return_value.append(None)
+                return_value.append(duel.current_priority)
+                return_value.append(0)
+                return return_value
+            elif self.config.order == 0 or duel.already_choosed == 1:
+                self.invoke_trigger_waiting(None,duel.current_priority ,0)
+                duel.already_choosed = 0
         if len(available_trigger) > 1 and (self.duel.is_ai is False or user == 1):
             return_value.append(available_trigger)
             return_value.append(priority)
@@ -9161,46 +9179,44 @@ class DuelObj:
             self.update = True
         elif len(available_trigger) == 1 and trigger_num is False:
             if available_trigger[0]["force"] is True or (user == 2 and duel.is_ai is True):
-                if self.config.order != 0:
-                    duel.ask = 4
-                else:
-                    force_trigger = Trigger.objects.get(id=available_trigger[0]["id"])
-                    if force_trigger.timing_trigger:
-                        return_value.append(
-                            self.invoke_trigger(
-                                force_trigger, "", "", "", self.duel.user_turn, "",who=0
-                            )
+
+                force_trigger = Trigger.objects.get(id=available_trigger[0]["id"])
+                if force_trigger.timing_trigger:
+                    return_value.append(
+                        self.invoke_trigger(
+                            force_trigger, "", "", "", self.duel.user_turn, "",who=0
                         )
-                    else:
-                        trigger_waitings = json.loads(duel.trigger_waiting)
-                        tmp = {}
-                        tmp["monster"] = ""
-                        tmp["move_from"] = None
-                        tmp["trigger"] = force_trigger.id
-                        tmp["priority"] = force_trigger.priority
-                        tmp["storategy_priority"] = force_trigger.storategy_priority
-                        tmp["mine_or_other"] = user
-                        tmp["user"] = user
-                        tmp["place"] = ""
-                        tmp["deck_id"] = ""
-                        tmp["place_from"] = ""
-                        tmp["deck_id_from"] = ""
-                        tmp["x"] = 0
-                        tmp["y"] = 0
-                        tmp["from_x"] = 0
-                        tmp["from_y"] = 0
-                        tmp["strategy_value"] = 0
-                        if not self.check_launch_trigger(force_trigger, self.duel.phase, self.duel.user_turn, user, other_user,
-                                                         user):
-                            return_value.append(None)
-                            return_value.append(priority)
-                            return_value.append(0)
-                            return return_value
-                        trigger_waitings.append(tmp)
-                        duel.trigger_waiting = json.dumps(trigger_waitings)
-                        duel.in_trigger_waiting = True
-                        duel.in_cost_force = True
-                        #return_value.append(True)
+                    )
+                else:
+                    trigger_waitings = json.loads(duel.trigger_waiting)
+                    tmp = {}
+                    tmp["monster"] = ""
+                    tmp["move_from"] = None
+                    tmp["trigger"] = force_trigger.id
+                    tmp["priority"] = force_trigger.priority
+                    tmp["storategy_priority"] = force_trigger.storategy_priority
+                    tmp["mine_or_other"] = user
+                    tmp["user"] = user
+                    tmp["place"] = ""
+                    tmp["deck_id"] = ""
+                    tmp["place_from"] = ""
+                    tmp["deck_id_from"] = ""
+                    tmp["x"] = 0
+                    tmp["y"] = 0
+                    tmp["from_x"] = 0
+                    tmp["from_y"] = 0
+                    tmp["strategy_value"] = 0
+                    if not self.check_launch_trigger(force_trigger, self.duel.phase, self.duel.user_turn, user, other_user,
+                                                     user):
+                        return_value.append(None)
+                        return_value.append(priority)
+                        return_value.append(0)
+                        return return_value
+                    trigger_waitings.append(tmp)
+                    duel.trigger_waiting = json.dumps(trigger_waitings)
+                    duel.in_trigger_waiting = True
+                    duel.in_cost_force = True
+                    #return_value.append(True)
                 self.update = True
                 return_value.append(available_trigger)
                 return_value.append(priority)
@@ -40233,7 +40249,6 @@ class DuelObj:
                 trigger_waiting = []
             else:
                 trigger_waiting = json.loads(duel.trigger_waiting)
-            self.trigger_waiting_for_ai.append(field_triggers[0])
             return [True,force_num]
 
         return [field,force_num]
@@ -41342,6 +41357,7 @@ class DuelObj:
     ):
         force_num = 0
         duel = self.duel
+        flag = False
         id = self.get_monster_id(monster, "field", user, 0, x, y, mine_or_other)
         monster_det = Monster.objects.get(id=id)
         triggers = monster_det.trigger.filter(priority=priority).all()
@@ -41532,7 +41548,6 @@ class DuelObj:
                         tmp["from_x"] = 0
                         tmp["from_y"] = 0
                         tmp["strategy_value"] = value if trigger.strategy_up_or_down == 0 else -value
-                        self.trigger_waiting_for_ai.append(tmp)
                     return True
                 tmp = {}
                 tmp["id"] = trigger.id
@@ -41644,7 +41659,6 @@ class DuelObj:
                         tmp["from_x"] = 0
                         tmp["from_y"] = 0
                         tmp["strategy_value"] = 0
-                        self.trigger_waiting_for_ai.append(tmp)
                     flag = True
 
                 tmp = {}
@@ -41759,7 +41773,6 @@ class DuelObj:
                         tmp["from_x"] = 0
                         tmp["from_y"] = 0
                         tmp["strategy_value"] = value if trigger.strategy_up_or_down == 0 else -value
-                        self.trigger_waiting_for_ai.append(tmp)
                     flag = True
                 tmp = {}
                 tmp["id"] = trigger.id
@@ -47416,7 +47429,7 @@ class DuelObj:
         duel = self.duel
         flag2 = False
         if mode == 0:
-            trigger_waitings = json.loads(trigger_waiting)
+            trigger_waitings = json.loads(duel.trigger_waiting)
         elif mode == 1:
             trigger_waitings = trigger_waiting
         elif mode == 2:

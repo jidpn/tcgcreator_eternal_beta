@@ -708,7 +708,7 @@ def battle_det(request, duelobj=None, choices=None):
                                     duel.appoint = 1
                                 duel.none = True
                                 break
-                            else:
+                            else: 
                                 duel.current_priority = duelobj.max2(choices,choices2)
                                 if duel.appoint == 1:
                                     duel.appoint = 2
@@ -1154,7 +1154,7 @@ def battle_det_return(
     if duel.change_appoint_flag != 0:
         duel.appoint = duel.change_appoint_flag
     none_force = duelobj.check_trigger(
-        decks, graves, hands, duel.phase, duel.user_turn, user, other_user,True
+        decks, graves, hands, duel.phase, duel.user_turn, user, other_user,1
     )
     deck_info = duelobj.get_deck_info(decks, user, other_user, 1)
     return_value["deck_info"] = copy.deepcopy(deck_info)
@@ -1205,27 +1205,22 @@ def battle_det_return(
             recal =  True
             duelobj.modify_deck_info(
                 return_value["deck_info"], duelobj.count_deck(decks), user, other_user, choices[1],2)
-            duel.ask = 0
         if(deck_force == 0 and grave_force == 1 and hand_force == 0 and field_force == 0 and none_force == 0):
             recal =  True
             duelobj.modify_grave_info(
                 return_value["deck_info"], duelobj.count_deck(decks), user, other_user, choices[1],2)
-            duel.ask = 0
         if(deck_force == 0 and grave_force == 0 and hand_force == 1 and field_force == 0 and none_force == 0):
             recal =  True
             duelobj.modify_hand_info(
                 return_value["deck_info"], duelobj.count_deck(decks), user, other_user, choices[1],2)
-            duel.ask = 0
         if(deck_force == 0 and grave_force == 0 and hand_force == 0 and field_force == 1 and none_force == 0):
             recal =  True
             duelobj.modify_field_info(
                 return_value["deck_info"], duelobj.count_deck(decks), user, other_user, choices[1],2)
-            duel.ask = 0
         if(deck_force == 0 and grave_force == 0 and hand_force == 0 and field_force == 0 and none_force == 1):
             recal =  True
             duelobj.check_trigger(
             decks, graves, hands, duel.phase, duel.user_turn, user, other_user,2)
-            duel.ask = 0
     if recal is True:
         deck_info = duelobj.get_deck_info(decks, user, other_user, 1)
         return_value["deck_info"] = copy.deepcopy(deck_info)
@@ -1527,6 +1522,7 @@ def answer_ai_choose_trigger(duelobj,duel,user,room_number,ask,decks,graves,hand
      if len(trigger_waitings) == 0:
              duel.already_choosed = 1
              duel.trigger_waiting = "[]"
+             duel.in_trigger_waiting = False
              duel.ask = 0
              return
      tmp_priority = trigger_waitings[0]["priority"]
@@ -1807,11 +1803,13 @@ def answer_ai_choose_trigger(duelobj,duel,user,room_number,ask,decks,graves,hand
          if duel.already_choosed == 2:
              duel.already_choosed = 1
              duel.trigger_waiting = "[]"
+             duel.in_trigger_waiting = False
              duel.ask = 0
          else:
              duel.already_choosed = 2
      if len(trigger_waitings) == 0:
              duel.already_choosed = 1
              duel.trigger_waiting = "[]"
+             duel.in_trigger_waiting = False
              duel.ask = 0
     
