@@ -9014,8 +9014,9 @@ class DuelObj:
         '''
         return flag
 
-    def check_trigger(self, decks, graves, hands, phase, turn, user, other_user):
+    def check_trigger(self, decks, graves, hands, phase, turn, user, other_user,force_flag=0):
         duel = self.duel
+        force_count = 0
         return_value = []
         if duel.canbechained is False:
             return_value.append(None)
@@ -9072,6 +9073,7 @@ class DuelObj:
         if trigger_first is None:
             return_value.append(None)
             return_value.append(0)
+            return_value.append(0)
             return return_value
         priority = trigger_first.priority
         none_triggers = triggers.filter(priority=priority, trigger_none_monster=True)
@@ -9081,27 +9083,39 @@ class DuelObj:
                 continue
             if self.check_trigger_condition(trigger, user):
                 tmp = {}
+                if force_flag == 2:
+                        self.invoke_trigger(
+                            trigger, "", "", "", self.duel.user_turn, "",who=0
+                        )
+                        return
                 if trigger.force >= 1 or (duel.is_ai is True and user == 2):
                     tmp["force"] = True
+                    force_count+=1
                 else:
                     tmp["force"] = False
                 tmp["sentence"] = trigger.trigger_sentence
                 tmp["id"] = trigger.id
                 available_trigger.append(tmp)
+        if force_flag == 1:
+            return force_count
         self.trigger_waiting_for_ai = []
-        trigger_num = self.check_monster_trigger(
+        trigger_monster = self.check_monster_trigger(
             decks, graves, hands, user, other_user, priority,1
         )
+        trigger_num = trigger_monster[0]
+        force_count += trigger_monster[1]
         flag = self.invoke_trigger_waiting(self.trigger_waiting_for_ai, 0,1)
         if flag is True:
             return_value.append(None)
             return_value.append(10000)
+            return_value.append(0)
 
         self.update = True
         self.trigger_waiting_for_ai = []
         if len(available_trigger) > 1 and (self.duel.is_ai is False or user == 1):
             return_value.append(available_trigger)
             return_value.append(priority)
+            return_value.append(force_count)
         elif len(available_trigger) > 1 and (self.duel.is_ai is True and user == 2):
             flag = False
             for a in available_trigger:
@@ -9142,51 +9156,59 @@ class DuelObj:
             else:
                 return_value.append(None)
             return_value.append(priority)
+            return_value.append(force_count)
                 
             self.update = True
         elif len(available_trigger) == 1 and trigger_num is False:
             if available_trigger[0]["force"] is True or (user == 2 and duel.is_ai is True):
-                force_trigger = Trigger.objects.get(id=available_trigger[0]["id"])
-                if force_trigger.timing_trigger:
-                    return_value.append(
-                        self.invoke_trigger(
-                            force_trigger, "", "", "", self.duel.user_turn, "",who=0
-                        )
-                    )
+                if self.config.order != 0:
+                    duel.ask = 4
                 else:
-                    trigger_waitings = json.loads(duel.trigger_waiting)
-                    tmp = {}
-                    tmp["monster"] = ""
-                    tmp["move_from"] = None
-                    tmp["trigger"] = force_trigger.id
-                    tmp["priority"] = force_trigger.priority
-                    tmp["storategy_priority"] = force_trigger.storategy_priority
-                    tmp["mine_or_other"] = user
-                    tmp["user"] = user
-                    tmp["place"] = ""
-                    tmp["deck_id"] = ""
-                    tmp["place_from"] = ""
-                    tmp["deck_id_from"] = ""
-                    tmp["x"] = 0
-                    tmp["y"] = 0
-                    tmp["from_x"] = 0
-                    tmp["from_y"] = 0
-                    tmp["strategy_value"] = 0
-                    if not self.check_launch_trigger(force_trigger, self.duel.phase, self.duel.user_turn, user, other_user,
-                                                     user):
-                        return_value.append(None)
-                        return_value.append(priority)
-                        return return_value
-                    trigger_waitings.append(tmp)
-                    duel.trigger_waiting = json.dumps(trigger_waitings)
-                    duel.in_trigger_waiting = True
-                    duel.in_cost_force = True
-                    return_value.append(True)
+                    force_trigger = Trigger.objects.get(id=available_trigger[0]["id"])
+                    if force_trigger.timing_trigger:
+                        return_value.append(
+                            self.invoke_trigger(
+                                force_trigger, "", "", "", self.duel.user_turn, "",who=0
+                            )
+                        )
+                    else:
+                        trigger_waitings = json.loads(duel.trigger_waiting)
+                        tmp = {}
+                        tmp["monster"] = ""
+                        tmp["move_from"] = None
+                        tmp["trigger"] = force_trigger.id
+                        tmp["priority"] = force_trigger.priority
+                        tmp["storategy_priority"] = force_trigger.storategy_priority
+                        tmp["mine_or_other"] = user
+                        tmp["user"] = user
+                        tmp["place"] = ""
+                        tmp["deck_id"] = ""
+                        tmp["place_from"] = ""
+                        tmp["deck_id_from"] = ""
+                        tmp["x"] = 0
+                        tmp["y"] = 0
+                        tmp["from_x"] = 0
+                        tmp["from_y"] = 0
+                        tmp["strategy_value"] = 0
+                        if not self.check_launch_trigger(force_trigger, self.duel.phase, self.duel.user_turn, user, other_user,
+                                                         user):
+                            return_value.append(None)
+                            return_value.append(priority)
+                            return_value.append(0)
+                            return return_value
+                        trigger_waitings.append(tmp)
+                        duel.trigger_waiting = json.dumps(trigger_waitings)
+                        duel.in_trigger_waiting = True
+                        duel.in_cost_force = True
+                        #return_value.append(True)
                 self.update = True
+                return_value.append(available_trigger)
                 return_value.append(priority)
+                return_value.append(force_count)
             else:
                 return_value.append(available_trigger)
                 return_value.append(priority)
+                return_value.append(force_count)
         elif len(available_trigger) == 1 and trigger_num is True:
             if available_trigger[0]["force"] is True or (user == 2 and duel.is_ai is True):
                 force_trigger = Trigger.objects.get(id=available_trigger[0]["id"])
@@ -9219,6 +9241,7 @@ class DuelObj:
                                                      user):
                         return_value.append(None)
                         return_value.append(priority)
+                        return_value.append(0)
                         return return_value
                     trigger_waitings.append(tmp)
                     duel.trigger_waiting = json.dumps(trigger_waitings)
@@ -9230,42 +9253,50 @@ class DuelObj:
                 return return_value
             return_value.append(available_trigger)
             return_value.append(priority)
+            return_value.append(force_count)
 
         elif len(available_trigger) == 0 and trigger_num is False:
             return_value.append(None)
             return_value.append(priority)
+            return_value.append(0)
         else:
             return_value.append("monster_trigger")
             return_value.append(priority)
+            return_value.append(force_count)
         return return_value
 
     def check_monster_trigger(self, decks, graves, hands, user, other_user, priority,mode2 = 0):
         flag = False
         return_value = {}
+        force_count = 0
         deck_info = self.get_deck_info(decks, user, other_user)
         return_value["deck_info"] = copy.deepcopy(deck_info)
-        if self.modify_deck_info(
+        tmp =  self.modify_deck_info(
             return_value["deck_info"], self.count_deck(decks), user, other_user, priority, 1,mode2
-        ):
-            flag =  True
+        )
+        flag =  tmp[0]
+        force_count += tmp[1]
         grave_info = self.get_grave_info(graves, user, other_user)
         return_value["grave_info"] = copy.deepcopy(grave_info)
 
-        if self.modify_grave_info(
+        tmp = self.modify_grave_info(
                 return_value["grave_info"], graves.count(), user, other_user, priority, 1,mode2
-        ):
-            flag =  True
+        )
+        flag =  tmp[0]
+        force_count += tmp[1]
         hand_info = self.get_hand_info(hands, user, other_user)
         return_value["hand_info"] = copy.deepcopy(hand_info)
 
-        if self.modify_hand_info(
+        tmp = self.modify_hand_info(
             return_value["hand_info"], hands.count(), user, other_user, priority, 1,mode2
-        ):
-            flag =  True
+        )
+        flag =  tmp[0]
+        force_count += tmp[1]
         field = copy.deepcopy(self.field)
-        if self.modify_field_info(field, user, other_user, priority, 1):
-            flag =  True
-        return flag
+        tmp =  self.modify_field_info(field, user, other_user, priority, 1)
+        flag =  tmp[0]
+        force_count += tmp[1]
+        return [flag,force_count]
 
     def init_all(self, user, other_user, room_number,mode=0):
         self.trigger_waiting_for_ai = False
@@ -18561,6 +18592,7 @@ class DuelObj:
             duel.appoint = 2
         elif duel.appoint == 2:
             duel.appoint = 1
+        duel.change_appoint_flag = True
 
     def change_timing(self, timing_id,fresh=True,t_num= 1):
         duel = self.duel
@@ -40108,6 +40140,7 @@ class DuelObj:
         duel  = self.duel
         field_triggers = []
         flag_trigger = False
+        force_num = 0
         for x in range(len(field)):
             for y in range(len(field[x])):
                 if int(field[x][y]["mine_or_other"]) == 1:
@@ -40135,7 +40168,7 @@ class DuelObj:
                         field[x][y]["det"] = None
                         field[x][y]["hide"] = True
                 if (field[x][y])["det"] is not None:
-                    result_triggers = self.check_field_trigger(
+                    tmp_return = self.check_field_trigger(
                         field[x][y]["det"],
                         x,
                         y,
@@ -40145,6 +40178,8 @@ class DuelObj:
                         priority,
                         mode,
                     )
+                    result_triggers = tmp_return[0]
+                    force_num += tmp_return[1]
                     if mode == 1 and result_triggers is True:
                         flag_trigger = True
                     elif mode == 1 and result_triggers is not False:
@@ -40189,9 +40224,9 @@ class DuelObj:
                             )) - minus
                     field[x][y]["det"]["trigger"] = result_triggers
         if mode == 1 and flag_trigger is False :
-            return False
+            return [False,force_num]
         elif mode == 1 and len(field_triggers) == 0:
-            return True
+            return [True,force_num]
         elif mode == 1:
             field_triggers.sort(key=lambda x: (x["priority"],x["storategy_priority"],x["strategy_value"]), reverse=True)
             if duel.trigger_waiting == "":
@@ -40199,9 +40234,9 @@ class DuelObj:
             else:
                 trigger_waiting = json.loads(duel.trigger_waiting)
             self.trigger_waiting_for_ai.append(field_triggers[0])
-            return True
+            return [True,force_num]
 
-        return field
+        return [field,force_num]
 
     def check_hand_eternal(self, hand_info, count, user, other_user, v_e):
         result_hand_eternal = []
@@ -40836,24 +40871,32 @@ class DuelObj:
         return return_eternal
 
     def modify_deck_info(self, deck_info, count, user, other_user, priority, mode=0,mode2=0):
+        force_num = 0
+        return_value = False
         for i in range(count):
             flag = self.modify_deck_info_det(
                 deck_info[i], i, user, other_user, priority, mode,mode2
             )
-            if mode == 1 and flag:
-                return True
+            if mode == 1 :
+                return_value = True
+                force_num += flag[1]
+            elif mode == 0: 
+                deck_info = flag[0]
+                force_num += flag[1]
         if mode == 1:
-            return False
-        return deck_info
+            return [False,force_num]
+        return [deck_info,force_num]
 
     def modify_deck_info_det(
         self, deck_info, deck_number, user, other_user, priority, mode=0,mode2 = 0
     ):
+        force_num = 0
+        return_value = False
         if deck_info["invoke"] is False:
             if mode == 1:
-                return False
+                return [False,0]
             else:
-                return deck_info
+                return [deck_info,0]
         if "mydeck" in deck_info and (user == self.user or mode2 == 0):
             if self.user == 1:
                 mine_or_other = 1
@@ -40870,10 +40913,13 @@ class DuelObj:
                     priority,
                     mode,
                 )
-                if mode == 1 and tmp is True:
-                    return True
+                if mode == 1:
+                    if tmp is True:
+                        return_value =  True
+                        force_num += tmp[1]
                 elif mode == 0:
-                    deck_info["mydeck"][i] = tmp
+                    deck_info["mydeck"][i] = tmp[0]
+                    force_num += tmp[1]
         if "otherdeck" in deck_info and (other_user == self.user or mode2 == 0):
             if self.user == 1:
                 mine_or_other = 2
@@ -40890,10 +40936,13 @@ class DuelObj:
                     priority,
                     mode,
                 )
-                if mode == 1 and tmp is True:
-                    return True
+                if mode == 1 :
+                    if tmp is True:
+                        return_value =  True
+                        force_num += tmp[1]
                 elif mode == 0:
-                    deck_info["otherdeck"][i] = tmp
+                    deck_info["otherdeck"][i] = tmp[0]
+                    force_num += tmp[1]
 
         if "commondeck" in deck_info:
             for i in range(deck_info["commondecknum"]):
@@ -40907,51 +40956,65 @@ class DuelObj:
                     priority,
                     mode,
                 )
-                if mode == 1 and tmp is True:
-                    return True
+                if mode == 1:
+                    if tmp is True:
+                        return_value =  True
+                        force_num += tmp[1]
                 elif mode == 0:
-                    deck_info["commondeck"][i] = tmp
+                    deck_info["commondeck"][i] = tmp[0]
+                    force_num += tmp[1]
         if mode == 1:
-            return False
+            return [return_value,False]
 
-        return deck_info
+        return [deck_info,force_num]
 
     def modify_grave_info(self, grave_info, count, user, other_user, priority, mode=0,mode2 = 0):
+        force_num = 0
+        return_value = False
         for i in range(count):
             tmp = self.modify_grave_info_det(
                 grave_info[i], i, user, other_user, priority, mode,mode2
             )
             if mode == 1:
                 if tmp is True:
-                    return True
-                else:
-                    return False
+                    return_value = True
+                    force_num += tmp[1]
             else:
-                grave_info[i] = tmp
-        return grave_info
+                grave_info[i] = tmp[0]
+                force_num += tmp[1]
+        if mode == 1:
+            return [return_value,force_num]
+        return [grave_info,force_num]
     
     def modify_hand_info(self, hand_info, count, user, other_user, priority, mode=0,mode2 = 0):
+        force_num = 0
+        return_value = False
         for i in range(count):
             tmp = self.modify_hand_info_det(
                 hand_info[i], i, user, other_user, priority, mode,mode2
             )
             if mode == 1:
                 if tmp is True:
-                    return True
+                    return_value = True
+                    force_num += tmp[1]
+
             else:
-                hand_info[i] = tmp
+                hand_info[i] = tmp[0]
+                force_num += tmp[1]
         if mode == 1:
-            return False
+            return [return_value,force_num]
         else:
-            return hand_info
+            return [hand_info,force_num]
     def modify_grave_info_det(
             self, grave_info, grave_number, user, other_user, priority, mode=0,mode2=0
     ):
+        return_value = False
+        force_num = 0
         if grave_info["invoke"] is False:
             if mode == 1:
-                return False
+                return [False,0]
             else:
-                return grave_info
+                return [grave_info,0]
         if "mygrave" in grave_info and (user == self.user or mode2 == 0):
             if self.user == 1:
                 mine_or_other = 1
@@ -40969,10 +41032,14 @@ class DuelObj:
                     priority,
                     mode,
                     )
-                if mode == 1 and tmp is True:
-                    return True
+                if mode == 1: 
+                    if tmp is True:
+                        return_value = True
+                        force_num += tmp[1]
+
                 else:
-                    grave_info["mygrave"][i] = tmp
+                    grave_info["mygrave"][i] = tmp[0]
+                    force_num += tmp[1]
         if "othergrave" in grave_info and (mode2 == 0 or other_user == self.user):
             if self.user == 1:
                 mine_or_other = 2
@@ -40989,10 +41056,12 @@ class DuelObj:
                     priority,
                     mode,
                     )
-                if mode == 1 and tmp is True:
-                    return True
+                if mode == 1 :
+                    if tmp is True:
+                        return True
                 else:
-                    grave_info["othergrave"][i] = tmp
+                    grave_info["othergrave"][i] = tmp[0]
+                    force_num = tmp[1]
         if "commongrave" in grave_info:
             for i in range(grave_info["commongravenum"]):
                 tmp = self.check_grave_trigger(
@@ -41005,22 +41074,25 @@ class DuelObj:
                     priority,
                     mode,
                     )
-                if mode == 1 and tmp is True:
-                    return True
+                if mode == 1 :
+                    if tmp is True:
+                        return True
                 else:
-                    grave_info["commongrave"][i] = tmp
+                    grave_info["commongrave"][i] = tmp[0]
+                    force_num += tmp[1]
         if mode == 1:
             return False
-        return grave_info
+        return [grave_info,force_num]
     def modify_hand_info_det(
         self, hand_info, hand_number, user, other_user, priority, mode=0,mode2=0
     ):
+        force_num = 0
         return_value = False
         if hand_info["invoke"] is False:
             if mode == 1:
                 return False
             else:
-                return hand_info
+                return [hand_info,0]
         if "myhand" in hand_info and (user == self.user or mode2 == 0):
             if self.user == 1:
                 mine_or_other = 1
@@ -41038,10 +41110,12 @@ class DuelObj:
                     priority,
                     mode,
                 )
-                if mode == 1 and tmp is True:
-                    return_value =  True
+                if mode == 1 :
+                    if tmp is True:
+                        return True
                 else:
-                    hand_info["myhand"][i] = tmp
+                    hand_info["myhand"][i] = tmp[0]
+                    force_num += tmp[1]
         if "otherhand" in hand_info and (mode2 == 0 or other_user == self.user):
             if self.user == 1:
                 mine_or_other = 2
@@ -41060,10 +41134,12 @@ class DuelObj:
                     priority,
                     mode,
                 )
-                if mode == 1 and tmp is True:
-                    return_value =  True
+                if mode == 1 :
+                    if tmp is True:
+                        return True
                 else:
-                    hand_info["otherhand"][i] = tmp
+                    hand_info["otherhand"][i] = tmp[0]
+                    force_num += tmp[1]
         if "commonhand" in hand_info:
             for i in range(hand_info["commonhandnum"]):
                 tmp = self.check_hand_trigger(
@@ -41076,13 +41152,15 @@ class DuelObj:
                     priority,
                     mode,
                 )
-                if mode == 1 and tmp is True:
-                    return_value =  True
+                if mode == 1: 
+                    if tmp is True:
+                        return   True
                 else:
-                    hand_info["commonhand"][i] = tmp
+                    hand_info["commonhand"][i] = tmp[0]
+                    force_num += tmp[1]
         if mode == 1:
-            return return_value 
-        return hand_info
+            return  False
+        return [hand_info,force_num]
 
     def check_field_eternal_det(
         self, monster, x, y, user, other_user, mine_or_other, v_e
@@ -41262,6 +41340,7 @@ class DuelObj:
     def check_field_trigger(
         self, monster, x, y, user, other_user, mine_or_other, priority, mode=0
     ):
+        force_num = 0
         duel = self.duel
         id = self.get_monster_id(monster, "field", user, 0, x, y, mine_or_other)
         monster_det = Monster.objects.get(id=id)
@@ -41304,10 +41383,11 @@ class DuelObj:
             ):
                 if mode == 1:
                     if trigger.force == 0 and (duel.is_ai is False or user == 1) :
-                        if tmp is not None:
-                            return tmp
-                        return True
+                        pass
+                        
                     else:
+                        if trigger.force is True:
+                            force_num += 1
                         if trigger.strategy != "":
                             if trigger.strategy in monster["variables"]:
                                 tmp_variable = monster["variables"][trigger.strategy]
@@ -41340,16 +41420,18 @@ class DuelObj:
                         tmp["from_x"] = 0
                         tmp["from_y"] = 0
                         tmp["strategy_value"] = value
-                        return tmp 
+                        flag = True
                 else:
                     tmp = {}
                     tmp["id"] = trigger.id
                     tmp["name"] = trigger.trigger_sentence
+                    if trigger.force is True:
+                        force_num += 1
                     return_trigger.append(tmp)
         if mode == 1:
-            return False
+            return [flag,force_num]
 
-        return return_trigger
+        return [return_trigger,force_num]
 
     def check_deck_trigger(
         self,
@@ -41362,6 +41444,7 @@ class DuelObj:
         priority,
         mode=0,
     ):
+        force_num = 0
         duel = self.duel
         return_trigger = []
         id = self.get_monster_id(
@@ -41406,6 +41489,7 @@ class DuelObj:
             ):
                 if mode == 1:
                     if trigger.force == 1 or (duel.is_ai is True and user == 2):
+                        force_num+=1
                         if trigger.strategy != "":
                             if trigger.strategy in monster["variables"]:
                                tmp_variable = monster["variables"][trigger.strategy]
@@ -41458,7 +41542,7 @@ class DuelObj:
         if mode == 1:
             return False
         monster["trigger"] = return_trigger
-        return monster
+        return [monster,force_num]
 
     def check_grave_trigger(
             self,
@@ -41472,6 +41556,8 @@ class DuelObj:
             mode=0,
     ):
         duel = self.duel
+        flag = False
+        force_num = 0
         return_trigger = []
         id = self.get_monster_id(
             monster, "grave", user, grave_number, 0, 0, mine_or_other
@@ -41515,6 +41601,7 @@ class DuelObj:
             ):
                 if mode == 1:
                     if trigger.force == 1 or (duel.is_ai is True and user == 2):
+                        force_num+=1
                         if trigger.strategy != "":
                             if trigger.strategy in monster["variables"]:
                                 tmp_variable = monster["variables"][trigger.strategy]
@@ -41558,16 +41645,19 @@ class DuelObj:
                         tmp["from_y"] = 0
                         tmp["strategy_value"] = 0
                         self.trigger_waiting_for_ai.append(tmp)
-                    return True
+                    flag = True
+
                 tmp = {}
                 tmp["id"] = trigger.id
                 tmp["name"] = trigger.trigger_sentence
+                if trigger.force is True:
+                    force_num += 1
                 return_trigger.append(tmp)
 
         if mode == 1:
-            return False
+            return [flag,force_num]
         monster["trigger"] = return_trigger
-        return monster
+        return [monster,force_num]
     def check_hand_trigger(
         self,
         monster,
@@ -41579,6 +41669,7 @@ class DuelObj:
         priority,
         mode=0,
     ):
+        force_num = 0
         duel = self.duel
         return_trigger = []
         id = self.get_monster_id(
@@ -41625,6 +41716,7 @@ class DuelObj:
             ):
                 if mode == 1:
                     if trigger.force == 1 or (duel.is_ai is True and user == 2):
+                        force_num += 1
                         if trigger.strategy != "":
                             if trigger.strategy in monster["variables"]:
                                tmp_variable = monster["variables"][trigger.strategy]
@@ -41672,12 +41764,14 @@ class DuelObj:
                 tmp = {}
                 tmp["id"] = trigger.id
                 tmp["name"] = trigger.trigger_sentence
+                if trigger.force is True:
+                    force_num+=1
                 return_trigger.append(tmp)
 
         if mode == 1:
-            return flag
+            return [flag,force_num]
         monster["trigger"] = return_trigger
-        return monster
+        return [monster,force_num]
 
     def check_launch_trigger_for_copy2(
         self,
@@ -47323,8 +47417,10 @@ class DuelObj:
         flag2 = False
         if mode == 0:
             trigger_waitings = json.loads(trigger_waiting)
-        else:
+        elif mode == 1:
             trigger_waitings = trigger_waiting
+        elif mode == 2:
+            trigger_waitings = json.loads(duel.trigger_force)
         trigger_waitings.sort(key=lambda x: (x["priority"],x["storategy_priority"],x["strategy_value"]), reverse=True)
         flag = False
         count = 0

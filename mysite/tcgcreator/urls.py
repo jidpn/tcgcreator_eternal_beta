@@ -118,6 +118,7 @@ urlpatterns = [
     re_path(r"^explain_grave/$", explain_grave.explain_grave, name="explain_grave"),
     re_path(r"^ask_place/$", ask.ask_place, name="ask_place"),
     re_path(r"^answer/$", answer.answer, name="answer"),
+    re_path(r"^answer_trigger/$", answer.answer_trigger, name="answer_trigger"),
     re_path(r"^send_fusion_monster/$", answer.send_fusion_monster, name="send_fusion_monster"),
     re_path(r"^send_fusion_monster_field/$", answer.send_fusion_monster_field, name="send_fusion_monster_field"),
     re_path(r"^send_fusion_material/$", answer.send_fusion_material, name="send_fusion_material"),

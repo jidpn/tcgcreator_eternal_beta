@@ -172,15 +172,18 @@ def get_field_mine_or_other_plus_1(y,range_y):
 @register.filter(name='get_user_deck_text')
 def get_user_deck_text(user_deck,arg):
     user_deck=user_deck.filter(deck_type=arg).first()
-    if(user_deck.deck == ""):
-        return "</div>"
-    deck_det = user_deck.deck.split("_")
-    return_value= "現在枚数"+str(len(deck_det))+"枚</div>"
-    return_value += "<textarea style=\"height:500px\" name=\"user_deck_text\">"
-    for deck_det_det in deck_det:
-        monster = Monster.objects.filter(id = int(deck_det_det)).first()
 
-        return_value += escape(monster.monster_name) + "\n"
+    deck_det = user_deck.deck.split("_")
+    if user_deck.deck:
+        return_value= "現在枚数"+str(len(deck_det))+"枚</div>"
+    else:
+        return_value= "現在枚数0枚</div>"
+    return_value += "<textarea style=\"height:500px\" name=\"user_deck_text_"+str(arg.id)+"\">"
+    if user_deck.deck:
+        for deck_det_det in deck_det:
+            monster = Monster.objects.filter(id = int(deck_det_det)).first()
+
+            return_value += escape(monster.monster_name) + "\n"
     return_value += "</textarea>"
     return return_value
 

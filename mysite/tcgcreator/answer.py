@@ -6,6 +6,7 @@ from time import time
 from .battle_functions import init_duel
 from django.db import connection
 import os
+from .battle_det import battle_det, answer_ai_choose_trigger
 
 from .models import (
     Monster,
@@ -586,6 +587,8 @@ def none(request):
         if duel.appoint != 1:
             free_lock(room_number, lock)
             return HttpResponse("error")
+        if choices[2] > 0:
+            return HttpResponse("error")
         if duel.none == False:
             duel.appoint = 2
             duel.none = True
@@ -602,6 +605,8 @@ def none(request):
         other_user = 1
         if duel.appoint != 2:
             free_lock(room_number, lock)
+            return HttpResponse("error")
+        if choices2[2] >0: 
             return HttpResponse("error")
         if duel.none == False:
             duel.appoint = 1
@@ -1425,6 +1430,423 @@ def multiple_answer_det(
     free_lock(room_number, lock)
     return battle_det(request, duelobj, choices)
 
+
+def answer_trigger(request):
+    room_number = int(request.POST["room_number"])
+    lock = Lock.objects.get()
+    lock_flag = lock_lock(room_number, lock,request)
+    if lock_flag != "OK":
+        return HttpResponse("waiting")
+    duelobj = DuelObj(room_number)
+    duel = Duel.objects.filter(id=room_number).get()
+    duelobj.duel = duel
+    if "ID" in request.COOKIES :
+        ID = request.COOKIES["ID"]
+    else:
+        ID = ""
+    ID1 = duel.guest_id
+    ID2 = duel.guest_id2
+    if duel.user_1 != request.user and duel.user_2 != request.user:
+        if (ID1 == ID and duel.guest_flag) or (ID2 == ID and duel.guest_flag2):
+            pass
+        else:
+            free_lock(room_number, lock)
+            return HttpResponseRedirect(reverse("tcgcreator:watch_battle"))
+    duelobj.room_number = room_number
+    if duel.user_1 == request.user or ( ID1 == ID and duel.guest_flag):
+        user = 1
+        other_user = 2
+        duelobj.user = 1
+    else:
+        duelobj.user = 2
+        user = 2
+        other_user = 1
+    duelobj.init_all(user, other_user, room_number)
+    decks = Deck.objects.all()
+    graves = Grave.objects.all()
+    hands = Hand.objects.all()
+    duelobj.check_eternal_effect(
+        decks, graves, hands, duel.phase, duel.user_turn, user, other_user
+    )
+    answer = request.POST["answer"]
+    if duel.user_1 == request.user or ( ID1 == ID and duel.guest_flag):
+        if duel.user_turn == 1:
+           if duel.ask == 5:
+               return_value = choose_trigger_det(
+                   duelobj, duel, 1, answer, request, room_number, lock
+               )
+               free_lock(room_number, lock)
+               return return_value
+        else:
+            if duel.ask == 6 :
+               return_value = choose_trigger_det(
+                    duelobj, duel, 1, answer, request, room_number, lock
+               )
+               free_lock(room_number, lock)
+               return return_value
+    elif duel.user_2 == request.user or ( ID2 == ID and duel.guest_flag2):
+        if duel.user_turn == 2:
+            if duel.ask == 5 :
+               return_value = choose_trigger_det(
+                    duelobj, duel, 2, answer, request, room_number, lock
+               )
+               free_lock(room_number, lock)
+               return return_value
+        else:
+            if duel.ask == 6:
+                return_value = choose_trigger_det(
+                    duelobj, duel, 2, answer, request, room_number, lock
+                )
+                free_lock(room_number, lock)
+                return return_value
+    free_lock(room_number, lock)
+    return HttpResponse("error")
+def choose_trigger_det(duelobj,duel,user,answer,request,room_number,lock):
+     decks = Deck.objects.all()
+     graves = Grave.objects.all()
+     hands = Hand.objects.all()
+     if user == 1:
+        other_user = 2
+     else:
+        other_user = 1
+     current_priority = 0;
+     result_triggers = json.loads(request.POST["answer"])
+     trigger_waitings = json.loads(duelobj.duel.trigger_waiting)
+     tmp_priority = trigger_waitings[0]["priority"]
+     config = Config.objects.get()
+     order = config.order
+     flag2 = False
+     if order == 0:
+         return HttpResponse("error")
+     flag1 = False
+     for result_trigger in result_triggers:
+        for trigger_waiting in trigger_waitings[:]:
+            if not trigger_waiting["uuid"] == result_trigger:
+                continue
+            trigger = Trigger.objects.get(id=trigger_waiting["trigger"])
+            if trigger.priority != tmp_priority:
+                if order == 1:
+                    flag1 = True
+                    break
+                continue
+            flag = True
+            monster = trigger_waiting["monster"]
+            if "who" not in trigger_waiting:
+                who = 0
+            else:
+                who = trigger_waiting["who"]
+            if "change_val" in trigger_waiting:
+                change_val = trigger_waiting["change_val"]
+            else:
+                change_val = 0
+            if "null_relate" in trigger_waiting:
+                null_relate = trigger_waiting["null_relate"]
+            else:
+                null_relate = None
+            if "move_from" in trigger_waiting:
+                move_from = trigger_waiting["move_from"]
+            else:
+                move_from = None
+            if "monster_relate" in trigger_waiting:
+                monster_relate = trigger_waiting["monster_relate"]
+                place_unique_id_relate = trigger_waiting["place_unique_id_relate"]
+                mine_or_other_relate = str(trigger_waiting["mine_or_other_relate"])
+                x_relate = trigger_waiting["x_relate"]
+                y_relate = trigger_waiting["y_relate"]
+                place_relate = trigger_waiting["place_relate"]
+                deck_id_relate = trigger_waiting["deck_id_relate"]
+            else:
+                monster_relate = None
+                mine_or_other_relate = None
+                x_relate = None
+                y_relate = None
+                place_relate = None
+                deck_id_relate = None
+            if "monster_exist" in trigger_waiting:
+                monster_exist = trigger_waiting["monster_exist"]
+                place_unique_id_exist = trigger_waiting["place_unique_id_exist"]
+                mine_or_other_exist = str(trigger_waiting["mine_or_other_exist"])
+                x_exist = trigger_waiting["x_exist"]
+                y_exist = trigger_waiting["y_exist"]
+                place_exist = trigger_waiting["place_exist"]
+                deck_id_exist = trigger_waiting["deck_id_exist"]
+            else:
+                monster_exist = None
+                place_unique_id_exist = None
+                mine_or_other_exist = None
+                x_exist = None
+                y_exist = None
+                place_exist = None
+                deck_id_exist = None
+            if "move_from_relate" in trigger_waiting:
+                move_from_relate = trigger_waiting["move_from_relate"]
+                place_from_relate = trigger_waiting["place_from_relate"]
+                deck_id_from_relate = trigger_waiting["deck_id_from_relate"]
+                from_x_relate = trigger_waiting["from_x_relate"]
+                from_y_relate = trigger_waiting["from_y_relate"]
+            else:
+                place_from_relate = None
+                deck_id_from_relate = None
+                from_x_relate = None
+                from_y_relate = None
+            if "move_from_relate" in trigger_waiting:
+                move_from_relate = trigger_waiting["move_from_relate"]
+            else:
+                move_from_relate = None
+            if monster:
+                place_unique_id = monster["place_unique_id"]
+            else:
+                place_unique_id = None
+            mine_or_other = str(trigger_waiting["mine_or_other"])
+            place = trigger_waiting["place"]
+            deck_id = trigger_waiting["deck_id"]
+            if "place_from" in trigger_waiting:
+                place_from = trigger_waiting["place_from"]
+                deck_id_from = trigger_waiting["deck_id_from"]
+            else:
+                place_from = None
+                deck_id_from = None
+
+            x = trigger_waiting["x"]
+            y = trigger_waiting["y"]
+            if(move_from is None):
+                from_x = trigger_waiting["x"]
+                from_y = trigger_waiting["y"]
+            else:
+                from_x = move_from["x"]
+                from_y = move_from["y"]
+            monster_from = {}
+            monster_from["x"] = from_x
+            monster_from["y"] = from_y
+            monster_from["deck_id"] = deck_id_from
+            monster_from["place"] = place_from
+            if move_from is not None:
+                monster_from["place_unique_id"] = move_from["det"]["place_unique_id"]
+                if "user" not in move_from :
+                    monster_from["user"] = duelobj.user
+                monster_from["mine_or_other"] = move_from["mine_or_other"]
+                monster_from["det"] = move_from["det"]
+            else:
+                monster_from["place_unique_id"] = None
+                monster_from["user"] = None
+                monster_from["mine_or_other"] = None
+                monster_from["det"] = None
+            if who == 0:
+                if order != 1 and int(mine_or_other) != user:
+                    continue
+                if not duelobj.check_launch_trigger(
+                    trigger,
+                    duel.phase,
+                    duel.user_turn,
+                    user,
+                    other_user,
+                    mine_or_other,
+                    place,
+                    place_unique_id,
+                    deck_id,
+                    x,
+                    y,
+                    True,
+                    move_from,
+                    place_from,
+                    deck_id_from,
+                    from_x,
+                    from_y,
+                    monster,
+                    place_unique_id_exist,
+                ):
+                    trigger_waitings.remove(trigger_waiting)
+                    #remove_waitings.append(trigger_waiting)
+                    if len(trigger_waitings) == 0:
+                        duel.in_trigger_waiting = False
+                    continue
+                else:
+                    prompt_monster = monster
+
+            elif who == 1:
+                if order != 1 and int(mine_or_other_exist) != user:
+                    continue
+                if not duelobj.check_launch_trigger(
+                        trigger,
+                    
+                        duel.phase,
+                        duel.user_turn,
+                        user,
+                        other_user,
+                        mine_or_other_exist,
+                        place_exist,
+                        place_unique_id_exist,
+                        deck_id_exist,
+                        x_exist,
+                        y_exist,
+                        True
+                ):
+                    trigger_waitings.remove(trigger_waiting)
+                    #remove_waitings.append(trigger_waiting)
+
+                    if len(trigger_waitings) == 0:
+                        duel.in_trigger_waiting = False
+                    continue
+                else:
+                    prompt_monster = monster_exist
+            elif who == 2:
+                if null_relate is not None:
+                    if order != 1 and int(null_relate["mine_or_other"]) != user:
+                        continue
+                    if not duelobj.check_launch_trigger(
+                            trigger,
+                            duel.phase,
+                            duel.user_turn,
+                            user,
+                            other_user,
+                            null_relate["mine_or_other"],
+                            null_relate["place"],
+                            null_relate["place_unique_id"],
+                            null_relate["deck_id"],
+                            null_relate["x"],
+                            null_relate["y"],
+                            True
+                    ):
+                        trigger_waitings.remove(trigger_waiting)
+                        #remove_waitings.append(trigger_waiting)
+                        if len(trigger_waitings) == 0:
+                           duel.in_trigger_waiting = False
+                    continue
+                elif monster_relate is not None:
+                    if order != 1 and int(mine_or_other_relate) != user:
+                        continue
+                    if not duelobj.check_launch_trigger(
+                            trigger,
+                            duel.phase,
+                            duel.user_turn,
+                            user,
+                            other_user,
+                            mine_or_other_relate,
+                            place_relate,
+                            place_unique_id_relate,
+                            deck_id_relate,
+                            x_relate,
+                            y_relate,
+                            True
+                    ):
+                       trigger_waitings.remove(trigger_waiting)
+                       #remove_waitings.append(trigger_waiting)
+
+                       prompt_monster = monster_relate
+                       if len(trigger_waitings) == 0:
+                           duel.in_trigger_waiting = False
+                       continue
+                else:
+                       prompt_monster = monster_relate
+            flag = duelobj.invoke_trigger        (
+                trigger,
+                place,
+                monster,
+                mine_or_other,
+                user,
+                deck_id,
+                x,
+                y,
+                monster_from,
+                place_from,
+                deck_id_from,
+                from_x,
+                from_y,
+                0,
+                null_relate,
+                change_val,
+                place_relate,
+                monster_relate,
+                mine_or_other_relate,
+                deck_id_relate,
+                x_relate,
+                y_relate,
+                move_from_relate,
+                place_from_relate,
+                deck_id_from_relate,
+                from_x_relate,
+                from_y_relate,
+                place_exist,
+                monster_exist,
+                mine_or_other_exist,
+                deck_id_exist,
+                x_exist,
+                y_exist,
+                who=who,
+                waiting = True
+            )
+            trigger_waitings.remove(trigger_waiting)
+            break
+        if flag2 is True and order == 3:
+            break
+        if flag1 is True and order == 1:
+            break
+        flag2 = True
+        '''
+        remove_waitings.append(trigger_waiting)
+        trigger_waitings2 = json.loads(duel.trigger_waiting)
+        for remove_waiting in remove_waitings:
+            trigger_waitings2.remove(remove_waiting)
+        '''
+     duel.trigger_waiting = json.dumps(trigger_waitings)
+
+     if len(trigger_waitings) >0:
+        for trigger_waiting in trigger_waitings:
+            trigger = Trigger.objects.get(id=trigger_waiting["trigger"])
+            if "who" not in trigger_waiting:
+                who = 0
+            else:
+                who = trigger_waiting["who"]
+            if who == 0:
+                mine_or_other = str(trigger_waiting["mine_or_other"])
+            elif who == 1:
+                mine_or_other = str(trigger_waiting["mine_or_other_exist"])
+            elif who == 2:
+                if "null_relate" in trigger_waiting:
+                    mine_or_other = trigger_waiting["null_relate"]["mine_or_other"]
+                else:
+                    mine_or_other = str(trigger_waiting["mine_or_other_relate"])
+            if int(mine_or_other) != user and order != 1:
+                continue;
+            if trigger.force is True and (order != 3 or len(result_triggers) == 0) :
+                return HttpResponse("force_error")
+     if order == 1:
+        for trigger_waiting in trigger_waitings[:]:
+            trigger = Trigger.objects.get(id=trigger_waiting["trigger"])
+            if trigger.priority == tmp_priority:
+                trigger_waitings.remove(trigger_waiting)
+        duel.trigger_waiting = json.dumps(trigger_waitings)
+     if order == 2 or order == 3:
+        if duel.ask == 5:
+            duel.ask = 6
+            if duel.user_turn == 1 and duel.is_ai is True:
+                answer_ai_choose_trigger(duelobj,duel, 2, room_number, duel.ask, decks, graves, hands,config)
+                duelobj.save_all(user, other_user, room_number)
+                return battle_det(request, duelobj)
+        else:
+            duel.ask = 5
+            if duel.user_turn == 2 and duel.is_ai is True:
+                answer_ai_choose_trigger(duelobj,duel, 2, room_number, duel.ask, decks, graves, hands,config)
+                duelobj.save_all(user, other_user, room_number)
+                return battle_det(request, duelobj)
+        if len(result_triggers) == 0:
+            if duel.already_choosed == 2:
+                duel.already_choosed = 1
+                duel.trigger_waiting = "[]"
+                duel.ask = 0
+            else:
+                duel.already_choosed = 2
+
+     if order == 1:
+         if duel.trigger_waiting == "[]":
+             duel.already_choosed = 1
+             duel.ask = 0
+     if len(trigger_waitings) == 0:
+             duel.already_choosed = 1
+             duel.ask = 0
+     duelobj.save_all(user, other_user, room_number)
+     free_lock(room_number, lock)
+     return battle_det(request, duelobj)
 
 def multiple_answer(request):
     room_number = int(request.POST["room_number"])

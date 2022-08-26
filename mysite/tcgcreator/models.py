@@ -8,7 +8,9 @@ WIN_OR_LOSE = (
         (2,"敗北")
         )
 
+ORDER = ((0,"起きた順"),(1,"ターンプレイヤーが選ぶ"),(2,"ターンプレイヤーが優先され、ターンプレイヤー、非ターンプレイヤーが選ぶ"),(3,"プレイヤーが交互に選ぶ"))
 UP_OR_DOWN = ((0,"大きい"),(1,"小さい"))
+SHORI = ((0,"順方向"),(1,"逆方向"))
 WHO = ((0, "trigger"), (1, "trigger_exist"), (2, "trigger_relate"))
 ENEMY = ((0, "human"), (1, "human and ai"), (2, "ai"))
 TRIGGER_WHO2 = ((0, "元々の持ち主"), (1, "行使者"), (2, "非行使者"), (3, "場所"), (4, "リレーション"))
@@ -1033,7 +1035,7 @@ class Field(models.Model):
     x = models.IntegerField()
     y = models.IntegerField()
     no_clear = models.BooleanField(default=False)
-    box = models.BooleanField(default=False)
+    box = models.BooleanField(default=True)
     color = models.CharField(max_length=32, blank=True,default="")
     kind = models.CharField(max_length=32, blank=True)
     sentence = models.CharField(max_length=32, blank=True,default="")
@@ -1669,7 +1671,9 @@ class Duel(models.Model):
     cost_det = models.IntegerField(default=0, blank=True)
     cost_user = models.IntegerField(default=0, blank=True)
     trigger_waiting = models.TextField(default="", blank=True)
+    trigger_force = models.TextField(default="", blank=True)
     appoint = models.IntegerField(default=0, blank=True)
+    change_appoint_flag = models.IntegerField(default=0, blank=True)
     timing = models.ForeignKey(
         Timing, default=None, blank=True, null=True, on_delete=models.SET_NULL
     )
@@ -1768,6 +1772,7 @@ class Duel(models.Model):
     effect_flag = models.IntegerField(default=False,blank = True)
     background_image=models.CharField(max_length=32,default="",blank=True);
     change_turn_flag = models.BooleanField(default=False)
+    already_choosed = models.IntegerField(default=0)
     class Meta:
         db_table = "tcgcreator_duel"
 
@@ -1839,6 +1844,8 @@ class Config(models.Model):
     show_message = models.BooleanField(default=True)
     ai = models.BooleanField(default = False,blank = True)
     return_url = models.CharField(default="",max_length = 128,blank=True)
+    shori = models.IntegerField(choices=SHORI, default=1)
+    order = models.IntegerField(choices=ORDER, default=0)
     class Meta:
         db_table = "tcgcreator_config"
 

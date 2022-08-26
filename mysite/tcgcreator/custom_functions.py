@@ -222,22 +222,24 @@ def copy_to_deck_text(user_id, post, deck_group):
     for deck in decks:
         result_deck = []
         user_deck = user_decks.filter(deck_type_id=deck.id).first()
-        add_decks = post["user_deck_text"].split("\r\n")
+        add_decks = post["user_deck_text_"+str(deck.id)].split("\r\n")
         tmp = []
         if len(add_decks) != 0:
             for add_deck in add_decks:
                 if add_deck == "":
                     continue
                 monster = Monster.objects.filter(monster_name=add_deck).get()
+                
                 if monster.token_flag is True:
                     return HttpResponse("error")
                 monster_id = monster.id
                 monster_places = monster.monster_deck.split("_")
-                if deck.id != int(monster_places[0]):
+                if str(deck.id) not in  monster_places:
                         break
+                all_decks.append(str(monster_id))
                 result_deck.append(str(monster_id))
-            else:
-                continue
+        else:
+            continue
         result_deck = sorted(result_deck)
         result_deck_size = len(result_deck)
         if deck.max_deck_size < result_deck_size:
@@ -252,6 +254,13 @@ def copy_to_deck_text(user_id, post, deck_group):
     else:
         constraint_variable = -1
     constraint_variety = []
+    special_cards = check_special_cards(all_decks)
+    max_deck_size = deck.max_deck_size 
+    for special_card in special_cards:
+        if deck in special_card.deck.all():
+           special_first = special_card.first()
+           min_deck_size = special_first.min_deck_size
+           max_deck_size = special_first.max_deck_size
     for all_deck in all_decks:
         if all_deck != tmp:
             tmp = all_deck
@@ -273,6 +282,7 @@ def copy_to_deck_text(user_id, post, deck_group):
         return "制約に違反しています。"
 
     i = 0
+    pprint(result_decks)
     for deck in decks:
         user_deck = user_decks.filter(deck_type_id=deck.id).first()
         user_deck.deck = "_".join(result_decks[i])

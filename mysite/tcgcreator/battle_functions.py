@@ -361,11 +361,13 @@ def init_duel(room_number, user,default_deck = None,enemy_deck=None,user1_choosi
     duel.effect_flag = 0
     duel.effect = ""
     duel.effect2 = ""
+    duel.current_trigger = 0
     effect_timings =  Timing.objects.filter(timing_whether_show = False)
     timing_whether_1_1 = ""
     timing_whether_1_2 = ""
     timing_whether_2_1 = ""
     timing_whether_2_2 = ""
+    duel.appoint_flag = False
     for effect_timing in effect_timings:
         timing_whether_1_1 += str(effect_timing.id) + "_"
         timing_whether_1_2 += str(effect_timing.id) + "_"
@@ -404,14 +406,21 @@ def init_duel(room_number, user,default_deck = None,enemy_deck=None,user1_choosi
     duel.cost_log = ""
     duel.current_log = ""
     duel.message_log = ""
+    duel.change_val_eternal_effect  = ""
     duel.log = "デュエルID " + duel.duel_id + "\n"
     duel.log_turn = duel.log
     duel.phase = start_phase
+    duel.answer = ""
     duel.audio = ""
+    duel.ask_det = ""
+    duel.ask_kind = ""
     duel.chain = 0
     duel.virtual_chain = 0
     duel.alt_global = ""
     duel.accumulate_global = []
+    duel.force = 0
+    duel.in_execute = False
+    duel.mute = 0
     duel.chain_det = ""
     duel.chain_det_trigger = "{}"
     duel.chain_user = ""
@@ -423,6 +432,7 @@ def init_duel(room_number, user,default_deck = None,enemy_deck=None,user1_choosi
     duel.global_variable = init_global_variable()
     duel.mess = init_mess()
     duel.variable_mess = init_mess()
+    duel.each =  0
     duel.timing_mess = "{}"
     duel.timing = None
     duel.timing2 = None
@@ -430,21 +440,39 @@ def init_duel(room_number, user,default_deck = None,enemy_deck=None,user1_choosi
     duel.time_1 = time()
     duel.time_2 = time()
     duel.cost_result = init_cost_result()
+    duel.in_cost_force = False
     duel.waiting = False
+    duel.already_choosed = False
+    duel.change_turn_flag  = False
     tmp = {}
     t_tmp = []
+    duel.none = False
     duel.in_pac = json.dumps(tmp)
     duel.in_pac_cost = json.dumps(t_tmp)
     duel.trigger_waiting = json.dumps(t_tmp)
+    duel.trigger_force = json.dumps(t_tmp)
     duel.eternal_det = json.dumps(t_tmp)
     duel.in_trigger_waiting = False
     duel.cost = json.dumps(tmp)
     duel.cost_det = 0
+    duel.cost_user = 0
     duel.chain = 0
     duel.virtual_chain = 0
     duel.in_cost = False
+    duel.multiple_mess =  ""
     duel.in_cost_cancel = True
     duel.canbechained = True
+    duel.eternal_mess = ""
+    duel.eternal_user = ""
+    duel.in_copying = False
+    duel.in_eternal = False
+    duel.in_pac_eternal = ""
+    duel.no_invoke_eternal_effect = ""
+    duel.invoke_invalid_eternal_effect = ""
+    duel.no_choose_eternal_effect = ""
+    duel.no_eternal_eternal_effect = ""
+    duel.not_effected_eternal_effect =  ""
+    duel.pac = 0
     if duel.is_ai == False:
         duel.user_turn = random.randrange(1, 3)
     else:
@@ -462,6 +490,7 @@ def init_duel(room_number, user,default_deck = None,enemy_deck=None,user1_choosi
             else:   
                 duel.log_turn += duel.guest_name2 + "のターンからスタート\n"
     duel.appoint = duel.user_turn
+    duel.change_appoint_flag = False
     duel.current_priority = 10000
     duel.ask = 0
     duel.timing_fresh = False

@@ -209,6 +209,8 @@ table td{
 	var user = {{user}};
 	var turn_num=0;
 	var global_enemy_deck = -1;
+	var global_trigger_choose = [];
+	var global_triggers = [];
     function getCookie(name) {
     var cookieValue = null;
 
@@ -559,6 +561,7 @@ success: function(data){
         return;
     }else{
         clearTimeout(timer);
+	$("#choosing_area").hide();
         Success(data);
     }
    },
@@ -1314,6 +1317,45 @@ function ValOrderDet(data){
     $("#choosing_area").show();
     	showChoosingArea();
 }
+													function selectMove(uuid){
+   	     for(var i = 0;i<global_triggers.length;i++){
+													      if(global_triggers[i]["uuid"] == uuid){
+						global_trigger_choose.push(global_triggers[i]["id"]);
+														global_triggers.splice(i,1);
+															      break;
+													      }
+	      }
+														if(global_triggers.length == 0){
+															      sendMove();
+															      return;
+														}	
+														ChooseTrigger();
+															      }
+
+	function ChooseTriggerPre(data){
+		global_triggers = data["return_trigger"];
+		global_trigger_choose = [];
+		ChooseTrigger();					
+	}
+	function ChooseTrigger(){
+
+		
+	let button_html = "";
+													      for(var i = 0; i< global_triggers.length;i++){
+													      if(global_triggers[i]["other"] == true){
+													          var asterisk = "*";
+													      }else{
+													          var asterisk = "";
+													      }
+													      {% if Config.order == 3 %}
+															      button_html += "<input type=\"button\" value=\""+asterisk+global_triggers[i]["name"]+"\" onclick=\"sendMove('"+global_triggers[i]["uuid"]+"')\">";
+		{% else %}														      button_html += "<input type=\"button\" value=\""+asterisk+global_triggers[i]["name"]+"\" onclick=\"selectMove('"+global_triggers[i]["uuid"]+"')\">";
+		{% endif %}
+											 button_html += "<input type=\"button\" value=\"選択完了\" onclick=\"sendMove()\">";
+													     }
+    $("#choosing_area").html(button_html)
+    	showChoosingArea();
+																				    }
 function ChainVariableDet(data){
     var prompt = data["prompt"];
     var result_html = prompt+"<br>";
@@ -1600,6 +1642,10 @@ function ask_det(data){
     }
     data = JSON.parse(data);
         all_flag = data["all_flag"];
+    if(data["trigger_choosing"] == true){
+       ChooseTriggerPre(data);
+           return;
+    }
     if(data["chain_variable"] == true){
        ChainVariableDet(data);
            return;
@@ -1945,6 +1991,12 @@ function ask(){
    timeout: 60000,
 success: function(data){
     clearTimeout(timer);
+	console.log(data);
+    if(data == "wait_choose_trigger" || data ==  "waiting" || data == "error" ){
+        clearTimeout(timer);
+        timer = setTimeout(Wait,5000);
+	return;
+    }
     ask_det(data);
    },
    error:function(){
@@ -1966,7 +2018,6 @@ success: function(data){
         timer = setTimeout(None,1000);
         return;
     }else if( data == "error"){
-	    consoel.log("ZZZ");
         clearTimeout(timer);
         timer = setTimeout(Wait,1000);
         return;
@@ -2323,6 +2374,7 @@ function ChooseAi(){
     $("#ai_choosing").show();
     $("#ai_choosing").draggable();
     $("#ai_choosing").offset({top:300});
+        clearTimeout(timer);
 
 }
 function SendChooseAi(){
@@ -2954,6 +3006,55 @@ success: function(data){
     WaitAi();
  {% endif %}
 }
+  function sendMove(id){
+	if(id != undefined){
+		var result = [];
+		result.push(id);
+		var result_json = JSON.stringify(result);
+	  }else{
+		var result_json = JSON.stringify(global_trigger_choose);
+        }
+    $.ajax({
+   type: "POST",
+   url: "{% url 'tcgcreator:answer_trigger'  %}",
+   data: "room_number={{room_number}}&answer="+result_json,
+   timeout: 60000,
+success: function(data){
+	console.log(data);
+    if(data == "error"){
+        alert("正しい対象を選択してください。");
+        ask();
+        return;
+    }
+    if(data == "force_error"){
+        alert("強制効果が残っています。");
+        ask();
+        return;
+    }
+    if(data == "wait_choose_trigger"){
+        clearTimeout(timer);
+        timer = setTimeout(Wait,5000);
+		return;
+	}
+    if(data == "waiting"){
+        clearTimeout(timer);
+        timer = setTimeout(Wait,1000);
+        return;
+    }else{
+	$("#choosing_area").hide();
+        Success(data);
+    }
+   },
+   error:function(){
+        alert("error");
+    }
+
+ });
+ {% if Duel.is_ai is True %}
+    ai_doing_flag = true;
+    WaitAi();
+ {% endif %}
+   }
 function sendAnswerAll(){
         var i;
         var return_value = [];
@@ -3352,7 +3453,6 @@ success: function(data){
         timer = setTimeout(None,1000);
         return;
     }else if( data == "error"){
-	    consoel.log("ZZZ");
         clearTimeout(timer);
         timer = setTimeout(Wait,1000);
         return;
@@ -3656,86 +3756,6 @@ success: function(data){
          deck_choosing1 = "False";
          deck_choosing2 = "False";
          $("#own_choosing").hide();
-    $.ajax({
-   type: "POST",
-   url: "{% url 'tcgcreator:battle_det'  %}",
-   data: "room_number={{room_number}}",
-   timeout: 60000,
-success: function(data){
-    if(data == "waiting"){
-        clearTimeout(timer);
-        timer = setTimeout(Wait,1000);
-        return;
-    }
-        clearTimeout(timer);
-    Success(data);
-   },
-   error:function(){
-        alert("error");
-    }
-
- });
-
-    }
-   },
-   error:function(){
-        alert("error");
-    }
-});
-}
-{% endif %}
-{% if Duel.is_ai == True %}
-function ChooseAi(){
-        Init();
-        var html = "デッキを選択<br>";
-        var default_deck_html = "";
-    var enemy_deck_html='NPCのデッキ<select id="enemy_deck">';
-        {% for enemy_deck in enemy_deck_groups %}
-	    {% if enemy_deck.id == ai_id %}
-	if(global_enemy_deck == -1 || global_enemy_deck ==  {{ai_id}}){
-            enemy_deck_html+='<option value="{{enemy_deck.id}}" selected>{{enemy_deck.deck_name}}</option>';
-	}
-	    {% else %}		
-		if(global_enemy_deck == {{enemy_deck.id}}){
-            		enemy_deck_html+='<option value="{{enemy_deck.id}}" selected>{{enemy_deck.deck_name}}</option>';
-		}else{
-            enemy_deck_html+='<option value="{{enemy_deck.id}}">{{enemy_deck.deck_name}}</option>';
-	}
-	    {% endif %}
-        {% endfor %}
-    enemy_deck_html+="</select>";
-    enemy_deck_html+='<input type="button" value="選択完了" onclick="SendChooseAi()">';
-    $("#ai_choosing").html(html+default_deck_html+enemy_deck_html);
-    $("#ai_choosing").show();
-    $("#ai_choosing").draggable();
-    $("#ai_choosing").offset({top:300});
-
-}
-function SendChooseAi(){
-    var default_deck = "-1";
-    var user_deck = "-1";
-    var enemy_deck = $("#enemy_deck").val();
-	global_enemy_deck = enemy_deck;
-    $.ajax({
-   type: "POST",
-   url: "{% url 'tcgcreator:chooseai'  %}",
-   data: "room_number={{room_number}}&user_deck="+user_deck+"&enemy_deck="+enemy_deck+"&default_deck="+default_deck,
-   timeout: 60000,
-success: function(data){
-    if(data == "error"){
-        alert("エラーが発生しました");
-        return;
-    }else if(data == "init_duel"){
-        alert("対戦相手が入室しました。");
-        location.reload();
-        return;
-    }else if(data == "time"){
-        alert("一定時間操作がありませんでした");
-        history.back('-1');
-        return;
-    }else{
-        ai_choosing = "False";
-        $("#ai_choosing").hide();
     $.ajax({
    type: "POST",
    url: "{% url 'tcgcreator:battle_det'  %}",
@@ -4144,6 +4164,8 @@ success: function(data){
         {% endif %}
         return;
     }
+	console.log(data["ask"]);
+							 
     if(data["ask"] != false){
         PlayAskMusic();
         koka = data["koka"];

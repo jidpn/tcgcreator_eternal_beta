@@ -391,6 +391,20 @@
                         'success': function(data){
                             $("."+id+"_field_x_and_y_0").show();
                             $("#"+id+"_field_x_and_y_0").html(data);
+        for(var field_x =0;val["monster"][0]["monster"]["field_x"][field_x] != undefined;field_x++){
+            if($("#"+id+"_field_x_"+0+"_"+field_x).length == 0){
+		addFieldX(0,field_x,id);
+	    }
+            $("#"+id+"_field_x_"+0+"_"+field_x).val(val["monster"][0]["monster"]["field_x"][field_x]);
+
+            $("#get_field_x_det_"+0+"_"+field_x).val(val["monster"][0]["monster"]["field_x_operator"][field_x]);
+            $("#get_field_x_and_or_"+0+"_"+field_x).val(val["monster"][0]["monster"]["field_x_and_or"][field_x]);
+        }
+        for(var field_y =0;val["monster"][0]["monster"]["field_y"][field_y] != undefined;field_y++){
+            $("#"+id+"_field_y_"+0+"_"+field_y).val(val["monster"][0]["monster"]["field_y"][field_y]);
+            $("#get_field_y_det_"+0+"_"+field_y).val(val["monster"][0]["monster"]["field_y_operator"][field_y]);
+            $("#get_field_y_and_or_"+0+"_"+field_y).val(val["monster"][0]["monster"]["field_y_and_or"][field_y]);
+        }
         if(kind == 57 || kind == 3 || kind == 4 || kind == 1 || kind == 0 || kind == 70){
             if($.inArray("exclude",val)){
                 $("#exclude_change_variable").val(val["exclude"]);
@@ -496,12 +510,6 @@
             }
 
             $("#as_monster_effect_to").val(val["as_monster_condition_to"]);
-            if(val["field_x_to"] != undefined){
-                $("#monster_effect_field_x_to").val(val["field_x_to"]);
-            }
-            if(val["field_y_to"] != undefined){
-                $("#monster_effect_field_y_to").val(val["field_y_to"]);
-            }
             $("#trigger_condition_all_add_button_0").show();
         }else{
             $("#monster_effect_move_to").hide();
@@ -665,6 +673,13 @@
         if(val["auto_select"] != undefined){
             $("#auto_select").val(val["auto_select"]);
         }
+        if(val["field_x_to"]!= undefined){
+		$("#monster_effect_field_x_to").val(val["field_x_to"] );
+	}
+        if(val["field_y_to"]!= undefined){
+		$("#monster_effect_field_y_to").val(val["field_y_to"] );
+	}
+	let id="trigger_condition";
         if(val["from_left"] != undefined && val["from_left"] == true){
             $("#from_left").prop("checked",true);
         }else{
@@ -779,6 +794,11 @@
         $("#as_"+id+"_"+m).val(val["monster"][m]["as_monster_condition"]);
         $("#min_equation_number_"+String(m)).val(val["monster"][m]["min_equation_number"]);
         $("#max_equation_number_"+String(m)).val(val["monster"][m]["max_equation_number"]);
+	if(val["monster"][m]["min_flag"] != undefined && val["monster"][m]["min_flag"] == true ){
+		$("#min_flag_"+String(m)).prop("checked",true);
+	}else{
+		$("#min_flag_"+String(m)).prop("checked",false);
+	}
         tmp["equation"] = {};
         $("#get_equation_det_"+m).val(val["monster"][m]["equation"]["equation"]);
         $("#get_equation_kind_"+m).val(val["monster"][m]["equation"]["equation_kind"]);
@@ -787,16 +807,6 @@
         $("#"+id+"_and_or_"+m).val(val["monster"][m-1]["and_or"]);
 	}
         $("#exclude_"+0).val(val["exclude"]);
-        for(var field_x =0;val["field_x"][field_x] != undefined;field_x++){
-            $("#"+id+"_field_x_"+m+"_"+field_x).val(val["field_x"][field_x]);
-            $("#get_field_x_det_"+m+"_"+field_x).val(val["field_x_operator"][field_x]);
-            $("#get_field_x_and_or_"+m+"_"+field_x).val(val["field_x_and_or"][field_x]);
-        }
-        for(var field_y =0;val["field_y"][field_y] != undefined;field_y++){
-            $("#"+id+"_field_y_"+m+"_"+field_y).val(val["field_y"][field_y]);
-            $("#get_field_y_det_"+m+"_"+field_y).val(val["field_y_operator"][field_y]);
-            $("#get_field_y_and_or_"+m+"_"+field_y).val(val["field_y_and_or"][field_y]);
-        }
         $("#sentence").val(val["sentence"]);
         if( val["whether_monster"]){
             $("#monster_exist").prop("checked",true);
@@ -1153,6 +1163,22 @@
             }
             json["effect_valid"] = parseInt($("#monster_effect_kind_"+m+"_"+i).val());
             json["monster_effect"] = $("#get_monster_"+m+"_"+i).val();
+        json["field_x"] = [];
+        json["field_x_operator"] = [];
+        json["field_x_and_or"] = [];
+        for(var field_x=0;$("#"+id+"_field_x_"+m+"_"+field_x).val() != undefined && $("#"+id+"_field_x_"+m+"_"+field_x).val() != "";field_x++){
+            json["field_x"][field_x] = $("#"+id+"_field_x_"+m+"_"+field_x).val();
+            json["field_x_operator"][field_x] = $("#get_field_x_det_"+m+"_"+field_x).val();
+            json["field_x_and_or"][field_x] = $("#get_field_x_and_or_"+m+"_"+field_x).val();
+        }
+        json["field_y"] = [];
+        json["field_y_operator"] = [];
+        json["field_y_and_or"] = [];
+        for(var field_y=0;$("#"+id+"_field_y_"+m+"_"+field_y).val() != undefined && $("#"+id+"_field_y_"+m+"_"+field_y).val() != "";field_y++){
+            json["field_y"][field_y] = $("#"+id+"_field_y_"+m+"_"+field_y).val();
+            json["field_y_operator"][field_y] = $("#get_field_y_det_"+m+"_"+field_y).val();
+            json["field_y_and_or"][field_y] = $("#get_field_y_and_or_"+m+"_"+field_y).val();
+        }
 
         tmp["monster"]=json;
         }
@@ -1164,6 +1190,7 @@
                 }
         tmp["min_equation_number"] = $("#min_equation_number_"+m).val();
         tmp["max_equation_number"] = $("#max_equation_number_"+m).val();
+        tmp["min_flag"] = $("#min_flag_"+m).prop("checked")?true:false;
         tmp["equation"] = {};
         tmp["equation"]["equation"] = $("#get_equation_det_"+m).val();
         tmp["equation"]["equation_kind"] = $("#get_equation_kind_"+m).val();
@@ -1174,22 +1201,6 @@
         }
         tmp["and_or"] = and_or;
         val["exclude"] = $("#exclude_0").val();
-        val["field_x"] = [];
-        val["field_x_operator"] = [];
-        val["field_x_and_or"] = [];
-        for(var field_x=0;$("#"+id+"_field_x_"+m+"_"+field_x).val() != undefined && $("#"+id+"_field_x_"+m+"_"+field_x).val() != "";field_x++){
-            val["field_x"][field_x] = $("#"+id+"_field_x_"+m+"_"+field_x).val();
-            val["field_x_operator"][field_x] = $("#get_field_x_det_"+m+"_"+field_x).val();
-            val["field_x_and_or"][field_x] = $("#get_field_x_and_or_"+m+"_"+field_x).val();
-        }
-        val["field_y"] = [];
-        val["field_y_operator"] = [];
-        val["field_y_and_or"] = [];
-        for(var field_y=0;$("#"+id+"_field_y_"+m+"_"+field_y).val() != undefined && $("#"+id+"_field_y_"+m+"_"+field_y).val() != "";field_y++){
-            val["field_y"][field_y] = $("#"+id+"_field_y_"+m+"_"+field_y).val();
-            val["field_y_operator"][field_y] = $("#get_field_y_det_"+m+"_"+field_y).val();
-            val["field_y_and_or"][field_y] = $("#get_field_y_and_or_"+m+"_"+field_y).val();
-        }
         val["monster"].push(tmp);
         }
         val["sentence"] = $("#sentence").val();
@@ -1341,6 +1352,23 @@
                         'success': function(data){
                             $("."+id+"_field_x_and_y").show();
                             $("#"+id+"_field_x_and_y_"+j).html(data);
+        for(var field_x =0;val["monster"][j]["monster"]["field_x"][field_x] != undefined;field_x++){
+            if($("#"+id+"_field_x_"+j+"_"+field_x).length == 0){
+		addFieldX(j,field_x,id);
+	    }
+            $("#"+id+"_field_x_"+j+"_"+field_x).val(val["monster"][j]["monster"]["field_x"][field_x]);
+            console.log($("#"+id+"_field_x_"+j+"_"+field_x).val());
+            console.log("#"+id+"_field_x_"+j+"_"+field_x);
+            console.log(val["monster"][j]["monster"]["field_x"][field_x]);
+
+            $("#get_field_x_det_"+j+"_"+field_x).val(val["monster"][j]["monster"]["field_x_operator"][field_x]);
+            $("#get_field_x_and_or_"+j+"_"+field_x).val(val["monster"][j]["monster"]["field_x_and_or"][field_x]);
+        }
+        for(var field_y =0;val["monster"][j]["monster"]["field_y"][field_y] != undefined;field_y++){
+            $("#"+id+"_field_y_"+j+"_"+field_y).val(val["monster"][j]["monster"]["field_y"][field_y]);
+            $("#get_field_y_det_"+j+"_"+field_y).val(val["monster"][j]["monster"]["field_y_operator"][field_y]);
+            $("#get_field_y_and_or_"+j+"_"+field_y).val(val["monster"][j]["monster"]["field_y_and_or"][field_y]);
+        }
                             if(json!= null){
                                 putConditionVal(i+1,json);
                             }

@@ -5,6 +5,7 @@ from .models import (
     Hand,
     CostWrapper,
     Config,
+    Trigger,
     Lock
 )
 from html import escape
@@ -273,6 +274,20 @@ def battle_det(request, duelobj=None, choices=None):
     hands = Hand.objects.all()
     turn = duel.user_turn
     duelobj.update = False
+    if duel.is_ai is True:
+        if duel.user_turn == 1:
+            if duel.ask == 6:
+                    duelobj.check_eternal_effect(
+                        decks, graves, hands, duel.phase, duel.user_turn, user, other_user
+                    )
+                    answer_ai_choose_trigger(duelobj,duel, 2, room_number, duel.ask, decks, graves, hands)
+        if duel.user_turn == 2:
+            if duel.ask == 5:
+                    duelobj.check_eternal_effect(
+                        decks, graves, hands, duel.phase, duel.user_turn, user, other_user
+                    )
+                    answer_ai_choose_trigger(duelobj,duel, 2, room_number, duel.ask, decks, graves, hands)
+
 #    chain_user = duelobj.get_current_chain_user()
     if choices is None:
         choices = []
@@ -316,6 +331,7 @@ def battle_det(request, duelobj=None, choices=None):
         elif room_number == 3:
             lock.lock_3 = False
             lock.save()
+
         return battle_det_return(
             duelobj, decks, graves, hands, user, other_user, choices, room_number
         )
@@ -390,6 +406,7 @@ def battle_det(request, duelobj=None, choices=None):
                 if duel.appoint == other_user:
 
                     while duel.winner == 0 and duel.winner_ai == 0:
+
                         choices2 = duelobj.check_trigger(
                             decks,
                             graves,
@@ -526,7 +543,9 @@ def battle_det(request, duelobj=None, choices=None):
                                                 if duel.mute == 1:
                                                     duelobj.unmute()
                                                 duel.mute = 0
-                                        duel.appoint = duel.user_turn
+                                        if duel.change_appoint_flag  == 0:
+                                            duel.appoint = duel.user_turn
+                                        duel.appoint_flag = False
                                         tmp = {}
                                         duel.mess = json.dumps(tmp)
                                         duel.cost_result = json.dumps(tmp)
@@ -606,7 +625,9 @@ def battle_det(request, duelobj=None, choices=None):
                                         duel.mess = json.dumps(tmp)
                                         duel.cost_result = json.dumps(tmp)
                                         duel.cost = json.dumps(tmp)
-                                        duel.appoint = duel.user_turn
+                                        if duel.change_appoint_flag == 0:
+                                            duel.appoint = duel.user_turn
+                                        duel.appoint_flag = False
                                     if duel.appoint == other_user and duelobj.check_wait(other_user) and duel.is_ai == False:
                                         flag_2 = True
                                     break
@@ -782,8 +803,9 @@ def battle_det(request, duelobj=None, choices=None):
                                     duel.mess = json.dumps(tmp)
                                     duel.cost_result = json.dumps(tmp)
                                     duel.cost = json.dumps(tmp)
+                                if duel.change_appoint_flag == 0:
                                     duel.appoint = duel.user_turn
-                                duel.appoint = duel.user_turn
+                                duel.appoint_flag = False
                                 duel.current_priority = 10000
                             duelobj.update = True
                         elif (
@@ -813,7 +835,9 @@ def battle_det(request, duelobj=None, choices=None):
                                     duelobj.check_eternal_effect(
                                         decks, graves, hands, duel.phase, duel.user_turn, user, other_user
                                     )
-                                    duel.appoint = duel.user_turn
+                                    if duel.change_appoint_flag == 0:
+                                        duel.appoint = duel.user_turn
+                                    duel.appoint_flag = False
                                     duel.current_priority = 10000
                                     choices = duelobj.check_trigger(
                                     decks,
@@ -893,7 +917,9 @@ def battle_det(request, duelobj=None, choices=None):
                                     decks, graves, hands, duel.phase, duel.user_turn, user, other_user
                                 )
                                 if duel.chain == 0:
-                                    duel.appoint = duel.user_turn
+                                    if duel.change_appoint_flag  == 0:
+                                        duel.appoint = duel.user_turn
+                                    duel.appoint_flag = False
                                     if duel.timing3 is not None:
                                         if duel.timing3.timing_auto is True:
                                             if duel.timing_fresh is False:
@@ -1054,8 +1080,6 @@ def battle_det(request, duelobj=None, choices=None):
     if(choices2[0] is not None and choices[0] is None):
         duel.appoint = other_user
             
-    if duelobj.update is True:
-        duelobj.save_all(user, other_user, room_number)
     if room_number == 1:
         lock.lock_1 = False
         lock.save()
@@ -1073,6 +1097,7 @@ def battle_det(request, duelobj=None, choices=None):
 def battle_det_return(
     duelobj, decks, graves, hands, user, other_user, choices, room_number
 ):
+    recal = False
     duel = duelobj.duel
     if duel.winner != 0 or duel.winner_ai != 0:
         return battle_det_return_org(
@@ -1094,10 +1119,6 @@ def battle_det_return(
             return_value["turn"] = 1
     return_value["log"] = escape(duel.log_turn)
     return_value["message_log"] = escape(duel.message_log)
-    if duel.ask > 0:
-        return_value["ask_org"] = True
-    else:
-        return_value["ask_org"] = False
     if duelobj.user == 1:
         if duel.guest_flag is False:
             return_value["user_name1"] = escape(duel.user_1.first_name)
@@ -1123,18 +1144,6 @@ def battle_det_return(
             return_value["user_name2"] = escape(duel.user_1.first_name)
         else:    
             return_value["user_name2"] = escape(duel.guest_name)
-    if duelobj.user == duel.user_turn:
-        if duel.ask == 1 or duel.ask == 3:
-            return_value["ask"] = True
-        else:
-            return_value["ask"] = False
-
-    else:
-        if duel.ask == 2 or duel.ask == 3:
-            return_value["ask"] = True
-        else:
-            return_value["ask"] = False
-    return_value["ask_det"] = duel.ask_det
     return_value["user"] = user
     return_value["other_user"] = other_user
     if duel.appoint == user:
@@ -1142,33 +1151,120 @@ def battle_det_return(
     elif duel.appoint == other_user:
         return_value["appoint"] = False
 
+    if duel.change_appoint_flag != 0:
+        duel.appoint = duel.change_appoint_flag
+    none_force = duelobj.check_trigger(
+        decks, graves, hands, duel.phase, duel.user_turn, user, other_user,True
+    )
     deck_info = duelobj.get_deck_info(decks, user, other_user, 1)
     return_value["deck_info"] = copy.deepcopy(deck_info)
+    if duel.appoint != user and duel.is_ai is True:
+        duelobj.invoke_trigger_waiting(None,0,2)
     if duel.appoint == user:
-        return_value["deck_info"] = duelobj.modify_deck_info(
+        deck_info = duelobj.modify_deck_info(
             return_value["deck_info"], duelobj.count_deck(decks), user, other_user, choices[1]
         )
+        return_value["deck_info"] = deck_info[0]
+        deck_force = deck_info[1]
+    else:
+        deck_force = 0
     return_value["grave_info"] = duelobj.get_grave_info(graves, user, other_user, 1)
     if duel.appoint == user:
-        return_value["grave_info"] = duelobj.modify_grave_info(
+        grave_info = duelobj.modify_grave_info(
             return_value["grave_info"], graves.count(), user, other_user, choices[1]
         )
+        return_value["grave_info"] = grave_info[0]
+        grave_force = grave_info[1]
+    else:
+        grave_force = 0
     hand_info = duelobj.get_hand_info(hands, user, other_user, 1)
     return_value["hand_info"] = copy.deepcopy(hand_info)
     if duel.appoint == user:
-        return_value["hand_info"] = duelobj.modify_hand_info(
+        hand_info = duelobj.modify_hand_info(
             return_value["hand_info"], hands.count(), user, other_user, choices[1]
         )
+        return_value["hand_info"] = hand_info[0]
+        hand_force = hand_info[1]
+    else:
+        hand_force = 0
     field = duelobj.field
     return_value["field_info"] = copy.deepcopy(field)
     if duel.appoint == user:
-        return_value["field_info"] = duelobj.modify_field_info(
+        field_info = duelobj.modify_field_info(
             return_value["field_info"], user, other_user, choices[1]
         )
     else:
-        return_value["field_info"] = duelobj.modify_field_info(
+        field_info = duelobj.modify_field_info(
             return_value["field_info"], user, other_user, choices[1]
         )
+
+    return_value["field_info"] = field_info[0]
+    field_force = field_info[1]
+    if duel.appoint == user:
+        if(deck_force == 1 and grave_force == 0 and hand_force == 0 and field_force == 0 and none_force == 0):
+            recal =  True
+            duelobj.modify_deck_info(
+                return_value["deck_info"], duelobj.count_deck(decks), user, other_user, choices[1],2)
+            duel.ask = 0
+        if(deck_force == 0 and grave_force == 1 and hand_force == 0 and field_force == 0 and none_force == 0):
+            recal =  True
+            duelobj.modify_grave_info(
+                return_value["deck_info"], duelobj.count_deck(decks), user, other_user, choices[1],2)
+            duel.ask = 0
+        if(deck_force == 0 and grave_force == 0 and hand_force == 1 and field_force == 0 and none_force == 0):
+            recal =  True
+            duelobj.modify_hand_info(
+                return_value["deck_info"], duelobj.count_deck(decks), user, other_user, choices[1],2)
+            duel.ask = 0
+        if(deck_force == 0 and grave_force == 0 and hand_force == 0 and field_force == 1 and none_force == 0):
+            recal =  True
+            duelobj.modify_field_info(
+                return_value["deck_info"], duelobj.count_deck(decks), user, other_user, choices[1],2)
+            duel.ask = 0
+        if(deck_force == 0 and grave_force == 0 and hand_force == 0 and field_force == 0 and none_force == 1):
+            recal =  True
+            duelobj.check_trigger(
+            decks, graves, hands, duel.phase, duel.user_turn, user, other_user,2)
+            duel.ask = 0
+    if recal is True:
+        deck_info = duelobj.get_deck_info(decks, user, other_user, 1)
+        return_value["deck_info"] = copy.deepcopy(deck_info)
+        if duel.appoint == user:
+            deck_info = duelobj.modify_deck_info(
+                return_value["deck_info"], duelobj.count_deck(decks), user, other_user, choices[1]
+            )
+            return_value["deck_info"] = deck_info[0]
+            deck_info = deck_info[1]
+        return_value["grave_info"] = duelobj.get_grave_info(graves, user, other_user, 1)
+        if duel.appoint == user:
+            grave_info = duelobj.modify_grave_info(
+                return_value["grave_info"], graves.count(), user, other_user, choices[1]
+            )
+            return_value["grave_info"] = grave_info[0]
+            grave_info = grave_info[1]
+        hand_info = duelobj.get_hand_info(hands, user, other_user, 1)
+        return_value["hand_info"] = copy.deepcopy(hand_info)
+        if duel.appoint == user:
+            hand_info = duelobj.modify_hand_info(
+                return_value["hand_info"], hands.count(), user, other_user, choices[1]
+            )
+            return_value["hand_info"] = hand_info[0]
+            hand_info = hand_info[1]
+        field = duelobj.field
+        return_value["field_info"] = copy.deepcopy(field)
+        if duel.appoint == user:
+            field_info = duelobj.modify_field_info(
+                return_value["field_info"], user, other_user, choices[1]
+            )
+        else:
+            field_info = duelobj.modify_field_info(
+                return_value["field_info"], user, other_user, choices[1]
+            )
+
+        return_value["field_info"] = field_info[0]
+        choices = duelobj.check_trigger(
+            decks, graves, hands, duel.phase, duel.user_turn, user, other_user
+    )
     if (
             (
         (duel.timing is not None and duel.timing.pri is True)
@@ -1180,7 +1276,8 @@ def battle_det_return(
         and duelobj.check_wait(user)
     ) or (duel.chain > 0 and duel.ask == 0 and duel.appoint == user)\
     or (duel.ask == 0 and duel.appoint == user and duel.phase.pri is True):
-        return_value["pri"] = True
+        if choices[0] != "force":
+            return_value["pri"] = True
     else:
         return_value["pri"] = False
     return_value["choices"] = choices[0]
@@ -1216,6 +1313,23 @@ def battle_det_return(
         return_value["effect"] = duelobj.effect
     elif user == 2:
         return_value["effect"] = duelobj.effect2
+    duelobj.save_all(user, other_user, room_number)
+    if duel.ask > 0:
+        return_value["ask_org"] = True
+    else:
+        return_value["ask_org"] = False
+    if duelobj.user == duel.user_turn:
+        if duel.ask == 1 or duel.ask == 3 or duel.ask == 4 or duel.ask == 5:
+            return_value["ask"] = True
+        else:
+            return_value["ask"] = False
+
+    else:
+        if duel.ask == 2 or duel.ask == 3 or duel.ask == 4 or duel.ask == 6:
+            return_value["ask"] = True
+        else:
+            return_value["ask"] = False
+    return_value["ask_det"] = duel.ask_det
     return HttpResponse(json.dumps(return_value))
 
 
@@ -1373,6 +1487,8 @@ def battle_det_return_org_ai(
         return_value["appoint"] = True
     elif duel.appoint == other_user:
         return_value["appoint"] = False
+    if duel.appoint == othere_user and duel.is_ai is True:
+        duelobj.invoke_ai_trigger()
     deck_info = duelobj.get_deck_info(decks, user, other_user, 1)
     return_value["deck_info"] = copy.deepcopy(deck_info)
     return_value["grave_info"] = duelobj.get_grave_info(graves, user, other_user, 1)
@@ -1401,3 +1517,301 @@ def battle_det_return_org_ai(
     return_value["waiting_ai"]  = 1
     return_value["effect"] = str(duelobj.effect)
     return HttpResponse(json.dumps(return_value))
+def answer_ai_choose_trigger(duelobj,duel,user,room_number,ask,decks,graves,hands,config= None):
+    
+     if user == 1:
+        other_user = 2
+     else:
+        other_user = 1
+     trigger_waitings = json.loads(duelobj.duel.trigger_waiting)
+     if len(trigger_waitings) == 0:
+             duel.already_choosed = 1
+             duel.trigger_waiting = "[]"
+             duel.ask = 0
+             return
+     tmp_priority = trigger_waitings[0]["priority"]
+     if config is None:
+         config = Config.objects.get()
+     order = config.order
+     i=0
+     for trigger_waiting in trigger_waitings[:]:
+         trigger = Trigger.objects.get(id=trigger_waiting["trigger"])
+         if trigger.priority != tmp_priority:
+                 break
+         flag = True
+         monster = trigger_waiting["monster"]
+         if "who" not in trigger_waiting:
+             who = 0
+         else:
+             who = trigger_waiting["who"]
+         if "change_val" in trigger_waiting:
+             change_val = trigger_waiting["change_val"]
+         else:
+             change_val = 0
+         if "null_relate" in trigger_waiting:
+             null_relate = trigger_waiting["null_relate"]
+         else:
+             null_relate = None
+         if "move_from" in trigger_waiting:
+             move_from = trigger_waiting["move_from"]
+         else:
+             move_from = None
+         if "monster_relate" in trigger_waiting:
+             monster_relate = trigger_waiting["monster_relate"]
+             place_unique_id_relate = trigger_waiting["place_unique_id_relate"]
+             mine_or_other_relate = str(trigger_waiting["mine_or_other_relate"])
+             x_relate = trigger_waiting["x_relate"]
+             y_relate = trigger_waiting["y_relate"]
+             place_relate = trigger_waiting["place_relate"]
+             deck_id_relate = trigger_waiting["deck_id_relate"]
+         else:
+             monster_relate = None
+             mine_or_other_relate = None
+             x_relate = None
+             y_relate = None
+             place_relate = None
+             deck_id_relate = None
+         if "monster_exist" in trigger_waiting:
+             monster_exist = trigger_waiting["monster_exist"]
+             place_unique_id_exist = trigger_waiting["place_unique_id_exist"]
+             mine_or_other_exist = str(trigger_waiting["mine_or_other_exist"])
+             x_exist = trigger_waiting["x_exist"]
+             y_exist = trigger_waiting["y_exist"]
+             place_exist = trigger_waiting["place_exist"]
+             deck_id_exist = trigger_waiting["deck_id_exist"]
+         else:
+             monster_exist = None
+             place_unique_id_exist = None
+             mine_or_other_exist = None
+             x_exist = None
+             y_exist = None
+             place_exist = None
+             deck_id_exist = None
+         if "move_from_relate" in trigger_waiting:
+             move_from_relate = trigger_waiting["move_from_relate"]
+             place_from_relate = trigger_waiting["place_from_relate"]
+             deck_id_from_relate = trigger_waiting["deck_id_from_relate"]
+             from_x_relate = trigger_waiting["from_x_relate"]
+             from_y_relate = trigger_waiting["from_y_relate"]
+         else:
+             place_from_relate = None
+             deck_id_from_relate = None
+             from_x_relate = None
+             from_y_relate = None
+         if "move_from_relate" in trigger_waiting:
+             move_from_relate = trigger_waiting["move_from_relate"]
+         else:
+             move_from_relate = None
+         if monster:
+             place_unique_id = monster["place_unique_id"]
+         else:
+             place_unique_id = None
+         mine_or_other = str(trigger_waiting["mine_or_other"])
+         place = trigger_waiting["place"]
+         deck_id = trigger_waiting["deck_id"]
+         if "place_from" in trigger_waiting:
+             place_from = trigger_waiting["place_from"]
+             deck_id_from = trigger_waiting["deck_id_from"]
+         else:
+             place_from = None
+             deck_id_from = None
+
+         x = trigger_waiting["x"]
+         y = trigger_waiting["y"]
+         if(move_from is None):
+             from_x = trigger_waiting["x"]
+             from_y = trigger_waiting["y"]
+         else:
+             from_x = move_from["x"]
+             from_y = move_from["y"]
+         monster_from = {}
+         monster_from["x"] = from_x
+         monster_from["y"] = from_y
+         monster_from["deck_id"] = deck_id_from
+         monster_from["place"] = place_from
+         if move_from is not None:
+             monster_from["place_unique_id"] = move_from["det"]["place_unique_id"]
+             if "user" not in move_from :
+                 monster_from["user"] = duelobj.user
+             monster_from["mine_or_other"] = move_from["mine_or_other"]
+             monster_from["det"] = move_from["det"]
+         else:
+             monster_from["place_unique_id"] = None
+             monster_from["user"] = None
+             monster_from["mine_or_other"] = None
+             monster_from["det"] = None
+         if who == 0:
+             if order != 1 and int(mine_or_other) != user:
+                 continue
+             if not duelobj.check_launch_trigger(
+                 trigger,
+                 duel.phase,
+                 duel.user_turn,
+                 user,
+                 other_user,
+                 mine_or_other,
+                 place,
+                 place_unique_id,
+                 deck_id,
+                 x,
+                 y,
+                 True,
+                 move_from,
+                 place_from,
+                 deck_id_from,
+                 from_x,
+                 from_y,
+                 monster,
+                 place_unique_id_exist,
+             ):
+                 trigger_waitings.remove(trigger_waiting)
+                 i+=1
+                 #remove_waitings.append(trigger_waiting)
+                 if len(trigger_waitings) == 0:
+                     duel.in_trigger_waiting = False
+                 continue
+             else:
+                 prompt_monster = monster
+
+         elif who == 1:
+             if order != 1 and int(mine_or_other_exist) != user:
+                 continue
+             if not duelobj.check_launch_trigger(
+                     trigger,
+                 
+                     duel.phase,
+                     duel.user_turn,
+                     user,
+                     other_user,
+                     mine_or_other_exist,
+                     place_exist,
+                     place_unique_id_exist,
+                     deck_id_exist,
+                     x_exist,
+                     y_exist,
+                     True
+             ):
+                 trigger_waitings.remove(trigger_waiting)
+                 i+=1
+                 #remove_waitings.append(trigger_waiting)
+
+                 if len(trigger_waitings) == 0:
+                     duel.in_trigger_waiting = False
+                 continue
+             else:
+                 prompt_monster = monster_exist
+         elif who == 2:
+             if null_relate is not None:
+                 if order != 1 and int(null_relate["mine_or_other"]) != user:
+                     continue
+                 if not duelobj.check_launch_trigger(
+                         trigger,
+                         duel.phase,
+                         duel.user_turn,
+                         user,
+                         other_user,
+                         null_relate["mine_or_other"],
+                         null_relate["place"],
+                         null_relate["place_unique_id"],
+                         null_relate["deck_id"],
+                         null_relate["x"],
+                         null_relate["y"],
+                         True
+                 ):
+                     trigger_waitings.remove(trigger_waiting)
+                     i+=1
+                     #remove_waitings.append(trigger_waiting)
+                     if len(trigger_waitings) == 0:
+                        duel.in_trigger_waiting = False
+                 continue
+             elif monster_relate is not None:
+                 if order != 1 and int(mine_or_other_relate) != user:
+                     continue
+                 if not duelobj.check_launch_trigger(
+                         trigger,
+                         duel.phase,
+                         duel.user_turn,
+                         user,
+                         other_user,
+                         mine_or_other_relate,
+                         place_relate,
+                         place_unique_id_relate,
+                         deck_id_relate,
+                         x_relate,
+                         y_relate,
+                         True
+                 ):
+                    trigger_waitings.remove(trigger_waiting)
+                    i+=1
+                    #remove_waitings.append(trigger_waiting)
+
+                    prompt_monster = monster_relate
+                    if len(trigger_waitings) == 0:
+                        duel.in_trigger_waiting = False
+                    continue
+             else:
+                    prompt_monster = monster_relate
+         flag = duelobj.invoke_trigger        (
+             trigger,
+             place,
+             monster,
+             mine_or_other,
+             user,
+             deck_id,
+             x,
+             y,
+             monster_from,
+             place_from,
+             deck_id_from,
+             from_x,
+             from_y,
+             0,
+             null_relate,
+             change_val,
+             place_relate,
+             monster_relate,
+             mine_or_other_relate,
+             deck_id_relate,
+             x_relate,
+             y_relate,
+             move_from_relate,
+             place_from_relate,
+             deck_id_from_relate,
+             from_x_relate,
+             from_y_relate,
+             place_exist,
+             monster_exist,
+             mine_or_other_exist,
+             deck_id_exist,
+             x_exist,
+             y_exist,
+             who=who,
+             waiting = True
+         )
+         trigger_waitings.remove(trigger_waiting)
+         i+=1
+         if order == 3:
+             break
+     '''
+     remove_waitings.append(trigger_waiting)
+     trigger_waitings2 = json.loads(duel.trigger_waiting)
+     for remove_waiting in remove_waitings:
+         trigger_waitings2.remove(remove_waiting)
+     '''
+     duel.trigger_waiting = json.dumps(trigger_waitings)
+     if duel.ask == 5:
+        duel.ask = 6
+     else:
+        duel.ask = 5
+     if i == 0:
+         if duel.already_choosed == 2:
+             duel.already_choosed = 1
+             duel.trigger_waiting = "[]"
+             duel.ask = 0
+         else:
+             duel.already_choosed = 2
+     if len(trigger_waitings) == 0:
+             duel.already_choosed = 1
+             duel.trigger_waiting = "[]"
+             duel.ask = 0
+    

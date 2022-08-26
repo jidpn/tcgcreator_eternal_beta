@@ -2906,6 +2906,12 @@ def get_equation(req):
         + c
         + ')">'
     )
+    result += (
+        'min_flag<input type="checkbox" id="min_flag_'
+        + c
+        + '" value="1" '
+        + ">"
+    )
     result += "</div>"
     return HttpResponse(result)
 
@@ -4832,8 +4838,11 @@ def choose(request):
         user_deck_groups = []
         guest_flag = True
     config  = Config.objects.first()
-    background = Background.objects.order_by("?")[0]
-    background_file_name = background.file_name
+    if Background.objects.first():
+        background = Background.objects.order_by("?")[0]
+        background_file_name = background.file_name
+    else:
+        background_file_name = ""
     enemy_deck_groups = EnemyDeckGroup.objects.filter()
 
     return render(

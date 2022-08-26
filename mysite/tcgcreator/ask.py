@@ -1,6 +1,8 @@
 from django.http import HttpResponse, HttpResponseRedirect
 from django.urls import reverse
+from .battle_det import battle_det, answer_ai_choose_trigger
 from .models import (
+    Config,
     Trigger,
     FieldSize,
     Deck,
@@ -16,6 +18,7 @@ from .models import (
 from pprint import pprint
 import json
 from .duel import DuelObj
+import uuid
 
 
 def ask_place(request):
@@ -24,6 +27,9 @@ def ask_place(request):
     hands = Hand.objects.all()
     room_number = int(request.POST["room_number"])
     duel = Duel.objects.filter(id=room_number).get()
+    duelobj = DuelObj(room_number)
+    duelobj.duel = duel
+    duelobj.room_number = room_number
     if duel.guest_flag is False:
         ID1 = -1
     else:
@@ -44,6 +50,92 @@ def ask_place(request):
     if duel.winner != 0 or duel.winner_ai != 0:
         return HttpResponse("end")
 
+    if duel.user_1 == request.user or (ID1 == ID and duel.guest_flag):
+        user = 1
+        other_user = 2
+        duelobj.user = 1
+        if duel.ask == 4 :
+            if duel.user_turn == 1:
+                duel.ask = 5
+                return choose_trigger(duel, 1, room_number, duel.ask, decks, graves, hands)
+            else:
+                if duel.is_ai is True:
+                    duelobj.init_all(user, other_user, room_number)
+                    duelobj.check_eternal_effect( decks, graves, hands, duel.phase, duel.user_turn, user, other_user
+    )
+                    answer_ai_choose_trigger(duelobj,duel, 2, room_number, duel.ask, decks, graves, hands)
+                    duelobj.save_all(user, other_user, room_number)
+                    return battle_det(request, duelobj)
+                return wait_choose_trigger(duel, 1, room_number, duel.ask, decks, graves, hands)
+        elif duel.ask == 5 :
+            if duel.user_turn == 1:
+                return choose_trigger(duel, 1, room_number, duel.ask, decks, graves, hands)
+            else:
+                if duel.is_ai is True:
+                    duelobj.init_all(user, other_user, room_number)
+                    duelobj.check_eternal_effect( decks, graves, hands, duel.phase, duel.user_turn, user, other_user
+    )
+                    answer_ai_choose_trigger(duelobj,duel, 2, room_number, duel.ask, decks, graves, hands)
+                    duelobj.save_all(user, other_user, room_number)
+                    return battle_det(request, duelobj)
+                return wait_choose_trigger(duel, 1, room_number, duel.ask, decks, graves, hands)
+        elif duel.ask == 6 :
+            if duel.user_turn == 2:
+                return choose_trigger(duel, 1, room_number, duel.ask, decks, graves, hands)
+            else:
+                if duel.is_ai is True:
+                    duelobj.init_all(user, other_user, room_number)
+                    duelobj.check_eternal_effect( decks, graves, hands, duel.phase, duel.user_turn, user, other_user
+    )
+                    answer_ai_choose_trigger(duelobj,duel, 2, room_number, duel.ask, decks, graves, hands)
+                    duelobj.save_all(user, other_user, room_number)
+                    return battle_det(request, duelobj)
+                return wait_choose_trigger(duel, 1, room_number, duel.ask, decks, graves, hands)
+       
+    if duel.user_2 == request.user or (ID2 == ID and duel.guest_flag2) or duel.is_ai is True:
+        user = 2
+        other_user = 1
+        duelobj.user = 2
+        if duel.ask == 4 :
+            if duel.user_turn == 2:
+                duel.ask = 5
+                if duel.is_ai is False:
+                    return choose_trigger(duel, 2, room_number, duel.ask, decks, graves, hands)
+                else:
+                    duelobj.init_all(user, other_user, room_number)
+                    duelobj.check_eternal_effect( decks, graves, hands, duel.phase, duel.user_turn, user, other_user
+    )
+                    answer_ai_choose_trigger(duelobj,duel, 2, room_number, duel.ask, decks, graves, hands)
+                    duelobj.save_all(user, other_user, room_number)
+                    return HttpResponse("ai")
+            else:
+                return wait_choose_trigger(duel, 2, room_number, duel.ask, decks, graves, hands)
+        elif duel.ask == 5 :
+            if duel.user_turn == 2:
+                if duel.is_ai is False:
+                    return choose_trigger(duel, 2, room_number, duel.ask, decks, graves, hands)
+                else:
+                    duelobj.init_all(user, other_user, room_number)
+                    duelobj.check_eternal_effect( decks, graves, hands, duel.phase, duel.user_turn, user, other_user
+    )
+                    answer_ai_choose_trigger(duelobj,duel, 2, room_number, duel.ask, decks, graves, hands)
+                    duelobj.save_all(user, other_user, room_number)
+                    return HttpResponse("ai")
+            else:
+                return wait_choose_trigger(duel, 2, room_number, duel.ask, decks, graves, hands)
+        elif duel.ask == 6 :
+            if duel.user_turn == 1:
+                if duel.is_ai is False:
+                    return choose_trigger(duel, 2, room_number, duel.ask, decks, graves, hands)
+                else:
+                    duelobj.init_all(user, other_user, room_number)
+                    duelobj.check_eternal_effect( decks, graves, hands, duel.phase, duel.user_turn, user, other_user
+    )
+                    answer_ai_choose_trigger(duelobj,duel, 2, room_number, duel.ask, decks, graves, hands)
+                    duelobj.save_all(user, other_user, room_number)
+                    return HttpResponse("ai")
+            else:
+                return wait_choose_trigger(duel, 2, room_number, duel.ask, decks, graves, hands)
     if duel.user_1 == request.user or (ID1 == ID and duel.guest_flag):
         if duel.user_turn == 1:
             if duel.ask == 1 or duel.ask == 3:
@@ -2081,3 +2173,72 @@ def show_multiple(
     tmp_val["sentence"] = sentence
     tmp_val["prompt"] = duelobj.write_prompt(prompt,user)
     return HttpResponse(json.dumps(tmp_val))
+def choose_trigger(duel, user, room_number, ask, decks, graves, hands):
+     duelobj = DuelObj(room_number)
+     duelobj.duel = duel
+     config = Config.objects.get()
+     order = config.order
+     trigger_waiting_json = json.loads(duelobj.duel.trigger_waiting)
+     tmp_return  = {}
+     return_trigger = []
+     i = 0
+     force = False
+     if len(trigger_waiting_json) == 0:
+         return HttpResponse("error")
+     priority = trigger_waiting_json[0]["priority"]
+     if duel.already_choosed == 1:
+         return HttpResponse("error")
+     for trigger_waiting in trigger_waiting_json[:]:
+        trigger = Trigger.objects.get(id=trigger_waiting["trigger"])
+        if "who" not in trigger_waiting:
+            who = 0
+        else:
+            who = trigger_waiting["who"]
+        if who == 0:
+            mine_or_other = str(trigger_waiting["mine_or_other"])
+        elif who == 1:
+            mine_or_other = str(trigger_waiting["mine_or_other_exist"])
+        elif who == 2:
+            if "null_relate" in trigger_waiting:
+                mine_or_other = trigger_waiting["null_relate"]["mine_or_other"]
+            else:
+                mine_or_other = str(trigger_waiting["mine_or_other_relate"])
+        uuid_str = str(uuid.uuid4())
+        trigger_waiting_json[i]["uuid"] = uuid_str
+        i+=1
+        if int(mine_or_other) != user and order != 1:
+            continue;
+        if trigger_waiting["priority"] != priority:
+            continue
+        tmp = {}
+        tmp["name"] = trigger.trigger_name
+        tmp["id"] = trigger.id
+        if int(mine_or_other) != user:
+            tmp["other"] = True
+        else:
+            tmp["other"] = False
+        tmp["uuid"] = uuid_str
+        if trigger.force == True:
+            force = True
+        return_trigger.append( tmp)
+     duelobj.duel.trigger_waiting = json.dumps(trigger_waiting_json)
+     tmp_return  = {}
+
+     tmp_return["trigger_choosing"] = True
+     tmp_return["return_trigger"] = return_trigger
+     tmp_return["force"] = force
+     if len(return_trigger) == 0:
+        if len(trigger_waiting_json) == 0:
+            duel.ask = 0
+        else:
+            if duel.user_turn == user:
+                duel.ask = 6
+            else:
+                duel.ask = 5
+        duel.save()
+        return HttpResponse("wait_choose_trigger")
+
+     duel.save()
+     return HttpResponse(json.dumps(tmp_return))
+def wait_choose_trigger(duel, user, room_number, ask, decks, graves, hands):
+    return HttpResponse("wait_choose_trigger")
