@@ -49645,7 +49645,9 @@ class DuelObj:
         exclude="",
         num = 0,
         strategy ="",
-        strategy_up_or_down = 0
+        strategy_up_or_down = 0,
+        min = 0,
+        min_flag = False,
     ):
         if num == 0:
             return [],0
@@ -49763,6 +49765,8 @@ class DuelObj:
                 del return_value2["strategy_value"]
                 return_value3.append(return_value2)
                 count += 1
+                if count >= min and min_flag is True:
+                    return return_value3,count
                 if count >= num:
                     return return_value3,count
 
@@ -50682,9 +50686,16 @@ class DuelObj:
         monster_effect_text = monster_effect_text_org["monster"]
         exclude = monster_effect_text_org["exclude"]
         for monster_effect_det in monster_effect_text:
+           min = self.calculate_boland(
+               monster_effect_det["min_equation_number"]
+           )
            max = self.calculate_boland(
                monster_effect_det["max_equation_number"]
            )
+           if "min_flag" in monster_effect_det :
+               min_flag = monster_effect_det["min_flag"]
+           else:
+               min_flag = False
            monster_effect_det_monster = monster_effect_det["monster"]
            counter += 1
 
@@ -50737,9 +50748,12 @@ class DuelObj:
                                   monster_effect_det,
                                   max,
                                    strategy,
-                                   strategy_up_or_down
+                                   strategy_up_or_down,
+                   min,
+                   min_flag
                               )
                               )
+                              min -= count
                               max -= count
                            else:
                               tmp,count =(
@@ -50753,10 +50767,13 @@ class DuelObj:
                                       monster_effect_det,
                                       max,
                                    strategy,
-                                   strategy_up_or_down
+                                   strategy_up_or_down,
+                   min,
+                   min_flag
                                   )
                               )
                               result.extend(tmp)
+                              min -= count
                               max -= count
                        elif place_tmp[0] == "grave":
                            grave = Grave.objects.get(id=place_tmp[1])
@@ -50771,9 +50788,12 @@ class DuelObj:
                                    monster_effect_det,
                                    max,
                                    strategy,
-                                   strategy_up_or_down
+                                   strategy_up_or_down,
+                   min,
+                   min_flag
                                )
                                result.extend(tmp)
+                               min -= count
                                max -= count
                            else:
                               tmp,count = (
@@ -50787,10 +50807,13 @@ class DuelObj:
                                       monster_effect_det,
                                       max,
                                    strategy,
-                                   strategy_up_or_down
+                                   strategy_up_or_down,
+                   min,
+                   min_flag
                                   )
                               )
                               result.extend(tmp)
+                              min -= count
                               max -= count
                        elif place_tmp[0] == "hand":
                            hand = Hand.objects.get(id=place_tmp[1])
@@ -50806,10 +50829,13 @@ class DuelObj:
                                            monster_effect_det,
                                            max,
                                            strategy,
-                                           strategy_up_or_down
+                                           strategy_up_or_down,
+                   min,
+                   min_flag
                                        )
                                    )
                                    result.extend(tmp)
+                                   min -= count
                                    max -= count
                            else:
                               tmp,count = (
@@ -50823,10 +50849,13 @@ class DuelObj:
                                       monster_effect_det,
                                       max,
                                       strategy,
-                                      strategy_up_or_down
+                                      strategy_up_or_down,
+                   min,
+                   min_flag
                                   )
                               )
                               result.extend(tmp)
+                              min -= count
                               max-=count
                        elif place_tmp[0] == "field":
                            tmp,count = self.return_field2(
@@ -50841,9 +50870,12 @@ class DuelObj:
                    exclude,
                    max,
                    strategy,
-                   strategy_up_or_down
+                   strategy_up_or_down,
+                   min,
+                   min_flag
                )
                            result.extend(tmp)
+                           min -= count
                            max-=count
                            '''
                            current_and_or = "or"
@@ -50976,7 +51008,9 @@ class DuelObj:
                                        monster_effect_det,
                                        max,
                                            strategy,
-                                           strategy_up_or_down
+                                           strategy_up_or_down,
+                   min,
+                   min_flag
                                    )
                                )
                                result.extend(tmp)
@@ -50992,10 +51026,13 @@ class DuelObj:
                                       monster_effect_det,
                                       max,
                                            strategy,
-                                           strategy_up_or_down
+                                           strategy_up_or_down,
+                   min,
+                   min_flag
                                   )
                               )
                               result.extend(tmp)
+                              min -= count
                               max -= count
                        elif place_tmp[0] == "grave":
                            grave = Grave.objects.get(id=place_tmp[1])
@@ -51012,10 +51049,14 @@ class DuelObj:
                                       monster_effect_det,
                                       max,
                                            strategy,
-                                           strategy_up_or_down
+                                           strategy_up_or_down,
+                   min,
+                   min_flag
                                   )
                               )
                               result.extend(tmp)
+                              min -= count
+                              
                               max -= count
                            else:
                                 tmp,count = (
@@ -51029,10 +51070,13 @@ class DuelObj:
                                         monster_effect_det,
                                         max,
                                            strategy,
-                                           strategy_up_or_down
+                                           strategy_up_or_down,
+                   min,
+                   min_flag
                                     )
                                 )
                                 result.extend(tmp)
+                                min -= count
                                 max -=count
                        elif place_tmp[0] == "hand":
                            hand = Hand.objects.get(id=place_tmp[1])
@@ -51048,10 +51092,13 @@ class DuelObj:
                                       monster_effect_det,
                                       max,
                                            strategy,
-                                           strategy_up_or_down
+                                           strategy_up_or_down,
+                   min,
+                   min_flag
                                   )
                               )
                               result.extend(tmp)
+                              min -= count
                               max -= count
                            else:
                               tmp,count = (
@@ -51065,10 +51112,13 @@ class DuelObj:
                                       monster_effect_det,
                                       max,
                                            strategy,
-                                           strategy_up_or_down
+                                           strategy_up_or_down,
+                                        min,
+                                        min_flag
                                   )
                               )
                               result.extend(tmp)
+                              min -= count
                               max -=count
                        elif place_tmp[0] == "field":
                            tmp,count = self.return_field2(
@@ -51083,9 +51133,12 @@ class DuelObj:
                    exclude,
                    max,
                    strategy,
-                   strategy_up_or_down
+                   strategy_up_or_down,
+                   min,
+                   min_flag
                )
                            result.extend(tmp)
+                           min -= count
                            max -=count
                            '''
                            current_and_or = "or"
@@ -51443,7 +51496,9 @@ class DuelObj:
             monster_effect_det=None,
             num=0,
             strategy = "",
-            strategy_up_or_down = 0
+            strategy_up_or_down = 0,
+            min = 0,
+            min_flag = False
     ):
         if num == 0:
             return [],0
@@ -51532,6 +51587,8 @@ class DuelObj:
                 del return_value2["strategy_value"]
                 return_value3.append(return_value2)
                 count += 1
+                if count >= min and min_flag is True:
+                    return return_value3,count
                 if count >= num:
                     return return_value3,count
 
@@ -51547,7 +51604,9 @@ class DuelObj:
             monster_effect_det=None,
             num=0,
             strategy = None,
-            strategy_up_or_down = 0
+            strategy_up_or_down = 0,
+            min = 0,
+            min_flag = False
     ):
         if num == 0:
             return [],0;
@@ -51636,6 +51695,8 @@ class DuelObj:
                 del return_value2["strategy_value"]
                 return_value3.append(return_value2)
                 count += 1
+                if count >= min and min_flag is True:
+                    return return_value3,count
                 if count >= num:
                     return return_value3,count
 
@@ -51652,7 +51713,9 @@ class DuelObj:
             monster_effect_det=None,
             num=0,
             strategy = "",
-            strategy_up_or_down = 0
+            strategy_up_or_down = 0,
+            min = 0,
+            min_flag = False
     ):
         if num == 0:
             return [],0
@@ -51742,6 +51805,8 @@ class DuelObj:
                 del return_value2["strategy_value"]
                 return_value3.append(return_value2)
                 count += 1
+                if count >= min and min_flag is True:
+                    return return_value3,count
                 if count >= num:
                     return return_value3,count
 
