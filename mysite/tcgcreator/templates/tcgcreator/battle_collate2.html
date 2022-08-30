@@ -3014,6 +3014,7 @@ success: function(data){
 	  }else{
 		var result_json = JSON.stringify(global_trigger_choose);
         }
+	$("#choosing_area").hide();
     $.ajax({
    type: "POST",
    url: "{% url 'tcgcreator:answer_trigger'  %}",

@@ -9026,8 +9026,6 @@ class DuelObj:
 
     def check_trigger(self, decks, graves, hands, phase, turn, user, other_user,force_flag=0):
         duel = self.duel
-        pprint(duel.appoint)
-        pprint(user)
         force_count = 0
         return_value = []
         if duel.canbechained is False:
@@ -9066,8 +9064,6 @@ class DuelObj:
             triggers = triggers.filter(Q(timing3=duel.timing3))
         else:
             triggers = triggers.filter(Q(none_timing3=True))
-        pprint(duel.current_priority)
-        pprint(triggers)
         triggers = triggers.filter(priority__lt=duel.current_priority)
         triggers = triggers.filter(trigger_timing=False)
         #if user == duel.user_turn:
@@ -9090,7 +9086,6 @@ class DuelObj:
             return_value.append(None)
             return_value.append(0)
             return_value.append(0)
-            pprint("00000")
             return return_value
         priority = trigger_first.priority
         none_triggers = triggers.filter(priority=priority, trigger_none_monster=True)
@@ -9137,7 +9132,6 @@ class DuelObj:
             return_value.append(available_trigger)
             return_value.append(priority)
             return_value.append(force_count)
-            pprint("xGGGF")
             return return_value
         elif len(available_trigger) > 1 and (self.duel.is_ai is True and user == 2):
             flag = False
@@ -9180,7 +9174,6 @@ class DuelObj:
                 return_value.append(None)
             return_value.append(priority)
             return_value.append(force_count)
-            pprint("FFF")
             return return_value
                 
             self.update = True
@@ -9228,13 +9221,11 @@ class DuelObj:
                 return_value.append(available_trigger)
                 return_value.append(priority)
                 return_value.append(force_count)
-                pprint("EEE")
                 return return_value
             else:
                 return_value.append(available_trigger)
                 return_value.append(priority)
                 return_value.append(force_count)
-                pprint("DDD")
                 return return_value
         elif len(available_trigger) == 1 and trigger_num is True:
             if available_trigger[0]["force"] is True or (user == 2 and duel.is_ai is True):
@@ -9283,14 +9274,12 @@ class DuelObj:
             return_value.append(available_trigger)
             return_value.append(priority)
             return_value.append(force_count)
-            pprint("CCC")
             return return_value
 
         elif len(available_trigger) == 0 and trigger_num is False:
             return_value.append(None)
             return_value.append(priority)
             return_value.append(0)
-            pprint("BBB")
             return return_value
         else:
             return_value.append("monster_trigger")
@@ -9298,7 +9287,6 @@ class DuelObj:
             return_value.append(force_count)
             if duel.appoint == 2 and duel.is_ai is True:
                 self.invoke_trigger_waiting(None,0,2)
-            pprint("AAA")
             return return_value
         return return_value
 
@@ -12436,6 +12424,8 @@ class DuelObj:
             self.duel.chain_det_trigger = "{}"
             self.duel.chain_variable = "{}"
         self.duel.retrieve = 0
+        pprint("duel.ask2")
+        pprint(self.duel.ask2)
         self.update = True
         if self.duel.is_ai is True:
             if self.duel.chain == 0:
@@ -12479,7 +12469,6 @@ class DuelObj:
         monster_effect_next = self.invoke_monster_effect(
             monster_effect, decks, graves, kinds
         )
-        pprint(monster_effect)
         if monster_effect_next == "copy":
             return "copy"
         if monster_effect_next is None:
@@ -12495,7 +12484,6 @@ class DuelObj:
         elif monster_effect_next == -2:
             monster_effect_next = None
         while monster_effect_next:
-            pprint(monster_effect_next)
             if monster_effect_next == "copy":
                 return "copy"
             if duel.winner != 0 or duel.winner_ai != 0:
@@ -41759,7 +41747,6 @@ class DuelObj:
             trigger_waiting = json.loads(duel.trigger_waiting)
         flag = False
         for trigger in triggers:
-            pprint(trigger)
             if self.check_launch_trigger(
                 trigger,
                 phase,
@@ -47483,7 +47470,7 @@ class DuelObj:
     def invoke_trigger_waiting(self, trigger_waiting, tmp_priority=0,mode=0):
         duel = self.duel
         flag2 = False
-        if duel.ask > 0 and mode != 2:
+        if duel.ask2 > 0 and mode != 2:
             return False
         if mode == 0:
             trigger_waitings = json.loads(duel.trigger_waiting)

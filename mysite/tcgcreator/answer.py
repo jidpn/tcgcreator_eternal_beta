@@ -1471,14 +1471,14 @@ def answer_trigger(request):
     answer = request.POST["answer"]
     if duel.user_1 == request.user or ( ID1 == ID and duel.guest_flag):
         if duel.user_turn == 1:
-           if duel.ask == 5:
+           if duel.ask2 == 5:
                return_value = choose_trigger_det(
                    duelobj, duel, 1, answer, request, room_number, lock
                )
                free_lock(room_number, lock)
                return return_value
         else:
-            if duel.ask == 6 :
+            if duel.ask2 == 6 :
                return_value = choose_trigger_det(
                     duelobj, duel, 1, answer, request, room_number, lock
                )
@@ -1486,14 +1486,14 @@ def answer_trigger(request):
                return return_value
     elif duel.user_2 == request.user or ( ID2 == ID and duel.guest_flag2):
         if duel.user_turn == 2:
-            if duel.ask == 5 :
+            if duel.ask2 == 5 :
                return_value = choose_trigger_det(
                     duelobj, duel, 2, answer, request, room_number, lock
                )
                free_lock(room_number, lock)
                return return_value
         else:
-            if duel.ask == 6:
+            if duel.ask2 == 6:
                 return_value = choose_trigger_det(
                     duelobj, duel, 2, answer, request, room_number, lock
                 )
@@ -1817,8 +1817,8 @@ def choose_trigger_det(duelobj,duel,user,answer,request,room_number,lock):
                 trigger_waitings.remove(trigger_waiting)
         duel.trigger_waiting = json.dumps(trigger_waitings)
      if order == 2 or order == 3:
-        if duel.ask == 5:
-            duel.ask = 6
+        if duel.ask2 == 5:
+            duel.ask2 = 6
             if duel.user_turn == 1 and duel.is_ai is True:
                 answer_ai_choose_trigger(duelobj,duel, 2, room_number, duel.ask, decks, graves, hands,config)
                 duelobj.save_all(user, other_user, room_number)

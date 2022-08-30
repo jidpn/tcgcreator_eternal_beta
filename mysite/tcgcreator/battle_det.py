@@ -146,7 +146,7 @@ def battle_det(request, duelobj=None, choices=None):
                     return HttpResponse("true")
                 return HttpResponse("waiting_choosing_deck")
     if "wait_ai" in request.POST:
-        if duel.user_turn == 2 and duel.ask == 0 and duel.is_ai is True:
+        if duel.user_turn == 2 and duel.ask == 0 and duel.ask2 == 0 and duel.is_ai is True:
             decks = Deck.objects.all()
             graves = Grave.objects.all()
             hands = Hand.objects.all()
@@ -192,7 +192,7 @@ def battle_det(request, duelobj=None, choices=None):
             lock.save()
     elif room_number == 2:
         if lock.lock_2 is True and time() - lock.time_2 < 20:
-            if duel.is_ai == False or not "wait_ai" in request.POST or duel.user_turn == 1 or duel.ask != 0:
+            if duel.is_ai == False or not "wait_ai" in request.POST or duel.user_turn == 1 or duel.ask != 0 or duel.ask != 0:
                 return HttpResponse("waiting")
             else:
                 decks = Deck.objects.all()
@@ -223,7 +223,7 @@ def battle_det(request, duelobj=None, choices=None):
             lock.save()
     elif room_number == 3:
         if lock.lock_3 is True and time() - lock.time_3 < 20:
-            if duel.is_ai == False or not "wait_ai" in request.POST or duel.user_turn == 1 or duel.ask != 0:
+            if duel.is_ai == False or not "wait_ai" in request.POST or duel.user_turn == 1 or duel.ask != 0 or duel.ask2 != 0:
                 return HttpResponse("waiting")
             else:
                 decks = Deck.objects.all()
@@ -276,17 +276,17 @@ def battle_det(request, duelobj=None, choices=None):
     duelobj.update = False
     if duel.is_ai is True:
         if duel.user_turn == 1:
-            if duel.ask == 6:
+            if duel.ask2 == 6 and duel.ask == 0 and duel.retrieve == 0:
                     duelobj.check_eternal_effect(
                         decks, graves, hands, duel.phase, duel.user_turn, user, other_user
                     )
-                    answer_ai_choose_trigger(duelobj,duel, 2, room_number, duel.ask, decks, graves, hands)
+                    answer_ai_choose_trigger(duelobj,duel, 2, room_number, duel.ask2, decks, graves, hands)
         if duel.user_turn == 2:
-            if duel.ask == 5:
+            if duel.ask == 5 and duel.ask == 0 and duel.retrieve == 0:
                     duelobj.check_eternal_effect(
                         decks, graves, hands, duel.phase, duel.user_turn, user, other_user
                     )
-                    answer_ai_choose_trigger(duelobj,duel, 2, room_number, duel.ask, decks, graves, hands)
+                    answer_ai_choose_trigger(duelobj,duel, 2, room_number, duel.ask2, decks, graves, hands)
 
 #    chain_user = duelobj.get_current_chain_user()
     if choices is None:
@@ -1276,10 +1276,11 @@ def battle_det_return(
         or  (duel.timing3 is not None and duel.timing3.pri is True))
         and duel.appoint == user
         and duel.ask == 0
+        and duel.ask2 == 0
         and choices[0] is not None
         and duelobj.check_wait(user)
     ) or (duel.chain > 0 and duel.ask == 0 and duel.appoint == user)\
-    or (duel.ask == 0 and duel.appoint == user and duel.phase.pri is True):
+    or (duel.ask == 0 and duel.appoint == user and duel.ask2 == 0 and duel.phase.pri is True):
         if choices[0] != "force":
             return_value["pri"] = True
     else:
@@ -1318,18 +1319,18 @@ def battle_det_return(
     elif user == 2:
         return_value["effect"] = duelobj.effect2
     duelobj.save_all(user, other_user, room_number)
-    if duel.ask > 0:
+    if duel.ask > 0 or duel.ask2 > 0:
         return_value["ask_org"] = True
     else:
         return_value["ask_org"] = False
     if duelobj.user == duel.user_turn:
-        if duel.ask == 1 or duel.ask == 3 or duel.ask == 4 or duel.ask == 5:
+        if duel.ask == 1 or duel.ask == 3 or duel.ask2 == 4 or duel.ask2 == 5:
             return_value["ask"] = True
         else:
             return_value["ask"] = False
 
     else:
-        if duel.ask == 2 or duel.ask == 3 or duel.ask == 4 or duel.ask == 6:
+        if duel.ask == 2 or duel.ask == 3 or duel.ask2 == 4 or duel.ask2 == 6:
             return_value["ask"] = True
         else:
             return_value["ask"] = False
@@ -1802,21 +1803,21 @@ def answer_ai_choose_trigger(duelobj,duel,user,room_number,ask,decks,graves,hand
          trigger_waitings2.remove(remove_waiting)
      '''
      duel.trigger_waiting = json.dumps(trigger_waitings)
-     if duel.ask == 5:
-        duel.ask = 6
+     if duel.ask2 == 5:
+        duel.ask2 = 6
      else:
-        duel.ask = 5
+        duel.ask2 = 5
      if i == 0:
          if duel.already_choosed == 2:
              duel.already_choosed = 1
              duel.trigger_waiting = "[]"
              duel.in_trigger_waiting = False
-             duel.ask = 0
+             duel.ask2 = 0
          else:
              duel.already_choosed = 2
      if len(trigger_waitings) == 0:
              duel.already_choosed = 1
              duel.trigger_waiting = "[]"
              duel.in_trigger_waiting = False
-             duel.ask = 0
+             duel.ask2 = 0
     
