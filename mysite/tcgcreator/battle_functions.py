@@ -493,6 +493,7 @@ def init_duel(room_number, user,default_deck = None,enemy_deck=None,user1_choosi
     duel.change_appoint_flag = False
     duel.current_priority = 10000
     duel.ask = 0
+    duel.ask2 = 0
     duel.timing_fresh = False
     duel.background_image = config.background_image
     duel.save()

@@ -7258,14 +7258,14 @@ class DuelObj:
         if duel.in_cost is True:
             chain = str(self.tmp_chain)
             user = duel.cost_user
-        elif self.retrieve == 0 and (duel.chain == 0 or duel.ask > 0):
+        elif self.duel.retrieve == 0 and (duel.chain == 0 or duel.ask > 0):
             user = self.user
-        elif self.retrieve == 0 and other_user_flag2 is True:
+        elif self.duel.retrieve == 0 and other_user_flag2 is True:
             if self.user == 1:
                 user = 2
             elif self.user == 2:
                 user = 1
-        elif self.retrieve == 0:
+        elif self.duel.retrieve == 0:
             user = self.user
         elif  duel.chain == 0:
             user = self.user
@@ -9123,12 +9123,11 @@ class DuelObj:
         self.update = True
         self.trigger_waiting_for_ai = []
         if len(available_trigger)  > 1 or trigger_num :
-            if self.config.order != 0 and duel.already_choosed != 1 and duel.trigger_waiting != "[]" and duel.ask == 0:
-                duel.ask = 4
+            if self.config.order != 0 and duel.already_choosed != 1 and duel.trigger_waiting != "[]" and duel.ask2 == 0:
+                duel.ask2 = 4
                 return_value.append(None)
                 return_value.append(duel.current_priority)
                 return_value.append(0)
-                pprint("AAA")
                 return return_value
             elif self.config.order == 0 or duel.already_choosed == 1:
                 self.invoke_trigger_waiting(None,duel.current_priority ,0)
@@ -9343,7 +9342,6 @@ class DuelObj:
     def init_all(self, user, other_user, room_number,mode=0):
         self.trigger_waiting_for_ai = False
         self.turn_changed = False
-        self.retrieve = 0
         self.tmp_val = {}
         self.init_deck_info(user, other_user, room_number)
         self.init_grave_info(user, other_user, room_number)
@@ -12437,7 +12435,7 @@ class DuelObj:
             self.duel.in_pac = "{}"
             self.duel.chain_det_trigger = "{}"
             self.duel.chain_variable = "{}"
-        self.retrieve = 0
+        self.duel.retrieve = 0
         self.update = True
         if self.duel.is_ai is True:
             if self.duel.chain == 0:
@@ -47020,8 +47018,8 @@ class DuelObj:
                     tmp["deck_id_from"] = from_deck_id
                     tmp["strategy_value"] = value if timing.trigger.strategy_up_or_down == 0 else -value
                     trigger_waiting.append(tmp)
-                    if self.config.order != 0 and duel.already_choosed != 1 and duel.ask == 0:
-                        duel.ask = 4
+                    if self.config.order != 0 and duel.already_choosed != 1 and duel.ask2 == 0:
+                        duel.ask2 = 4
             else:
                 if timing.win_or_lose == 1:
                     self.win_the_game_user(user)
@@ -47068,8 +47066,8 @@ class DuelObj:
                 tmp["deck_id_from"] = from_deck_id
                 tmp["strategy_value"] = value if timing.trigger.strategy_up_or_down == 0 else -value
                 trigger_waiting.append(tmp)
-                if self.config.order != 0 and duel.already_choosed != 1 and duel.ask == 0:
-                    duel.ask = 4
+                if self.config.order != 0 and duel.already_choosed != 1 and duel.ask2 == 0:
+                    duel.ask2 = 4
         for timing in timings3:
             timing_kinds = timing.kinds
             if not self.check_effect_kind(timing_kinds, from_kinds):
@@ -47280,8 +47278,8 @@ class DuelObj:
                         tmp["deck_id_from_relate"] = None
                         tmp["strategy_value"] = value if timing.trigger.strategy_up_or_down == 0 else -value
                         trigger_waiting.append(tmp)
-                        if self.config.order != 0 and duel.already_choosed != 1 and duel.ask == 0:
-                            duel.ask = 4
+                        if self.config.order != 0 and duel.already_choosed != 1 and duel.ask2 == 0:
+                            duel.ask2 = 4
         for timing in timings2:
             timing_kinds = timing.kinds
             if not self.check_effect_kind(timing_kinds, from_kinds):
@@ -47417,8 +47415,8 @@ class DuelObj:
                                 tmp["deck_id_from"] = None
                                 tmp["strategy_value"] = value if timing.trigger.strategy_up_or_down == 0 else -value
                                 trigger_waiting.append(tmp)
-                                if self.config.order != 0 and duel.already_choosed != 1 and duel.ask == 0:
-                                    duel.ask = 4
+                                if self.config.order != 0 and duel.already_choosed != 1 and duel.ask2 == 0:
+                                    duel.ask2 = 4
 
                 else:
                     if timing.win_or_lose == 1:
@@ -47466,8 +47464,8 @@ class DuelObj:
                     tmp["deck_id_from"] = from_deck_id
                     tmp["strategy_value"] = value if timing.trigger.strategy_up_or_down == 0 else -value
                     trigger_waiting.append(tmp)
-                    if self.config.order != 0 and duel.already_choosed != 1 and duel.ask == 0:
-                        duel.ask = 4
+                    if self.config.order != 0 and duel.already_choosed != 1 and duel.ask2 == 0:
+                        duel.ask2 = 4
         duel.trigger_waiting = json.dumps(trigger_waiting)
         self.null_relation(
             move_to,
@@ -50501,7 +50499,7 @@ class DuelObj:
         else:
             self.tmp_chain = str(duel.chain)
         if int(self.tmp_chain) > 0:
-            self.retrieve = 1
+            self.duel.retrieve = 1
         cost = self.cost
         mess = self.mess
         if duel.in_cost is True:

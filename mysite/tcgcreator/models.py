@@ -1612,6 +1612,8 @@ class Duel(models.Model):
     field = models.TextField(blank=True)
     turn_count = models.IntegerField(default=0)
     ask = models.IntegerField(default=0, choices=ASK)
+    ask2 = models.IntegerField(default=0, choices=ASK)
+    retrieve = models.IntegerField(default=0, choices=ASK)
     ask_kind = models.CharField(max_length=32, blank=True, default="")
     asked = models.IntegerField(blank=True, default=0)
     ask_det = models.TextField(default="", blank=True)

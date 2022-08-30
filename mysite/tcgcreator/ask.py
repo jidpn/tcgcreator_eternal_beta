@@ -54,85 +54,84 @@ def ask_place(request):
         user = 1
         other_user = 2
         duelobj.user = 1
-        if duel.ask == 4 :
-            if duel.user_turn == 1:
-                duel.ask = 5
-                return choose_trigger(duel, 1, room_number, duel.ask, decks, graves, hands)
+        if duel.ask2 == 4 and duel.ask == 0 and duel.retrieve == 0:
+            if duel.user_turn == 1 :
+                duel.ask2 = 5
+                return choose_trigger(duel, 1, room_number, duel.ask2, decks, graves, hands)
             else:
                 if duel.is_ai is True:
                     duelobj.init_all(user, other_user, room_number)
                     duelobj.check_eternal_effect( decks, graves, hands, duel.phase, duel.user_turn, user, other_user
     )
-                    answer_ai_choose_trigger(duelobj,duel, 2, room_number, duel.ask, decks, graves, hands)
+                    answer_ai_choose_trigger(duelobj,duel, 2, room_number, duel.ask2, decks, graves, hands)
                     duelobj.save_all(user, other_user, room_number)
                     return battle_det(request, duelobj)
-                return wait_choose_trigger(duel, 1, room_number, duel.ask, decks, graves, hands)
-        elif duel.ask == 5 :
+                return wait_choose_trigger(duel, 1, room_number, duel.ask2, decks, graves, hands)
+        elif duel.ask2 == 5 and duel.ask == 0 and duel.retrieve == 0:
             if duel.user_turn == 1:
-                print("BBB")
-                return choose_trigger(duel, 1, room_number, duel.ask, decks, graves, hands)
+                return choose_trigger(duel, 1, room_number, duel.ask2, decks, graves, hands)
             else:
                 if duel.is_ai is True:
                     duelobj.init_all(user, other_user, room_number)
                     duelobj.check_eternal_effect( decks, graves, hands, duel.phase, duel.user_turn, user, other_user
     )
-                    answer_ai_choose_trigger(duelobj,duel, 2, room_number, duel.ask, decks, graves, hands)
+                    answer_ai_choose_trigger(duelobj,duel, 2, room_number, duel.ask2, decks, graves, hands)
                     duelobj.save_all(user, other_user, room_number)
                     return battle_det(request, duelobj)
                 return wait_choose_trigger(duel, 1, room_number, duel.ask, decks, graves, hands)
-        elif duel.ask == 6 :
+        elif duel.ask2 == 6  and duel.ask == 0 and duel.retrieve == 0:
             if duel.user_turn == 2:
-                return choose_trigger(duel, 1, room_number, duel.ask, decks, graves, hands)
+                return choose_trigger(duel, 1, room_number, duel.ask2, decks, graves, hands)
             else:
                 if duel.is_ai is True:
                     duelobj.init_all(user, other_user, room_number)
                     duelobj.check_eternal_effect( decks, graves, hands, duel.phase, duel.user_turn, user, other_user
     )
-                    answer_ai_choose_trigger(duelobj,duel, 2, room_number, duel.ask, decks, graves, hands)
+                    answer_ai_choose_trigger(duelobj,duel, 2, room_number, duel.ask2, decks, graves, hands)
                     duelobj.save_all(user, other_user, room_number)
                     return battle_det(request, duelobj)
-                return wait_choose_trigger(duel, 1, room_number, duel.ask, decks, graves, hands)
+                return wait_choose_trigger(duel, 1, room_number, duel.ask2, decks, graves, hands)
        
     if duel.user_2 == request.user or (ID2 == ID and duel.guest_flag2) or duel.is_ai is True:
         user = 2
         other_user = 1
         duelobj.user = 2
-        if duel.ask == 4 :
+        if duel.ask2 == 4 and duel.ask == 0 and duel.retrieve == 0:
             if duel.user_turn == 2:
-                duel.ask = 5
+                duel.ask2 = 5
                 if duel.is_ai is False:
-                    return choose_trigger(duel, 2, room_number, duel.ask, decks, graves, hands)
+                    return choose_trigger(duel, 2, room_number, duel.ask2, decks, graves, hands)
                 else:
                     duelobj.init_all(user, other_user, room_number)
                     duelobj.check_eternal_effect( decks, graves, hands, duel.phase, duel.user_turn, user, other_user
     )
-                    answer_ai_choose_trigger(duelobj,duel, 2, room_number, duel.ask, decks, graves, hands)
+                    answer_ai_choose_trigger(duelobj,duel, 2, room_number, duel.ask2, decks, graves, hands)
                     duelobj.save_all(user, other_user, room_number)
                     return HttpResponse("ai")
             else:
-                return wait_choose_trigger(duel, 2, room_number, duel.ask, decks, graves, hands)
-        elif duel.ask == 5 :
+                return wait_choose_trigger(duel, 2, room_number, duel.ask2, decks, graves, hands)
+        elif duel.ask2 == 5  and duel.ask == 0 and duel.retrieve == 0:
             if duel.user_turn == 2:
                 if duel.is_ai is False:
-                    return choose_trigger(duel, 2, room_number, duel.ask, decks, graves, hands)
+                    return choose_trigger(duel, 2, room_number, duel.ask2, decks, graves, hands)
                 else:
                     duelobj.init_all(user, other_user, room_number)
                     duelobj.check_eternal_effect( decks, graves, hands, duel.phase, duel.user_turn, user, other_user
     )
-                    answer_ai_choose_trigger(duelobj,duel, 2, room_number, duel.ask, decks, graves, hands)
+                    answer_ai_choose_trigger(duelobj,duel, 2, room_number, duel.ask2, decks, graves, hands)
                     duelobj.save_all(user, other_user, room_number)
                     return HttpResponse("ai")
             else:
                 return wait_choose_trigger(duel, 2, room_number, duel.ask, decks, graves, hands)
-        elif duel.ask == 6 :
+        elif duel.ask2 == 6 and duel.ask == 0 and duel.retrieve == 0:
             if duel.user_turn == 1:
                 if duel.is_ai is False:
-                    return choose_trigger(duel, 2, room_number, duel.ask, decks, graves, hands)
+                    return choose_trigger(duel, 2, room_number, duel.ask2, decks, graves, hands)
                 else:
                     duelobj.init_all(user, other_user, room_number)
                     duelobj.check_eternal_effect( decks, graves, hands, duel.phase, duel.user_turn, user, other_user
     )
-                    answer_ai_choose_trigger(duelobj,duel, 2, room_number, duel.ask, decks, graves, hands)
+                    answer_ai_choose_trigger(duelobj,duel, 2, room_number, duel.ask2, decks, graves, hands)
                     duelobj.save_all(user, other_user, room_number)
                     return HttpResponse("ai")
             else:
