@@ -2065,161 +2065,66 @@ class DuelObj:
                 return False
 
         monster_condition_val = monster_condition["field_y"]
-        for cond_det in monster_condition_val:
+        field_y_operators = monster_condition["field_y_operator"]
+        field_y_and_or = monster_condition["field_y_and_or"]
+        i =0
+        for cond_val in monster_condition_val:
             cond_flag = True
             current_and_or = "and"
             tmp_flag = True
 
-            for cond_val in cond_det:
-                if not cond_val:
-                    continue
-                name = self.check_swap_val(
-                    monster, user, place, deck_id, x, y, cond_val["name"], -1
-                )
-                name2 = self.check_swap_init_val(
-                    monster, user, place, deck_id, x, y, cond_val["name"], -1
-                )
-                tmp = monster["variables"][name2]
-                if not cond_val["num"].isnumeric() and not self.special_val(cond_val["num"][0]):
-                    value = self.check_change_val(
-                        monster, user, place, deck_id, x, y, name, mine_or_other,tmp["value"])
-                    if value.isnumeric():
-                        if cond_val["operator"] == "!=":
-                            tmp_flag = True
-                        else:
-                            tmp_flag = False
-                        if current_and_or == "and":
-                            if cond_flag is True:
-                                cond_flag = tmp_flag
-                            else:
-                                cond_flag = False
-                        else:
-                            if cond_flag is True:
-                                cond_flag = True
-                            else:
-                                cond_flag = tmp_flag
-                        current_and_or = cond_val["and_or"]
-                        continue
-                    else:
-                        if cond_val["operator"] == "=":
-                            if value == cond_val["num"]:
-                                tmp_flag = True
-                            else:
-                                tmp_flag = False
-                        elif cond_val["operator"] == "":
-                            values = value.split("_")
-                            if cond_val["num"] in values:
-                                tmp_flag = True
-                            else:
-                                tmp_flag = False
-                        elif cond_val["operator"] == "!=":
-                            if value == cond_val["num"]:
-                                tmp_flag = False
-                            else:
-                                tmp_flag = True
-                        if current_and_or == "and":
-                            if cond_flag is True:
-                                cond_flag = tmp_flag
-                            else:
-                                cond_flag = False
-                        else:
-                            if cond_flag is True:
-                                cond_flag = True
-                            else:
-                                cond_flag = tmp_flag
-                        current_and_or = cond_val["and_or"]
-                        continue
-                if not tmp["value"].isnumeric():
-                    value = self.check_change_val(
-                        monster, user, place, deck_id, x, y, name, mine_or_other,tmp["value"])
-                    if cond_val["operator"] == "!=":
-                        if cond_val["num"] == value["value"]:
-                            tmp_flag = False
-                        else:
-                            tmp_flag = True
-                    elif cond_val["operator"] == "":
-                        values = value.split("_")
-                        if cond_val["num"] in values:
-                            tmp_flag = True
-                        else:
-                            tmp_flag = False
-
-                    elif cond_val["operator"] != "=":
+            if not cond_val:
+                continue
+            value = monster["y"]
+            pprint(value)
+            if field_y_operators[i] == "=": 
+                if float(value) != self.calculate_boland(
+                    cond_val, monster2, False,other_user_flag2 = other_user_flag2,user =user
+                ):
+                    tmp_flag = False
+            elif field_y_operators[i] == "":
+                    values = str(value).split("_")
+                    for index in range(len(values)):
+                        values[index] = int(float(values[index]))
+                    if int(cond_val) not in values:
                         tmp_flag = False
-                    else:
-                        if cond_val["num"] == value:
-                            tmp_flag = True
-                        else:
-                            tmp_flag = False
-                    if current_and_or == "and":
-                        if cond_flag is True:
-                            cond_flag = tmp_flag
-                        else:
-                            cond_flag = False
-                    else:
-                        if cond_flag is False:
-                            cond_flag = tmp_flag
-                        else:
-                            cond_flag = True
-                    current_and_or = cond_val["and_or"]
-                    continue
-                if cond_val["init"] == 0:
-                    value = self.check_change_val(
-                        monster, user, place, deck_id, x, y, name, mine_or_other,int(tmp["value"])
-                    )
-                elif cond_val["init"] == 1:
-                    value = tmp["i_val"]
-                elif cond_val["init"] == 2:
-                    value = tmp["i_i_val"]
-                if tmp["minus"] is False and float(value) < 0:
-                    value = 0
-                if cond_val["operator"] == "=": 
-                    if float(value) != self.calculate_boland(
-                        cond_val["num"], monster2, False,other_user_flag2 = other_user_flag2,user =user
-                    ):
+            elif field_y_operators[i] == "!==":
+                    values = str(value).split("_")
+                    for index in range(len(values)):
+                        values[index] = int(float(values[index]))
+                    if int(cond_val) in values:
                         tmp_flag = False
-                elif cond_val["operator"] == "":
-                        values = str(value).split("_")
-                        for index in range(len(values)):
-                            values[index] = int(float(values[index]))
-                        if int(cond_val["num"]) not in values:
-                            tmp_flag = False
-                elif cond_val["operator"] == "!==":
-                        values = str(value).split("_")
-                        for index in range(len(values)):
-                            values[index] = int(float(values[index]))
-                        if int(cond_val["num"]) in values:
-                            tmp_flag = False
-                elif cond_val["operator"] == "<=":
-                    if float(value) > self.calculate_boland(
-                        cond_val["num"], monster2, False,other_user_flag2 = other_user_flag2,user =user
-                    ):
-                        tmp_flag = False
-                elif cond_val["operator"] == ">=":
-                    if float(value) < self.calculate_boland(
-                        cond_val["num"], monster2, False,other_user_flag2 = other_user_flag2,user =user
-                    ):
-                        tmp_flag = False
-                elif cond_val["operator"] == "!=":
-                    if float(value) == self.calculate_boland(
-                        cond_val["num"], monster2, False,other_user_flag2 = other_user_flag2,user =user
-                    ):
-                        tmp_flag = False
-                if current_and_or == "and":
-                    if cond_flag is True:
-                        cond_flag = tmp_flag
-                    else:
-                        cond_flag = False
-
+            elif field_y_operators[i] == "<=":
+                if float(value) > self.calculate_boland(
+                    cond_val, monster2, False,other_user_flag2 = other_user_flag2,user =user
+                ):
+                    tmp_flag = False
+            elif field_y_operators[i] == ">=":
+                if float(value) < self.calculate_boland(
+                    cond_val, monster2, False,other_user_flag2 = other_user_flag2,user =user
+                ):
+                    tmp_flag = False
+            elif field_y_operators[i] == "!=":
+                if float(value) == self.calculate_boland(
+                    cond_val, monster2, False,other_user_flag2 = other_user_flag2,user =user
+                ):
+                    tmp_flag = False
+            if current_and_or == "and":
+                if cond_flag is True:
+                    cond_flag = tmp_flag
                 else:
-                    if cond_flag is False:
-                        cond_flag = tmp_flag
-                    else:
-                        cond_flag = True
-                current_and_or = cond_val["and_or"]
-                tmp_flag = True
-            if cond_flag is False:
-                return False
+                    cond_flag = False
+
+            else:
+                if cond_flag is False:
+                    cond_flag = tmp_flag
+                else:
+                    cond_flag = True
+            current_and_or = field_y_and_or[i]
+            tmp_flag = True
+            i+=1
+        if cond_flag is False:
+            return False
         monster_condition_val = monster_condition["field_x"]
         field_x_operators = monster_condition["field_x_operator"]
         field_x_and_or = monster_condition["field_x_and_or"]
