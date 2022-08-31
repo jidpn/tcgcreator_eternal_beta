@@ -49648,6 +49648,7 @@ class DuelObj:
         strategy_up_or_down = 0,
         min = 0,
         min_flag = False,
+         equation_kind = "number"
     ):
         if num == 0:
             return [],0
@@ -49726,6 +49727,7 @@ class DuelObj:
                     tmp2["y"] = y
                     tmp2["strategy_value"] = 0
                     tmp2["place_unique_id"] = None
+                    tmp2["variable"] = 1
                 elif field[x][y]["det"] is not None and whether_monster_flag  :
                     if strategy != "": 
                         if strategy in field[x][y]["det"]["variables"]:
@@ -49740,6 +49742,10 @@ class DuelObj:
                         )
                     else:
                         value = 0
+                    if equation_kind == "number":
+                        variable = 1
+                    else:
+                        field[x][y]["det"]["variables"][equation_kind]["value"]
                     tmp2 = {}
                     tmp2["det"] = field[x][y]["det"]
                     tmp2["mine_or_other"] = field[x][y]["mine_or_other"]
@@ -49749,6 +49755,7 @@ class DuelObj:
                     tmp2["x"] = x
                     tmp2["y"] = y
                     tmp2["strategy_value"] = value
+                    tmp2["variable"] = variable
                     tmp2["place_unique_id"] = field[x][y]["det"]["place_unique_id"]
                     if not self.check_monster_condition_det(
                         monster_effect_det, field[x][y]["det"], user, effect_kind, 1, "field", 0, x, y
@@ -50692,6 +50699,7 @@ class DuelObj:
            max = self.calculate_boland(
                monster_effect_det["max_equation_number"]
            )
+           equation_kind = monster_effect_det["equation"]["equation_kind"]
            if "min_flag" in monster_effect_det :
                min_flag = monster_effect_det["min_flag"]
            else:
@@ -50750,7 +50758,8 @@ class DuelObj:
                                    strategy,
                                    strategy_up_or_down,
                    min,
-                   min_flag
+                   min_flag,
+                   equation_kind
                               )
                               )
                               min -= count
@@ -50769,7 +50778,8 @@ class DuelObj:
                                    strategy,
                                    strategy_up_or_down,
                    min,
-                   min_flag
+                   min_flag,
+                   equation_kind
                                   )
                               )
                               result.extend(tmp)
@@ -50790,7 +50800,8 @@ class DuelObj:
                                    strategy,
                                    strategy_up_or_down,
                    min,
-                   min_flag
+                   min_flag,
+                   equation_kind
                                )
                                result.extend(tmp)
                                min -= count
@@ -50809,7 +50820,8 @@ class DuelObj:
                                    strategy,
                                    strategy_up_or_down,
                    min,
-                   min_flag
+                   min_flag,
+                   equation_kind
                                   )
                               )
                               result.extend(tmp)
@@ -50831,7 +50843,8 @@ class DuelObj:
                                            strategy,
                                            strategy_up_or_down,
                    min,
-                   min_flag
+                   min_flag,
+                   equation_kind
                                        )
                                    )
                                    result.extend(tmp)
@@ -50851,7 +50864,8 @@ class DuelObj:
                                       strategy,
                                       strategy_up_or_down,
                    min,
-                   min_flag
+                   min_flag,
+                   equation_kind
                                   )
                               )
                               result.extend(tmp)
@@ -50872,7 +50886,8 @@ class DuelObj:
                    strategy,
                    strategy_up_or_down,
                    min,
-                   min_flag
+                   min_flag,
+                   equation_kind
                )
                            result.extend(tmp)
                            min -= count
@@ -51010,7 +51025,8 @@ class DuelObj:
                                            strategy,
                                            strategy_up_or_down,
                    min,
-                   min_flag
+                   min_flag,
+                   equation_kind
                                    )
                                )
                                result.extend(tmp)
@@ -51028,7 +51044,8 @@ class DuelObj:
                                            strategy,
                                            strategy_up_or_down,
                    min,
-                   min_flag
+                   min_flag,
+                   equation_kind
                                   )
                               )
                               result.extend(tmp)
@@ -51051,7 +51068,8 @@ class DuelObj:
                                            strategy,
                                            strategy_up_or_down,
                    min,
-                   min_flag
+                   min_flag,
+                   equation_kind
                                   )
                               )
                               result.extend(tmp)
@@ -51072,7 +51090,8 @@ class DuelObj:
                                            strategy,
                                            strategy_up_or_down,
                    min,
-                   min_flag
+                   min_flag,
+                   equation_kind
                                     )
                                 )
                                 result.extend(tmp)
@@ -51094,7 +51113,8 @@ class DuelObj:
                                            strategy,
                                            strategy_up_or_down,
                    min,
-                   min_flag
+                   min_flag,
+                   equation_kind
                                   )
                               )
                               result.extend(tmp)
@@ -51114,7 +51134,8 @@ class DuelObj:
                                            strategy,
                                            strategy_up_or_down,
                                         min,
-                                        min_flag
+                                        min_flag,
+                   equation_kind
                                   )
                               )
                               result.extend(tmp)
@@ -51135,7 +51156,8 @@ class DuelObj:
                    strategy,
                    strategy_up_or_down,
                    min,
-                   min_flag
+                   min_flag,
+                   equation_kind
                )
                            result.extend(tmp)
                            min -= count
@@ -51498,7 +51520,8 @@ class DuelObj:
             strategy = "",
             strategy_up_or_down = 0,
             min = 0,
-            min_flag = False
+            min_flag = False,
+            equation_kind = "number"
     ):
         if num == 0:
             return [],0
@@ -51570,6 +51593,12 @@ class DuelObj:
                     )
                 else:
                     value = 0
+                if equation_kind != "number" :
+                    variable = user_deck["variables"][equation_kind][
+                                    "value"
+                                ]
+                else:
+                    variable = 1
                 tmp2 = {}
                 tmp2["det"] = user_deck
                 tmp2["mine_or_other"] = mine_or_other
@@ -51580,13 +51609,15 @@ class DuelObj:
                 tmp2["y"] = 0
                 tmp2["place_unique_id"] = user_deck["place_unique_id"]
                 tmp2["strategy_value"] = value
+                tmp2["variable"] = variable
                 return_value.append(tmp2)
         return_value = sorted(return_value, key=lambda x: x["strategy_value"], reverse=strategy_up_or_down)
         return_value3 = []
         for return_value2 in return_value:
                 del return_value2["strategy_value"]
+                counter += return_value2["variable"]
+                del return_value2["variable"]
                 return_value3.append(return_value2)
-                count += 1
                 if count >= min and min_flag is True:
                     return return_value3,count
                 if count >= num:
@@ -51606,7 +51637,8 @@ class DuelObj:
             strategy = None,
             strategy_up_or_down = 0,
             min = 0,
-            min_flag = False
+            min_flag = False,
+            equation_kind = "number"
     ):
         if num == 0:
             return [],0;
@@ -51678,6 +51710,12 @@ class DuelObj:
                     )
                 else:
                     value = 0
+                if equation_kind != "number" :
+                    variable = user_grave["det"]["variables"][equation_kind][
+                                    "value"
+                                ]
+                else:
+                    variable = 1
                 tmp2 = {}
                 tmp2["det"] = user_grave
                 tmp2["mine_or_other"] = mine_or_other
@@ -51688,13 +51726,15 @@ class DuelObj:
                 tmp2["y"] = 0
                 tmp2["place_unique_id"] = user_grave["place_unique_id"]
                 tmp2["strategy_value"] = value
+                tmp2["variable"] = variable
                 return_value.append(tmp2)
         return_value = sorted(return_value, key=lambda x: x["strategy_value"], reverse=strategy_up_or_down)
         return_value3 = []
         for return_value2 in return_value:
                 del return_value2["strategy_value"]
+                counter += return_value2["variable"]
+                del return_value2["variable"]
                 return_value3.append(return_value2)
-                count += 1
                 if count >= min and min_flag is True:
                     return return_value3,count
                 if count >= num:
@@ -51715,7 +51755,8 @@ class DuelObj:
             strategy = "",
             strategy_up_or_down = 0,
             min = 0,
-            min_flag = False
+            min_flag = False,
+            equation_kind = "number"
     ):
         if num == 0:
             return [],0
@@ -51787,6 +51828,11 @@ class DuelObj:
                     )
                 else:
                     value = 0
+                if equation_kind != "number" :
+                    variable = user_hand["variables"][equation_kind][
+                                    "value"
+                                ]
+                else: variable = 1
                 tmp2 = {}
                 tmp2["det"] = user_hand
                 tmp2["mine_or_other"] = mine_or_other
@@ -51797,6 +51843,7 @@ class DuelObj:
                 tmp2["y"] = 0
                 tmp2["place_unique_id"] = user_hand["place_unique_id"]
                 tmp2["strategy_value"] = value
+                tmp2["variable"] = variable
                 return_value.append(tmp2)
         
         return_value = sorted(return_value, key=lambda x: x["strategy_value"], reverse=strategy_up_or_down)
