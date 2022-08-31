@@ -49,6 +49,8 @@ def ask_place(request):
             return HttpResponseRedirect(reverse("watch_battle"))
     if duel.winner != 0 or duel.winner_ai != 0:
         return HttpResponse("end")
+    pprint(duel.ask2)
+    pprint(duel.ask)
 
     if duel.user_1 == request.user or (ID1 == ID and duel.guest_flag):
         user = 1
@@ -80,9 +82,11 @@ def ask_place(request):
                     return battle_det(request, duelobj)
                 return wait_choose_trigger(duel, 1, room_number, duel.ask, decks, graves, hands)
         elif duel.ask2 == 6  and duel.ask == 0 and duel.retrieve == 0:
+            pprint("AAA")
             if duel.user_turn == 2:
                 return choose_trigger(duel, 1, room_number, duel.ask2, decks, graves, hands)
             else:
+                pprint("AAA")
                 if duel.is_ai is True:
                     duelobj.init_all(user, other_user, room_number)
                     duelobj.check_eternal_effect( decks, graves, hands, duel.phase, duel.user_turn, user, other_user
@@ -124,6 +128,7 @@ def ask_place(request):
             else:
                 return wait_choose_trigger(duel, 2, room_number, duel.ask, decks, graves, hands)
         elif duel.ask2 == 6 and duel.ask == 0 and duel.retrieve == 0:
+            pprint("BBB")
             if duel.user_turn == 1:
                 if duel.is_ai is False:
                     return choose_trigger(duel, 2, room_number, duel.ask2, decks, graves, hands)
@@ -2229,12 +2234,12 @@ def choose_trigger(duel, user, room_number, ask, decks, graves, hands):
      tmp_return["force"] = force
      if len(return_trigger) == 0:
         if len(trigger_waiting_json) == 0:
-            duel.ask = 0
+            duel.ask2 = 0
         else:
             if duel.user_turn == user:
-                duel.ask = 6
+                duel.ask2 = 6
             else:
-                duel.ask = 5
+                duel.ask2 = 5
         duel.save()
         return HttpResponse("wait_choose_trigger")
 

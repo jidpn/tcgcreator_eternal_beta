@@ -161,7 +161,7 @@ def battle_det(request, duelobj=None, choices=None):
     # 相手番でも一回は様子をみる
     if room_number == 1:
         if lock.lock_1 is True and time() - lock.time_1 < 20:
-            if duel.is_ai == False or not "wait_ai" in request.POST or duel.user_turn == 1 or duel.ask != 0:
+            if duel.is_ai == False or not "wait_ai" in request.POST or duel.user_turn == 1 or duel.ask != 0 or duel.ask2 != 0:
                 return HttpResponse("waiting")
             else:
                 decks = Deck.objects.all()
@@ -192,7 +192,7 @@ def battle_det(request, duelobj=None, choices=None):
             lock.save()
     elif room_number == 2:
         if lock.lock_2 is True and time() - lock.time_2 < 20:
-            if duel.is_ai == False or not "wait_ai" in request.POST or duel.user_turn == 1 or duel.ask != 0 or duel.ask != 0:
+            if duel.is_ai == False or not "wait_ai" in request.POST or duel.user_turn == 1 or duel.ask != 0 or duel.ask2 != 0:
                 return HttpResponse("waiting")
             else:
                 decks = Deck.objects.all()
@@ -282,7 +282,7 @@ def battle_det(request, duelobj=None, choices=None):
                     )
                     answer_ai_choose_trigger(duelobj,duel, 2, room_number, duel.ask2, decks, graves, hands)
         if duel.user_turn == 2:
-            if duel.ask == 5 and duel.ask == 0 and duel.retrieve == 0:
+            if duel.ask2 == 5 and duel.ask == 0 and duel.retrieve == 0:
                     duelobj.check_eternal_effect(
                         decks, graves, hands, duel.phase, duel.user_turn, user, other_user
                     )
@@ -1057,6 +1057,7 @@ def battle_det(request, duelobj=None, choices=None):
                          and duel.appoint == user
                          and duelobj.check_wait(user))
                     or duel.ask != 0
+                    or duel.ask2 != 0
                     or duel.winner != 0
                     or duel.winner_ai != 0
                 ):
@@ -1531,7 +1532,7 @@ def answer_ai_choose_trigger(duelobj,duel,user,room_number,ask,decks,graves,hand
              duel.already_choosed = 1
              duel.trigger_waiting = "[]"
              duel.in_trigger_waiting = False
-             duel.ask = 0
+             duel.ask2 = 0
              return
      tmp_priority = trigger_waitings[0]["priority"]
      if config is None:

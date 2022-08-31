@@ -3069,11 +3069,13 @@ function sendAnswerAll(){
         return_value.push(tmp);
 
         }
+				   /*
     if(return_value.length <min_equation_number || return_value.length >max_equation_number){
         alert("選択できるのは"+min_equation_number+"以上"+max_equation_number+"以下です");
 
         return;
     }
+	*/
     var answer = JSON.stringify(return_value);
     Success2();
     $('#choosing_area').hide();
@@ -3315,11 +3317,13 @@ function sendAnswer(){
             }
         }
     }
+				   /*
     if(return_value.length <min_equation_number || return_value.length >max_equation_number){
         alert("選択できるのは"+min_equation_number+"以上"+max_equation_number+"以下です");
 
         return;
     }
+	*/
     answer = JSON.stringify(return_value);
     Success2();
     $('#choosing_area').hide();

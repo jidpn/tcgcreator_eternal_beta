@@ -9117,17 +9117,6 @@ class DuelObj:
 
         self.update = True
         self.trigger_waiting_for_ai = []
-        if len(available_trigger)  > 1 or trigger_num :
-            if self.config.order != 0 and duel.already_choosed != 1 and duel.trigger_waiting != "[]" and duel.ask2 == 0:
-                duel.ask2 = 4
-                return_value.append(None)
-                return_value.append(duel.current_priority)
-                return_value.append(0)
-                return return_value
-            elif self.config.order == 0 or duel.already_choosed == 1:
-                self.invoke_trigger_waiting(None,duel.current_priority ,0)
-            if duel.appoint == 2 and duel.is_ai is True:
-                self.invoke_trigger_waiting(None,0,2)
         if len(available_trigger) > 1 and (self.duel.is_ai is False or user == 1):
             return_value.append(available_trigger)
             return_value.append(priority)
@@ -49049,6 +49038,19 @@ class DuelObj:
                     flag = False
                 elif flag is False:
                     flag = False
+        else:
+            if variable_counter >= self.calculate_boland(
+                min_equation_number, under_monster2
+            ) and variable_counter <= self.calculate_boland(max_equation_number, under_monster2):
+                if and_or == "or":
+                    flag = True
+                elif flag is True:
+                    flag = True
+            else:
+                if and_or == "and":
+                    flag = False
+                elif flag is False:
+                    flag = False
         return flag
 
     def get_all_under(self, monster):
@@ -50892,88 +50894,6 @@ class DuelObj:
                            result.extend(tmp)
                            min -= count
                            max-=count
-                           '''
-                           current_and_or = "or"
-                           if self.field_free is True:
-                               field_x = 20
-                           else:
-                               field_x = field_size.field_x
-                           for x in range(field_x):
-                               for y in range(field_size.field_y):
-                                   flag_field_place = False
-                                   if self.field_free is False:
-                                       kind = field[x][y]["kind"]
-                                   else:
-                                       kind = field[0][y]["kind"]
-                                   if kind != "":
-                                       tmp = kind.split("_")
-                                   else:
-                                       tmp = []
-                                   if current_and_or == "and":
-                                       if place_tmp[1] in tmp:
-                                           if flag_field_place is True:
-                                               flag_field_place = True
-                                       else:
-                                           flag_field_place = False
-                                   elif current_and_or == "or":
-                                       if place_tmp[1] in tmp:
-                                           flag_field_place = True
-                                       else:
-                                           if flag_field_place is False:
-                                               flag_field_place = False
-                                   mine_or_other = int(place_tmp[2])
-                                   if (
-                                           mine_or_other == 1
-                                           and user == 1
-                                           or mine_or_other == 2
-                                           and user == 2
-                                   ):
-                                       mine_or_other = 1
-                                   elif (
-                                           mine_or_other == 1
-                                           and user == 2
-                                           or mine_or_other == 2
-                                           and user == 1
-                                   ):
-                                       mine_or_other = 2
-                                   else:
-                                       mine_or_other = 3
-
-                                   if flag_field_place is False:
-                                       continue
-                                   if field[x][y]["mine_or_other"] != mine_or_other:
-                                       continue
-                                   if field[x][y]["det"] is not None:
-                                       if self.check_not_effected(
-                                               field[x][y]["det"],
-                                               user,
-                                               effect_kind,
-                                               "field",
-                                               0,
-                                               x,
-                                               y,
-                                               field[x][y]["mine_or_other"],
-                                       ):
-                                           continue
-                                       tmp2 = {}
-                                       tmp2["det"] = field[x][y]["det"]
-                                       tmp2["mine_or_other"] = field[x][y]["mine_or_other"]
-                                       tmp2["user"] = user
-                                       tmp2["place"] = "field"
-                                       tmp2["deck_id"] = 0
-                                       tmp2["x"] = x
-                                       tmp2["y"] = y
-                                       tmp3  = field[x][y]["det"]["place_unique_id"]
-                                       tmp2["place_unique_id"] = field[x][y]["det"][
-                                           "place_unique_id"
-                                       ]
-                                       if not self.check_monster_condition_det(
-                                               monster_effect_det, field[x][y]["det"], user, effect_kind, 1, "field", x, y, 0,field[x][y]["mine_or_other"]
-                                       ):
-                                           continue
-                                       result.append(tmp2)
-                                       max -=1
-                       '''
            else:
                if (counter == 2 and ask_org == 3) or ask_org == 2:
                    place_array = []
@@ -51162,97 +51082,6 @@ class DuelObj:
                            result.extend(tmp)
                            min -= count
                            max -=count
-                           '''
-                           current_and_or = "or"
-                           if self.field_free is True:
-                               field_x = 20
-                           else:
-                               field_x = field_size.field_x
-                           for x in range(field_x):
-                               for y in range(field_size.field_y):
-                                   flag_field_place = False
-                                   if self.field_free is False:
-                                       kind = field[x][y]["kind"]
-                                   else:
-                                       kind = field[0][y]["kind"]
-                                   if kind != "":
-                                       tmp = kind.split("_")
-                                   else:
-                                       tmp = []
-                                   if current_and_or == "and":
-                                       if place_tmp[1] in tmp:
-                                           if flag_field_place is True:
-                                               flag_field_place = True
-                                       else:
-                                           flag_field_place = False
-                                   elif current_and_or == "or":
-                                       if place_tmp[1] in tmp:
-                                           flag_field_place = True
-                                       else:
-                                           if flag_field_place is False:
-                                               flag_field_place = False
-                                   mine_or_other = int(place_tmp[2])
-                                   if (
-                                           mine_or_other == 1
-                                           and user == 1
-                                           or mine_or_other == 2
-                                           and user == 2
-                                   ):
-                                       mine_or_other = 1
-                                   elif (
-                                           mine_or_other == 1
-                                           and user == 2
-                                           or mine_or_other == 2
-                                           and user == 1
-                                   ):
-                                       mine_or_other = 2
-                                   else:
-                                       mine_or_other = 3
-                   
-                                   if flag_field_place is False:
-                                       continue
-                                   if field[x][y]["mine_or_other"] != mine_or_other:
-                                       continue
-                                   if field[x][y]["det"] is not None:
-                                       if self.check_not_effected(
-                                               field[x][y]["det"],
-                                               user,
-                                               effect_kind,
-                                               "field",
-                                               0,
-                                               x,
-                                               y,
-                                               field[x][y]["mine_or_other"],
-                                       ):
-                                           continue
-                                       tmp2 = {}
-                                       tmp2["det"] = field[x][y]["det"]
-                                       tmp2["mine_or_other"] = field[x][y]["mine_or_other"]
-                                       tmp2["user"] = user
-                                       tmp2["place"] = "field"
-                                       tmp2["deck_id"] = 0
-                                       tmp2["x"] = x
-                                       tmp2["y"] = y
-                                       tmp3  = field[x][y]["det"]["place_unique_id"]
-                                       tmp2["place_unique_id"] = field[x][y]["det"][
-                                           "place_unique_id"
-                                       ]
-                                       if not self.check_monster_condition_det(
-                                               monster_effect_det, field[x][y]["det"], user, effect_kind, 1, "field", x, y, 0,field[x][y]["mine_or_other"]
-                                       ):
-                                           continue
-                                       if strategy == "" or strategy is None:
-                                           if max >= 1:
-                                               result.append(tmp2)
-                                               max -= 1
-                                       else:
-                                           result.append(tmp2)
-
-                                '''
-        '''
-        if strategy != "" and strategy is not None:
-            result = self.get_result_with_strategy(result,strategy,strategy_up_or_down,max)
-        '''
         as_monster_effect = monster_effect_det["as_monster_condition"]
         if as_monster_effect[0] == "%":
             timing_mess = self.timing_mess
@@ -51282,69 +51111,6 @@ class DuelObj:
                 as_monster_effect
                 ].append(tmp2)
             self.mess[str(duel.chain-1)] = mess
-    '''
-    def get_result_with_strategy(self,result,strategy,strategy_up_or_down,max):
-        if len(result)<=max:
-            return result
-        return_result = []
-        for i in range(len(max)):
-            name = self.check_swap_val(
-                result[i]["det"],
-                result[i]["mine_or_other"],
-                result[i]["place"],
-                result[i]["deck_id"],
-                result[i]["x"],
-                result[i]["y"],
-                strategy,
-                result[i]["det"]["mine_or_other"],
-            )
-            value = self.check_change_val(
-                result[i]["det"],
-                result[i]["mine_or_other"],
-                result[i]["place"],
-                result[i]["deck_id"],
-                result[i]["x"],
-                result[i]["y"],
-                name,
-                result[i]["mine_or_other"],
-            )
-            return_result.append(result[i])
-            return_result_value.append(value)
-        for j in range(i,len(result)):
-            name = self.check_swap_val(
-                result[j]["det"],
-                result[j]["mine_or_other"],
-                result[j]["place"],
-                result[j]["deck_id"],
-                result[j]["x"],
-                result[j]["y"],
-                strategy,
-                result[j]["det"]["mine_or_other"],
-            )
-            value = self.check_change_val(
-                result[j]["det"],
-                result[j]["mine_or_other"],
-                result[j]["place"],
-                result[j]["deck_id"],
-                result[j]["x"],
-                result[j]["y"],
-                name,
-                result[j]["mine_or_other"],
-            )
-            if strategy_up_or_down == 0:
-                for k in len(return_result):
-                    if value > return_result_value[k]:
-                        return_result_value[k] = value
-                        return_result[k] = result[j]
-                        break
-            elif strategy_up_or_down == 1:
-                for k in len(return_result):
-                    if value < return_result_value[k]:
-                        return_result_value[k] = value
-                        return_result[k] = result[j]
-                        break
-        return return_result
-        '''
     def show_as(
             self, user, effect_kind, monster_effect_text, monster_condition, sentence, prompt
     ):
@@ -51599,6 +51365,7 @@ class DuelObj:
                                 ]
                 else:
                     variable = 1
+                pprint(variable)
                 tmp2 = {}
                 tmp2["det"] = user_deck
                 tmp2["mine_or_other"] = mine_or_other
@@ -51615,7 +51382,7 @@ class DuelObj:
         return_value3 = []
         for return_value2 in return_value:
                 del return_value2["strategy_value"]
-                counter += return_value2["variable"]
+                count += int(return_value2["variable"])
                 del return_value2["variable"]
                 return_value3.append(return_value2)
                 if count >= min and min_flag is True:
@@ -51732,7 +51499,7 @@ class DuelObj:
         return_value3 = []
         for return_value2 in return_value:
                 del return_value2["strategy_value"]
-                counter += return_value2["variable"]
+                count += int(return_value2["variable"])
                 del return_value2["variable"]
                 return_value3.append(return_value2)
                 if count >= min and min_flag is True:
@@ -51832,7 +51599,8 @@ class DuelObj:
                     variable = user_hand["variables"][equation_kind][
                                     "value"
                                 ]
-                else: variable = 1
+                else: 
+                    variable = 1
                 tmp2 = {}
                 tmp2["det"] = user_hand
                 tmp2["mine_or_other"] = mine_or_other
@@ -51850,8 +51618,9 @@ class DuelObj:
         return_value3 = []
         for return_value2 in return_value:
                 del return_value2["strategy_value"]
+                count += int(return_value2["variable"])
+                del return_value2["variable"]
                 return_value3.append(return_value2)
-                count += 1
                 if count >= min and min_flag is True:
                     return return_value3,count
                 if count >= num:

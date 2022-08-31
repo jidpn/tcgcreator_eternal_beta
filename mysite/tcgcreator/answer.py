@@ -4609,9 +4609,24 @@ def answer_det(duelobj, duel, user, answer_json, request, del_ask, lock,ID1,ID2)
     else:
         whether_monster = 0
     monster_effect_text = monster_effect_text["monster"]
-    if len(answer) < duelobj.calculate_boland(
+    variety = []
+    counter = 0
+    for tmp in answer:
+        if monster_effect_text[0]["equation"]["equation_kind"] == "x":
+            counter += tmp["x"]
+        elif monster_effect_text[0]["equation"]["equation_kind"] == "y":
+            counter += tmp["y"]
+        elif monster_effect_text[0]["equation"]["equation_kind"] == "kind":
+            if tmp["id"] not in variety:
+                variety.append(tmp["id"]) 
+        else :
+            counter += int(tmp["variables"][monster_effect_text[0]["equation"]["equation_kind"]]["value"])
+    if monster_effect_text[0]["equation"]["equation_kind"] == "kind":
+        counter = len(variety)
+
+    if counter < duelobj.calculate_boland(
         monster_effect_text[0]["min_equation_number"], None, other_user_flag
-    ) or len(answer) > duelobj.calculate_boland(
+    ) or counter > duelobj.calculate_boland(
         monster_effect_text[0]["max_equation_number"], None, other_user_flag
     ):
         return HttpResponse("error")
