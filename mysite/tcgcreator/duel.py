@@ -1263,11 +1263,11 @@ class DuelObj:
                     condition["monster"],
                     condition["mine_or_other"],
                     effect_kind,
-                    conditoin["place"],
+                    condition["place"],
                     condition["deck_id"],
-                    conditoin["x"],
-                    conditioon["y"],
-                    conditoin["mine_or_other"],
+                    condition["x"],
+                    condition["y"],
+                    condition["mine_or_other"],
                 ):
                     if mode == 4:
                         return 0
@@ -1285,6 +1285,15 @@ class DuelObj:
                         return False
 
         for not_effected in condition:
+            this_monster = {}
+            this_monster["det"] = not_effected["monster"]
+            this_monster["mine_or_other"] = not_effected["mine_or_other"]
+            this_monster["user"] = not_effected["user"]
+            this_monster["place"] = not_effected["place"]
+            this_monster["deck_id"] = not_effected["deck_id"]
+            this_monster["x"] = not_effected["x"]
+            this_monster["y"] = not_effected["y"] 
+            this_monster["place_unique_id"] = monster["place_unique_id"]
             if "place_unique_id" not in not_effected:
                 not_effected["place_unique_id"] = ""
             if "tmp_val" in not_effected:
@@ -1661,6 +1670,7 @@ class DuelObj:
                                     0,
                                     0,
                                     not_effected["place_unique_id"],
+                                    monster_check = this_monster,
                                     name_flag = name_flag
                                 ):
                                     if mode == 4:
@@ -1722,6 +1732,7 @@ class DuelObj:
                                         0,
                                         0,
                                         not_effected["place_unique_id"],
+                                        monster_check = this_monster,
                                         name_flag = name_flag
                                 ):
                                     if mode == 4:
@@ -1784,6 +1795,7 @@ class DuelObj:
                                 mine_or_other,
                                 0,
                                 not_effected["place_unique_id"],
+                                monster_check = this_monster,
                                 name_flag = name_flag
                             ):
                                 if mode == 4:
@@ -2051,6 +2063,224 @@ class DuelObj:
                 != monster["turncount"]
             ):
                 return False
+
+        monster_condition_val = monster_condition["field_y"]
+        for cond_det in monster_condition_val:
+            cond_flag = True
+            current_and_or = "and"
+            tmp_flag = True
+
+            for cond_val in cond_det:
+                if not cond_val:
+                    continue
+                name = self.check_swap_val(
+                    monster, user, place, deck_id, x, y, cond_val["name"], -1
+                )
+                name2 = self.check_swap_init_val(
+                    monster, user, place, deck_id, x, y, cond_val["name"], -1
+                )
+                tmp = monster["variables"][name2]
+                if not cond_val["num"].isnumeric() and not self.special_val(cond_val["num"][0]):
+                    value = self.check_change_val(
+                        monster, user, place, deck_id, x, y, name, mine_or_other,tmp["value"])
+                    if value.isnumeric():
+                        if cond_val["operator"] == "!=":
+                            tmp_flag = True
+                        else:
+                            tmp_flag = False
+                        if current_and_or == "and":
+                            if cond_flag is True:
+                                cond_flag = tmp_flag
+                            else:
+                                cond_flag = False
+                        else:
+                            if cond_flag is True:
+                                cond_flag = True
+                            else:
+                                cond_flag = tmp_flag
+                        current_and_or = cond_val["and_or"]
+                        continue
+                    else:
+                        if cond_val["operator"] == "=":
+                            if value == cond_val["num"]:
+                                tmp_flag = True
+                            else:
+                                tmp_flag = False
+                        elif cond_val["operator"] == "":
+                            values = value.split("_")
+                            if cond_val["num"] in values:
+                                tmp_flag = True
+                            else:
+                                tmp_flag = False
+                        elif cond_val["operator"] == "!=":
+                            if value == cond_val["num"]:
+                                tmp_flag = False
+                            else:
+                                tmp_flag = True
+                        if current_and_or == "and":
+                            if cond_flag is True:
+                                cond_flag = tmp_flag
+                            else:
+                                cond_flag = False
+                        else:
+                            if cond_flag is True:
+                                cond_flag = True
+                            else:
+                                cond_flag = tmp_flag
+                        current_and_or = cond_val["and_or"]
+                        continue
+                if not tmp["value"].isnumeric():
+                    value = self.check_change_val(
+                        monster, user, place, deck_id, x, y, name, mine_or_other,tmp["value"])
+                    if cond_val["operator"] == "!=":
+                        if cond_val["num"] == value["value"]:
+                            tmp_flag = False
+                        else:
+                            tmp_flag = True
+                    elif cond_val["operator"] == "":
+                        values = value.split("_")
+                        if cond_val["num"] in values:
+                            tmp_flag = True
+                        else:
+                            tmp_flag = False
+
+                    elif cond_val["operator"] != "=":
+                        tmp_flag = False
+                    else:
+                        if cond_val["num"] == value:
+                            tmp_flag = True
+                        else:
+                            tmp_flag = False
+                    if current_and_or == "and":
+                        if cond_flag is True:
+                            cond_flag = tmp_flag
+                        else:
+                            cond_flag = False
+                    else:
+                        if cond_flag is False:
+                            cond_flag = tmp_flag
+                        else:
+                            cond_flag = True
+                    current_and_or = cond_val["and_or"]
+                    continue
+                if cond_val["init"] == 0:
+                    value = self.check_change_val(
+                        monster, user, place, deck_id, x, y, name, mine_or_other,int(tmp["value"])
+                    )
+                elif cond_val["init"] == 1:
+                    value = tmp["i_val"]
+                elif cond_val["init"] == 2:
+                    value = tmp["i_i_val"]
+                if tmp["minus"] is False and float(value) < 0:
+                    value = 0
+                if cond_val["operator"] == "=": 
+                    if float(value) != self.calculate_boland(
+                        cond_val["num"], monster2, False,other_user_flag2 = other_user_flag2,user =user
+                    ):
+                        tmp_flag = False
+                elif cond_val["operator"] == "":
+                        values = str(value).split("_")
+                        for index in range(len(values)):
+                            values[index] = int(float(values[index]))
+                        if int(cond_val["num"]) not in values:
+                            tmp_flag = False
+                elif cond_val["operator"] == "!==":
+                        values = str(value).split("_")
+                        for index in range(len(values)):
+                            values[index] = int(float(values[index]))
+                        if int(cond_val["num"]) in values:
+                            tmp_flag = False
+                elif cond_val["operator"] == "<=":
+                    if float(value) > self.calculate_boland(
+                        cond_val["num"], monster2, False,other_user_flag2 = other_user_flag2,user =user
+                    ):
+                        tmp_flag = False
+                elif cond_val["operator"] == ">=":
+                    if float(value) < self.calculate_boland(
+                        cond_val["num"], monster2, False,other_user_flag2 = other_user_flag2,user =user
+                    ):
+                        tmp_flag = False
+                elif cond_val["operator"] == "!=":
+                    if float(value) == self.calculate_boland(
+                        cond_val["num"], monster2, False,other_user_flag2 = other_user_flag2,user =user
+                    ):
+                        tmp_flag = False
+                if current_and_or == "and":
+                    if cond_flag is True:
+                        cond_flag = tmp_flag
+                    else:
+                        cond_flag = False
+
+                else:
+                    if cond_flag is False:
+                        cond_flag = tmp_flag
+                    else:
+                        cond_flag = True
+                current_and_or = cond_val["and_or"]
+                tmp_flag = True
+            if cond_flag is False:
+                return False
+        monster_condition_val = monster_condition["field_x"]
+        field_x_operators = monster_condition["field_x_operator"]
+        field_x_and_or = monster_condition["field_x_and_or"]
+        i =0
+        for cond_val in monster_condition_val:
+            cond_flag = True
+            current_and_or = "and"
+            tmp_flag = True
+
+            if not cond_val:
+                continue
+            value = monster["x"]
+            pprint(value)
+            if field_x_operators[i] == "=": 
+                if float(value) != self.calculate_boland(
+                    cond_val, monster2, False,other_user_flag2 = other_user_flag2,user =user
+                ):
+                    tmp_flag = False
+            elif field_x_operators[i] == "":
+                    values = str(value).split("_")
+                    for index in range(len(values)):
+                        values[index] = int(float(values[index]))
+                    if int(cond_val) not in values:
+                        tmp_flag = False
+            elif field_x_operators[i] == "!==":
+                    values = str(value).split("_")
+                    for index in range(len(values)):
+                        values[index] = int(float(values[index]))
+                    if int(cond_val) in values:
+                        tmp_flag = False
+            elif field_x_operators[i] == "<=":
+                if float(value) > self.calculate_boland(
+                    cond_val, monster2, False,other_user_flag2 = other_user_flag2,user =user
+                ):
+                    tmp_flag = False
+            elif field_x_operators[i] == ">=":
+                if float(value) < self.calculate_boland(
+                    cond_val, monster2, False,other_user_flag2 = other_user_flag2,user =user
+                ):
+                    tmp_flag = False
+            elif field_x_operators[i] == "!=":
+                if float(value) == self.calculate_boland(
+                    cond_val, monster2, False,other_user_flag2 = other_user_flag2,user =user
+                ):
+                    tmp_flag = False
+            if current_and_or == "and":
+                if cond_flag is True:
+                    cond_flag = tmp_flag
+                else:
+                    cond_flag = False
+
+            else:
+                if cond_flag is False:
+                    cond_flag = tmp_flag
+                else:
+                    cond_flag = True
+            current_and_or = field_x_and_or[i]
+            tmp_flag = True
+            i+=1
+        if cond_flag is False:
+            return False
         monster_condition_val = monster_condition["monster_condition"]
         for cond_det in monster_condition_val:
             cond_flag = True
@@ -6506,6 +6736,10 @@ class DuelObj:
                 return monster["det"]["monster_name"]
             elif val_name == "place_id":
                 return monster["place_unique_id"]
+            elif val_name == "x":
+                return monster["x"]
+            elif val_name == "y":
+                return monster["y"]
             if val_name != "":
                 tmp2 = monster["det"]["variables"]
                 return_tmp2 = 0
@@ -7401,6 +7635,7 @@ class DuelObj:
                                     global_name,
                                 )
                             else:
+                                pprint(monster)
                                 z = self.get_val_trigger(
                                     z,
                                     monster,
@@ -7459,7 +7694,13 @@ class DuelObj:
                 elif z[0] == "^":
                     z = self.get_val_global(z, other_user_flag, effect_kind,other_user_flag2)
                 else:
-                    z = float(z)
+                    if z[0] == "r":
+                        if user  == 1:
+                            z = float(z[2:])
+                        else:
+                            z = -float(z[2:])
+                    else:
+                        z = float(z)
                 if z == "NoneEffect":
                     return 0
                 if minus_flag == True:
@@ -12176,6 +12417,7 @@ class DuelObj:
         )
         eternals = sorted(eternals, key=lambda x: x["already"], reverse=True)
         eternals = sorted(eternals, key=lambda x: x["priority"], reverse=True)
+        pprint(eternals)
         while True:
             check_ignore_chain = copy.deepcopy(self.check_ignore_chain)
             check_ignore_chain_user_only = copy.deepcopy(self.check_ignore_chain_user_only)
