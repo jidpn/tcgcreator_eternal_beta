@@ -2,6 +2,10 @@ from django.db import models
 from django.contrib.auth.models import (
     User,
 )
+SHOW_IMG = (
+        (0,"画像不使用"),
+        (1,"画像使用"),
+        )
 WIN_OR_LOSE = (
         (0,"なし"),
         (1,"勝利"),
@@ -1848,6 +1852,7 @@ class Config(models.Model):
     return_url = models.CharField(default="",max_length = 128,blank=True)
     shori = models.IntegerField(choices=SHORI, default=1)
     order = models.IntegerField(choices=ORDER, default=0)
+    show_img = models.IntegerField(choices=SHOW_IMG,default = 0,blank = True)
     class Meta:
         db_table = "tcgcreator_config"
 

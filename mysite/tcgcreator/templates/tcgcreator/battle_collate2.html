@@ -280,7 +280,7 @@ table td{
         var sound_effect_ary = [];
     var static_url = "{% get_static_prefix %}/tcgcreator";
     var gray_out = "{{gray_out.monster_variable_name}}";
-    var show_img = true;
+	var show_img = {{Config.show_img}};
     var music= new Audio();
     var music_name ="";
     var sound_effect= new Audio();
@@ -4020,7 +4020,7 @@ success: function(data){
                  $("#"+x+"_"+y).html("&nbsp;");
 	      }else{
              		if(show_img == false){
-					      $("#"+x+"_"+y).html("<div style='background-color:bloack'></div>");
+					      $("#"+x+"_"+y).html("<div style='background-color:black'></div>");
 				}else{
         				var fields = data["field_info"];
 //					var img_url = effect_kind[3]
@@ -5048,12 +5048,23 @@ function makeFields(data,koka,success2){
             for(j=0;j<hands[i]["myhandnum"];j++){
 
                 result+="<td style=\"width:{{Config.card_width}}px\"  >";
+                if(show_img == false){
+                    card_data="<table><tr><td colspan=\"2\">"+hands[i]["myhand"][j]["monster_name"]+"</td></tr>";
+		    var keys = Object.keys(hands[i]["myhand"][j]["variables"]);
+                    for(var l=0;l<keys.length;l++){
+                            card_data += "<tr><td>"+hands[i]["myhand"][j]["variables"][keys[l]]["name"]+"</td><td></td></tr>";
+		    }
+		    card_data+="</table>";
+
+		    }else{
+		  card_data = "<img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"	>"; 
                 img_url = hands[i]["myhand"][j]["img"];
 			     if(hands[i]["myhand"][j]["instead_img"]){
 	             var instead_img = hands[i]["myhand"][j]["instead_img"];
 	        }else{
 	             var instead_img = hands[i]["myhand"][j]["img"];
 	         }
+		   }
                 // 選択中は出さない
                 if(mode == 0){
                     pid.push(hands[i]["myhand"][j]["place_unique_id"]);
@@ -5064,7 +5075,7 @@ function makeFields(data,koka,success2){
                     }
                     if(hands[i]["myhand"][j]["trigger"] != undefined && hands[i]["myhand"][j]["trigger"].length  ){
 		        if(hands[i]["myhand"][j]["trigger"].length == 1){ 
-			    result+="<div"+style+" card_id="+instead_img+" id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a href=\"javascript:sendHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+hands[i]["myhand"][j]["trigger"][0]["id"]+"',1)\"><img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a></div>";
+			    result+="<div"+style+" card_id="+instead_img+" id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a href=\"javascript:sendHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+hands[i]["myhand"][j]["trigger"][0]["id"]+"',1)\">"+card_data+"</a></div>";
                                 result+= "<br><input type=\"button\" onclick=\"sendHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+hands[i]["myhand"][j]["trigger"][0]["id"]+"',1)\" value=\""+hands[i]["myhand"][j]["trigger"][0]["name"]+"\">";
                        }else{
 			       var trigger_ids = "";
@@ -5074,15 +5085,15 @@ function makeFields(data,koka,success2){
 				trigger_names += hands[i]["myhand"][j]["trigger"][k]["name"] + ",";
 				}
 
-			    result+="<div"+style+" card_id="+instead_img+" id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a href=\"javascript:chooseHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+trigger_ids+"','"+trigger_names+"',1,'"+img_url+"')\"><img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a></div>";
+			    result+="<div"+style+" card_id="+instead_img+" id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a href=\"javascript:chooseHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+trigger_ids+"','"+trigger_names+"',1,'"+img_url+"')\"></a></div>";
 			for(var k=0;k<hands[i]["myhand"][j]["trigger"].length;k++){ 
-//			    result+="<div"+style+" card_id="+instead_img+" id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a href=\"javascript:sendHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+hands[i]["myhand"][j]["trigger"][k]["id"]+"',1)\"><img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a></div>";
+//			    result+="<div"+style+" card_id="+instead_img+" id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a href=\"javascript:sendHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+hands[i]["myhand"][j]["trigger"][k]["id"]+"',1)\">"+card_data+"</a></div>";
                                 result+= "<br><input type=\"button\" onclick=\"sendHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+hands[i]["myhand"][j]["trigger"][k]["id"]+"',1)\" value=\""+hands[i]["myhand"][j]["trigger"][k]["name"]+"\">";
 			}
 			}
 	       }else{
                    var style="style='opacity:0.4;background-color:gray'";
-                    result+="<div "+style+" card_id="+instead_img+"  id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a target=\"_blank\" title=\""+hands[i]["myhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain" %}?id="+hands[i]["myhand"][j]["id"]+"\" {% endif %}><img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a></div>";
+                    result+="<div "+style+" card_id="+instead_img+"  id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a target=\"_blank\" title=\""+hands[i]["myhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain" %}?id="+hands[i]["myhand"][j]["id"]+"\" {% endif %}>"+card_data+"</a></div>";
 	       	}
                 }else{
                     if(hands[i]["show"] == 4 && checkVal(hands[i]["myhand"][j],"show") == 0){
@@ -5091,7 +5102,7 @@ function makeFields(data,koka,success2){
                         var style="";
                     }
                     pid.push(hands[i]["myhand"][j]["place_unique_id"]);
-                    result+="<div "+style+" card_id="+instead_img+"  id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a target=\"_blank\" title=\""+hands[i]["myhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain" %}?id="+hands[i]["myhand"][j]["id"]+"\" {% endif %}><img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a></div>";
+                    result+="<div "+style+" card_id="+instead_img+"  id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a target=\"_blank\" title=\""+hands[i]["myhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain" %}?id="+hands[i]["myhand"][j]["id"]+"\" {% endif %}>"+card_data+"</a></div>";
                 }
                 result+="</td>";
             }
