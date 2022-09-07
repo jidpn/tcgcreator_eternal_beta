@@ -4619,7 +4619,9 @@ def answer_det(duelobj, duel, user, answer_json, request, del_ask, lock,ID1,ID2)
         elif monster_effect_text[0]["equation"]["equation_kind"] == "kind":
             if tmp["id"] not in variety:
                 variety.append(tmp["id"]) 
-        else :
+        elif monster_effect_text[0]["equation"]["equation_kind"] == "number":
+            counter += 1
+        else:
             counter += int(tmp["variables"][monster_effect_text[0]["equation"]["equation_kind"]]["value"])
     if monster_effect_text[0]["equation"]["equation_kind"] == "kind":
         counter = len(variety)

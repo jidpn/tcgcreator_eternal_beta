@@ -193,6 +193,15 @@ table .field{
     border-collapse:collapse;
     font-size:12px;
 }
+table .character{
+     color:#000000;
+     background-color:white;
+     border:1px solid;
+}
+table .character td{
+     color:#000000;
+     background-color:white;
+}
 table .card td{
     border-collapse:separate;
     border:1px solid;
@@ -1011,7 +1020,8 @@ function ask_det2(type,k,l,under_id = ""){
     }
     min_equation_number = data["min_equation_number"];
     max_equation_number = data["max_equation_number"];
-    if(global_all_result.length == max_equation_number){
+	kind_flag = data["kind_flag"];
+    if(global_all_result.length == max_equation_number && kind_flag == false){
         sendAnswer();
         return;
     }
@@ -1060,14 +1070,34 @@ function ask_det2(type,k,l,under_id = ""){
                 if($.inArray(deck_i+"_"+j,global_answer_deck) == -1){
                     if(Validate(data[i]["cards"][j])){
 			deck_flag = true;
+                        pid.push(data[i]["cards"][j]["place_unique_id"]);
+                if(show_img == false){
+	            var instead_img = "";
+                    card_data="<a href=\"javascript:ask_det2('deck',"+deck_i+","+j+")\"><table class=\"character\"><td colspan=\"2\">"+data[i]["cards"][j]["monster_name"]+"</td></tr>";
+		    var keys = Object.keys(data[i]["cards"][j]["variables"]);
+                    for(var l=0;l<keys.length;l++){
+		    if(data[i]["cards"][j]["variables"][keys[l]]["show"] == 1){
+		    if(data[i]["cards"][j]["variables"][keys[l]]["kind_id"] == 1){
+                            card_data += "<tr><td>"+data[i]["cards"][j]["variables"][keys[l]]["name"]+data[i]["cards"][j]["variables"][keys[l]]["value"]+"</td><td></td></tr>";
+		    }else{
+		    	   var kind = data[i]["cards"][j]["variables"][keys[l]]["kind"].split("|");
+                            card_data += "<tr><td>"+data[i]["cards"][j]["variables"][keys[l]]["name"]+kind[data[i]["cards"][j]["variables"][keys[l]]["value"]-1]+"</td><td></td></tr>";
+		    }
+		    }
+		    }
+		    card_data+="</table></a>";
+			var instead_img = "";
+			    result_html +="<td><a href=\"javascript:ask_det2('deck',"+deck_i+","+j+")\">"+card_data+"</a>";
+                        //$("#"+data[i]["cards"][j]["place_unique_id"]).html(result_html_cards);
+                    }else{
                         img_url = data[i]["cards"][j]["img"];
 		        if(data[i]["cards"][j]["instead_img"]){
 			    instead_img = data[i]["cards"][j]["instead_img"];
 		      }else{
 			    instead_img = data[i]["cards"][j]["img"];
 		      }
-                        pid.push(data[i]["cards"][j]["place_unique_id"]);
-				      result_html += "<td><a href=\"javascript:ask_det2('deck',"+deck_i+","+j+")\"><img card_id=\""+instead_img+"\"  id=\""+data[i]["cards"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
+			    result_html +="<td><a href=\"javascript:ask_det2('deck',"+deck_i+","+j+")\"><img card_id=\""+instead_img+"\"  id=\"cards"+data[i]["cards"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
+			}
 		        result_html += "<br><input type=\"button\" onclick=\"ask_det2('deck',"+deck_i+","+j+")\" value=\""+global_field_sentence+"\"></td>";
                     }
                 }
@@ -1082,14 +1112,41 @@ function ask_det2(type,k,l,under_id = ""){
                     if(Validate(data[i]["grave"][j])){
 			grave_flag = true;
                         pid.push(data[i]["grave"][j]["place_unique_id"]);
+                if(show_img == false){
+	            var instead_img = "";
+                    card_data="<a href=\"javascript:ask_det2('grave',"+grave_i+","+j+")\"><table class=\"character\"><td colspan=\"2\">"+data[i]["grave"][j]["monster_name"]+"</td></tr>";
+		    var keys = Object.keys(data[i]["grave"][j]["variables"]);
+                    for(var l=0;l<keys.length;l++){
+		    if(data[i]["grave"][j]["variables"][keys[l]]["show"] == 1){
+		    if(data[i]["grave"][j]["variables"][keys[l]]["kind_id"] == 1){
+                            card_data += "<tr><td>"+data[i]["grave"][j]["variables"][keys[l]]["name"]+data[i]["grave"][j]["variables"][keys[l]]["value"]+"</td><td></td></tr>";
+		    }else{
+		    	   var kind = data[i]["grave"][j]["variables"][keys[l]]["kind"].split("|");
+                            card_data += "<tr><td>"+data[i]["grave"][j]["variables"][keys[l]]["name"]+kind[data[i]["grave"][j]["variables"][keys[l]]["value"]-1]+"</td><td></td></tr>";
+		    }
+		    }
+		    }
+		    card_data+="</table></a>";
+			var instead_img = "";
+			    result_html +="<td><a href=\"javascript:ask_det2('grave',"+grave_i+","+j+")\">"+card_data+"</a>";
+			    result_html += "<br><input type=\"button\" onclick=\"ask_det2('grave',"+grave_i+","+j+")\" value=\""+global_field_sentence+"\"></td>";
+                        //$("#"+data[i]["grave"][j]["place_unique_id"]).html(result_html_grave);
+                    }else{
                         img_url = data[i]["grave"][j]["img"];
 		        if(data[i]["grave"][j]["instead_img"]){
 			    instead_img = data[i]["grave"][j]["instead_img"];
 		      }else{
 			    instead_img = data[i]["grave"][j]["img"];
 		      }
-				      result_html += "<td><a  href=\"javascript:ask_det2('grave',"+grave_i+","+j+")\"><img card_id=\""+instead_img+"\"  id=\""+data[i]["grave"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
-		        result_html += "<br><input type=\"button\" onclick=\"ask_det2('grave',"+grave_i+","+j+")\" value=\""+global_field_sentence+"\"></td>";
+			    result_html +="<td><a href=\"javascript:ask_det2('grave',"+grave_i+","+j+")\"><img card_id=\""+instead_img+"\"  id=\"grave"+data[i]["grave"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
+			    result_html += "<td><input type=\"button\" onclick=\"ask_det2('grave',"+grave_i+","+j+")\" value=\""+data[i]["grave"][j]["monster_name"]+"\"></td>";
+			}
+                        img_url = data[i]["grave"][j]["img"];
+		        if(data[i]["grave"][j]["instead_img"]){
+			    instead_img = data[i]["grave"][j]["instead_img"];
+		      }else{
+			    instead_img = data[i]["grave"][j]["img"];
+		      }
                     }
                 }
             }
@@ -1104,17 +1161,37 @@ function ask_det2(type,k,l,under_id = ""){
                     if(Validate(data[i]["hand"][j])){
 			hand_flag = true;
                         pid.push("hand"+data[i]["hand"][j]["place_unique_id"]);
+                if(show_img == false){
+	            var instead_img = "";
+                    card_data="<a href=\"javascript:ask_det2('hand',"+hand_i+","+j+")\"><table class=\"character\"><td colspan=\"2\">"+data[i]["hand"][j]["monster_name"]+"</td></tr>";
+		    var keys = Object.keys(data[i]["hand"][j]["variables"]);
+                    for(var l=0;l<keys.length;l++){
+		    if(data[i]["hand"][j]["variables"][keys[l]]["show"] == 1){
+		    if(data[i]["hand"][j]["variables"][keys[l]]["kind_id"] == 1){
+                            card_data += "<tr><td>"+data[i]["hand"][j]["variables"][keys[l]]["name"]+data[i]["hand"][j]["variables"][keys[l]]["value"]+"</td><td></td></tr>";
+		    }else{
+		    	   var kind = data[i]["hand"][j]["variables"][keys[l]]["kind"].split("|");
+                            card_data += "<tr><td>"+data[i]["hand"][j]["variables"][keys[l]]["name"]+kind[data[i]["hand"][j]["variables"][keys[l]]["value"]-1]+"</td><td></td></tr>";
+		    }
+		    }
+		    }
+		    card_data+="</table></a>";
+			var instead_img = "";
+			    result_html +="<td><a href=\"javascript:ask_det2('hand',"+hand_i+","+j+")\">"+card_data+"</a>";
+			    result_html += "<br><input type=\"button\" onclick=\"ask_det2('hand',"+hand_i+","+j+")\" value=\""+global_field_sentence+"\"></td>";
+                        //$("#"+data[i]["hand"][j]["place_unique_id"]).html(result_html_hand);
+                    }else{
                         img_url = data[i]["hand"][j]["img"];
 		        if(data[i]["hand"][j]["instead_img"]){
 			    instead_img = data[i]["hand"][j]["instead_img"];
 		      }else{
 			    instead_img = data[i]["hand"][j]["img"];
 		      }
-			  	      result_html +="<td><a href=\"javascript:ask_det2('hand',"+hand_i+","+j+")\"><img card_id=\""+instead_img+"\"  id=\"hand"+data[i]["hand"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
-					  result_html += "<br><input type=\"button\" onclick=\"ask_det2('hand',"+hand_i+","+j+")\" value=\""+global_field_sentence+"\"></td>";;
-                        //$("#"+data[i]["hand"][j]["place_unique_id"]).html(result_html_hand);
+			    result_html +="<td><a href=\"javascript:ask_det2('hand',"+hand_i+","+j+")\"><img card_id=\""+instead_img+"\"  id=\"hand"+data[i]["hand"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
+			    result_html += "<td><input type=\"button\" onclick=\"ask_det2('hand',"+hand_i+","+j+")\" value=\""+data[i]["hand"][j]["monster_name"]+"\"></td>";
+			}
+		    }
                     }
-                }
             }
             hand_i++;
 		result_html += "</tr><table>";
@@ -1126,7 +1203,9 @@ function ask_det2(type,k,l,under_id = ""){
         for(i =0;i<pid.length;i++){
                 $("#"+pid[i]).hover(
                     function(){
+			       if($(this).attr("card_id")){
                     $("#card_img").html("<img class=\"explain_card\" src=\""+static_url+"/img/"+$(this).attr("card_id")+"\">");
+					      }
                 },
                     function(){
                     //$("#card_img").html("");
@@ -1408,7 +1487,9 @@ function showChooseMonsterField(monster){
         for(i =0;i<pid.length;i++){
                 $("#"+pid[i]).hover(
                     function(){
+			       if($(this).attr("card_id")){
                     $("#card_img").html("<img class=\"explain_card\" src=\""+static_url+"/img/"+$(this).attr("card_id")+"\">");
+					      }
                 },
                     function(){
                     //$("#card_img").html("");
@@ -1422,6 +1503,7 @@ function ChooseMultiple(data){
     multiple_answer = [];
     min_equation_number = data["min_equation_number"];
     max_equation_number = data["max_equation_number"];
+	kind_flag = data["kind_flag"];
     prompt = data["prompt"];
     double = data["double"];
     user = data["user"];
@@ -1499,7 +1581,7 @@ function ChooseMonsterForMultiple(current_choice){
     }else{
         current_choice_array = [];
     }
-    if(current_choice_array.length>= max_equation_number){
+    if(current_choice_array.length>= max_equation_number && kind_flag == false){
         multiple_answer.push(current_choice_array[0]);
         multiple_number += 1;
         if(global_choosed_monster[multiple_number] == undefined){
@@ -1608,7 +1690,9 @@ function ChooseMonsterForMultiple(current_choice){
         for(i =0;i<pid.length;i++){
                 $("#"+pid[i]).hover(
                     function(){
+			       if($(this).attr("card_id")){
                     $("#card_img").html("<img class=\"explain_card\" src=\""+static_url+"/img/"+$(this).attr("card_id")+"\">");
+					      }
                 },
                     function(){
                     //$("#card_img").html("");
@@ -1636,6 +1720,7 @@ function ask_det(data){
     var tmp_auto = {};
     var tmp,tmp2;
     var tmp_det;
+    let card_data;
     if(data == "end"){
         end_message();
         return;
@@ -1698,7 +1783,8 @@ function ask_det(data){
     global_ask_unders= [];
     min_equation_number = data["min_equation_number"];
     max_equation_number = data["max_equation_number"];
-    if(max_equation_number != min_equation_number){
+	kind_flag = data["kind_flag"];
+    if(max_equation_number != min_equation_number || kind_flag == false){
         auto_flag = false;
     }
     global_field_whether_monster = data["whether_monster"];
@@ -1768,15 +1854,36 @@ function ask_det(data){
             for(j=0;j<data[i]["cards"].length;j++){
 	  	result_html +="<table style=\"display:inline;text-align:center;\"><tr>";
                 if(Validate(data[i]["cards"][j])){
+                        pid.push(data[i]["cards"][j]["place_unique_id"]);
+                if(show_img == false){
+	            var instead_img = "";
+				      card_data="<td><a href=\"javascript:ask_det2('deck',"+deck_i+","+j+")\"><table class=\"character\"><tr><td colspan=\"2\">"+data[i]["cards"][j]["monster_name"]+"</td></tr>";
+		    var keys = Object.keys(data[i]["cards"][j]["variables"]);
+                    for(var l=0;l<keys.length;l++){
+		    if(data[i]["cards"][j]["variables"][keys[l]]["show"] == 1){
+		    if(data[i]["cards"][j]["variables"][keys[l]]["kind_id"] == 1){
+                            card_data += "<tr><td>"+data[i]["cards"][j]["variables"][keys[l]]["name"]+data[i]["cards"][j]["variables"][keys[l]]["value"]+"</td><td></td></tr>";
+		    }else{
+		    	   var kind = data[i]["cards"][j]["variables"][keys[l]]["kind"].split("|");
+                            card_data += "<tr><td>"+data[i]["cards"][j]["variables"][keys[l]]["name"]+kind[data[i]["cards"][j]["variables"][keys[l]]["value"]-1]+"</td><td></td></tr>";
+		    }
+		    }
+		    }
+		    card_data+="</table></a>";
+			var instead_img = "";
+			    result_html +="<td><a href=\"javascript:ask_det2('deck',"+deck_i+","+j+")\">"+card_data+"</a>";
+			    result_html += "<br><input type=\"button\" onclick=\"ask_det2('deck',"+deck_i+","+j+")\" value=\""+global_field_sentence+"\"></td>";
+                        //$("#"+data[i]["cards"][j]["place_unique_id"]).html(result_html_cards);
+                    }else{
                         img_url = data[i]["cards"][j]["img"];
 		        if(data[i]["cards"][j]["instead_img"]){
 			    instead_img = data[i]["cards"][j]["instead_img"];
 		      }else{
 			    instead_img = data[i]["cards"][j]["img"];
 		      }
-                        pid.push(data[i]["cards"][j]["place_unique_id"]);
-				      result_html += "<td><a href=\"javascript:ask_det2('deck',"+deck_i+","+j+")\"><img card_id=\""+instead_img+"\"  id=\""+data[i]["cards"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
-		        result_html += "<br><input type=\"button\" onclick=\"ask_det2('deck',"+deck_i+","+j+")\" value=\""+global_field_sentence+"\"></td>";
+			    result_html +="<td><a href=\"javascript:ask_det2('deck',"+deck_i+","+j+")\"><img card_id=\""+instead_img+"\"  id=\"cards"+data[i]["cards"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
+			    result_html += "<td><input type=\"button\" onclick=\"ask_det2('deck',"+deck_i+","+j+")\" value=\""+data[i]["cards"][j]["monster_name"]+"\"></td>";
+			}
 
                 auto_count++;
                     tmp_auto = {};
@@ -1803,15 +1910,36 @@ function ask_det(data){
 	  result_html +="<table style=\"display:inline;text-align:center;\"><tr>";
             for(j=0;j<data[i]["grave"].length;j++){
                 if(Validate(data[i]["grave"][j])){
+                        pid.push(data[i]["grave"][j]["place_unique_id"]);
+                if(show_img == false){
+	            var instead_img = "";
+				card_data="<td><a href=\"javascript:ask_det2('grave',"+grave_i+","+j+")\"><table class=\"character\"><tr><td colspan=\"2\">"+data[i]["grave"][j]["monster_name"]+"</td></tr>";
+		    var keys = Object.keys(data[i]["grave"][j]["variables"]);
+                    for(var l=0;l<keys.length;l++){
+		    if(data[i]["grave"][j]["variables"][keys[l]]["show"] == 1){
+		    if(data[i]["grave"][j]["variables"][keys[l]]["kind_id"] == 1){
+                            card_data += "<tr><td>"+data[i]["grave"][j]["variables"][keys[l]]["name"]+data[i]["grave"][j]["variables"][keys[l]]["value"]+"</td><td></td></tr>";
+		    }else{
+		    	   var kind = data[i]["grave"][j]["variables"][keys[l]]["kind"].split("|");
+                            card_data += "<tr><td>"+data[i]["grave"][j]["variables"][keys[l]]["name"]+kind[data[i]["grave"][j]["variables"][keys[l]]["value"]-1]+"</td><td></td></tr>";
+		    }
+		    }
+		    }
+		    card_data+="</table></a>";
+			var instead_img = "";
+			    result_html +="<td><a href=\"javascript:ask_det2('grave',"+grave_i+","+j+")\">"+card_data+"</a>";
+			    result_html += "<br><input type=\"button\" onclick=\"ask_det2('grave',"+grave_i+","+j+")\" value=\""+global_field_sentence+"\"></td>";
+                        //$("#"+data[i]["grave"][j]["place_unique_id"]).html(result_html_grave);
+                    }else{
                         img_url = data[i]["grave"][j]["img"];
 		        if(data[i]["grave"][j]["instead_img"]){
 			    instead_img = data[i]["grave"][j]["instead_img"];
 		      }else{
 			    instead_img = data[i]["grave"][j]["img"];
 		      }
-                        pid.push(data[i]["grave"][j]["place_unique_id"]);
 			result_html += "<td><a  href=\"javascript:ask_det2('grave',"+grave_i+","+j+")\"><img card_id=\""+instead_img+"\"  id=\""+data[i]["grave"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
 		        result_html += "<br><input type=\"button\" onclick=\"ask_det2('grave',"+grave_i+","+j+")\" value=\""+global_field_sentence+"\"></td>";
+			}						 
                 auto_count++;
                     tmp_auto = {};
                     tmp_auto["place"] = "grave";
@@ -1844,21 +1972,37 @@ function ask_det(data){
                     tmp_auto["i"] = hands.length;
                     tmp_auto["j"] = j;
                     auto_data.push(tmp_auto);
-                    if($("#"+data[i]["hand"][j]["place_unique_id"]).length>0){
+                if(show_img == false){
+	            var instead_img = "";
+								card_data="<td><a href=\"javascript:ask_det2('hand',"+hand_i+","+j+")\"><table class=\"character\"><tr><td colspan=\"2\">"+data[i]["hand"][j]["monster_name"]+"</td></tr>";
+		    var keys = Object.keys(data[i]["hand"][j]["variables"]);
+                    for(var l=0;l<keys.length;l++){
+		    if(data[i]["hand"][j]["variables"][keys[l]]["show"] == 1){
+		    if(data[i]["hand"][j]["variables"][keys[l]]["kind_id"] == 1){
+                            card_data += "<tr><td>"+data[i]["hand"][j]["variables"][keys[l]]["name"]+data[i]["hand"][j]["variables"][keys[l]]["value"]+"</td><td></td></tr>";
+		    }else{
+		    	   var kind = data[i]["hand"][j]["variables"][keys[l]]["kind"].split("|");
+                            card_data += "<tr><td>"+data[i]["hand"][j]["variables"][keys[l]]["name"]+kind[data[i]["hand"][j]["variables"][keys[l]]["value"]-1]+"</td><td></td></tr>";
+		    }
+		    }
+		    }
+		    card_data+="</table></a>";
+			var instead_img = "";
+                        pid.push("hand"+data[i]["hand"][j]["place_unique_id"]);
+			    result_html +="<td><a href=\"javascript:ask_det2('hand',"+hand_i+","+j+")\">"+card_data+"</a>";
+			    result_html += "<br><input type=\"button\" onclick=\"ask_det2('hand',"+hand_i+","+j+")\" value=\""+global_field_sentence+"\"></td>";
+                        //$("#"+data[i]["hand"][j]["place_unique_id"]).html(result_html_hand);
+                    }else{
                         img_url = data[i]["hand"][j]["img"];
 		        if(data[i]["hand"][j]["instead_img"]){
 			    instead_img = data[i]["hand"][j]["instead_img"];
 		      }else{
 			    instead_img = data[i]["hand"][j]["img"];
 		      }
-                        pid.push("hand"+data[i]["hand"][j]["place_unique_id"]);
 			    result_html +="<td><a href=\"javascript:ask_det2('hand',"+hand_i+","+j+")\"><img card_id=\""+instead_img+"\"  id=\"hand"+data[i]["hand"][j]["place_unique_id"]+"\"  class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a>";
-			    result_html += "<br><input type=\"button\" onclick=\"ask_det2('hand',"+hand_i+","+j+")\" value=\""+global_field_sentence+"\"></td>";
-                        //$("#"+data[i]["hand"][j]["place_unique_id"]).html(result_html_hand);
-                    }else{
 			    result_html += "<td><input type=\"button\" onclick=\"ask_det2('hand',"+hand_i+","+j+")\" value=\""+data[i]["hand"][j]["monster_name"]+"\"></td>";
-                    }
-                }
+			}
+		    }
                 tmp = data[i]["hand"][j];
                 tmp["type"] = "hand";
                 tmp["mine_or_other"] = data[i]["mine_or_other_val"];
@@ -1890,7 +2034,9 @@ function ask_det(data){
         for(i =0;i<pid.length;i++){
                 $("#"+pid[i]).hover(
                     function(){
+			       if($(this).attr("card_id")){
                     $("#card_img").html("<img class=\"explain_card\" src=\""+static_url+"/img/"+$(this).attr("card_id")+"\">");
+					      }
                 },
                     function(){
                     //$("#card_img").html("");
@@ -3317,13 +3463,11 @@ function sendAnswer(){
             }
         }
     }
-				   /*
-    if(return_value.length <min_equation_number || return_value.length >max_equation_number){
+    if((return_value.length <min_equation_number || return_value.length >max_equation_number) && kind_flag == false ){
         alert("選択できるのは"+min_equation_number+"以上"+max_equation_number+"以下です");
 
         return;
     }
-	*/
     answer = JSON.stringify(return_value);
     Success2();
     $('#choosing_area').hide();
@@ -4331,7 +4475,9 @@ success: function(data){
         for(i =0;i<pid.length;i++){
                 $("#"+pid[i]).hover(
                     function(){
+			       if($(this).attr("card_id")){
                     $("#card_img").html("<img class=\"explain_card\" src=\""+static_url+"/img/"+$(this).attr("card_id")+"\">");
+					      	}
                 },
                     function(){
                     //$("#card_img").html("");
@@ -4413,10 +4559,21 @@ success: function(data){
                 }else{
 
                     if(show_img == false){
-                    result="<table><tr><td colspan=\"2\">"+fields[x][y]["det"]["monster_name"]+"</td></tr>";
-                    for(i=0;i<fields[x][y]["det"]["variables"].length;i++){
-                            result += "<tr><td>"+fields[x][y]["det"]["variables"][i]["name"]+"</td><td>"+fields[x][y]["det"]["variables"][i]["str"]+"</td></tr>";
-                    }
+	            var instead_img = "";
+                    var card_data="<table class=\"character\"><tr><td colspan=\"2\">"+fields[x][y]["det"]["monster_name"]+"</td></tr>";
+		    var keys = Object.keys(fields[x][y]["det"]["variables"]);
+                    for(var l=0;l<keys.length;l++){
+		    if(fields[x][y]["det"]["variables"][keys[l]]["show"] == 1){
+		    if(fields[x][y]["det"]["variables"][keys[l]]["kind_id"] == 1){
+                            card_data += "<tr><td>"+fields[x][y]["det"]["variables"][keys[l]]["name"]+fields[x][y]["det"]["variables"][keys[l]]["value"]+"</td><td></td></tr>";
+		    }else{
+		    	   var kind = fields[x][y]["det"]["variables"][keys[l]]["kind"].split("|");
+                            card_data += "<tr><td>"+fields[x][y]["det"]["variables"][keys[l]]["name"]+kind[fields[x][y]["det"]["variables"][keys[l]]["value"]-1]+"</td><td></td></tr>";
+		    }
+		    }
+		}
+		    card_data+="</table>";
+		    result=card_data;
                     }else{
 
                         gray_flag = false;
@@ -4447,11 +4604,13 @@ success: function(data){
                         pid.push(fields[x][y]["det"]["place_unique_id"]);
                         {% if config.up_reverse is False %}
                         var img_url = fields[x][y]["det"]["img"];
+			    if(instead_img == false){
 			if(fields[x][y]["det"]["instead_img"]){
 			     instead_img = fields[x][y]["det"]["instead_img"];
 			}else{
 			     instead_img = fields[x][y]["det"]["img"];
 			 }
+			    }
                         var add_name_html = "";
                             if(fields[x][y]["det"]["under"] != undefined){
                                 under = fields[x][y]["det"]["under"];
@@ -4462,19 +4621,23 @@ success: function(data){
                             if(fields[x][y]["det"]["under"] != undefined){
                                 under = fields[x][y]["det"]["under"];
                                 var img_url = under[0]["img"];
+							 if(instead_img == false){
 			if(under[0]["instead_img"]){
 			     instead_img = under[0]["instead_img"];
 			}else{
 			     instead_img = under[0]["img"];
 			 }
+							   }
                                 add_name_html = "<br>"+fields[x][y]["det"]["monster_name"];
                             }else{
                                 var img_url = fields[x][y]["det"]["img"];
+							 if(instead_img == false){
 			if(fields[x][y]["det"]["instead_img"]){
 			     instead_img = fields[x][y]["det"]["instead_img"];
 			}else{
 			     instead_img = fields[x][y]["det"]["img"];
 			 }
+							   }
                                 add_name_html = "";
                             }
                        {% endif %}
@@ -4524,7 +4687,9 @@ success: function(data){
         for(i =0;i<pid.length;i++){
                 $("#"+pid[i]).hover(
                     function(){
+			       if($(this).attr("card_id")){
                     $("#card_img").html("<img class=\"explain_card\" src=\""+static_url+"/img/"+$(this).attr("card_id")+"\">");
+					      }
                 },
                     function(){
                 //    $("#card_img").html("");
@@ -4660,11 +4825,23 @@ success: function(data){
                 }
             }else{
                 if($.inArray(x+"_"+y,global_ask_fields2)== -1 && $.inArray(x+"_"+y,global_ask_fields)== -1){
-                    if(show_img ==false){
-                        result="<table class=\"field\"><tr><td style=\"background-color:"+color+"\"  colspan=\"2\">"+fields[x][y]["det"]["monster_name"]+"</td></tr>";
-                        for(i=0;i<fields[x][y]["det"]["variables"].length;i++){
-                            result += "<tr><td style=\"background-color:"+color+"\" >"+fields[x][y]["det"]["variables"][i]["name"]+"</td><td>"+fields[x][y]["det"]["variables"][i]["str"]+"</td></tr>";
-                        }
+                    if(show_img == false){
+	            var instead_img = "";
+                    var card_data="<table class=\"character\"><tr><td colspan=\"2\">"+fields[x][y]["det"]["monster_name"]+"</td></tr>";
+		    var keys = Object.keys(fields[x][y]["det"]["variables"]);
+                    for(var l=0;l<keys.length;l++){
+		    if(fields[x][y]["det"]["variables"][keys[l]]["show"] == 1){
+		    if(fields[x][y]["det"]["variables"][keys[l]]["kind_id"] == 1){
+                            card_data += "<tr><td>"+fields[x][y]["det"]["variables"][keys[l]]["name"]+fields[x][y]["det"]["variables"][keys[l]]["value"]+"</td><td></td></tr>";
+		    }else{
+		    	   var kind = fields[x][y]["det"]["variables"][keys[l]]["kind"].split("|");
+                            card_data += "<tr><td>"+fields[x][y]["det"]["variables"][keys[l]]["name"]+kind[fields[x][y]["det"]["variables"][keys[l]]["value"]-1]+"</td><td></td></tr>";
+		    }
+		    }
+			}
+		    card_data+="</table>";
+		    result=card_data;
+
                     }else{
                         gray_flag = false;
                         if(checkVal(fields[x][y]["det"],gray_out) >= 1){
@@ -4693,11 +4870,13 @@ success: function(data){
                         pid.push(fields[x][y]["det"]["place_unique_id"]);
                         {% if config.up_reverse is False %}
                         var img_url = fields[x][y]["det"]["img"];
+			if(show_img == false){
 			if(fields[x][y]["det"]["instead_img"]){
 			     var instead_img = fields[x][y]["det"]["instead_img"];
 			}else{
 			     var instead_img = fields[x][y]["det"]["img"];
 			 }
+			}
                         var add_name_html = "";
                             if(fields[x][y]["det"]["under"] != undefined){
                                 under = fields[x][y]["det"]["under"];
@@ -4708,19 +4887,23 @@ success: function(data){
                             if(fields[x][y]["det"]["under"] != undefined){
                                 under = fields[x][y]["det"]["under"];
                                 var img_url = under[0]["img"];
+			if(show_img == false){
 			if(under[0]["instead_img"]){
 			     var instead_img = under[0]["instead_img"];
 			}else{
 			     var instead_img = under[0]["img"];
 			 }
+		       }
                                 add_name_html = "<br>"+fields[x][y]["det"]["monster_name"];
                             }else{
                                 var img_url = fields[x][y]["det"]["img"];
+			if(show_img == false){
 			if(fields[x][y]["det"]["instead_img"]){
 			     var instead_img = fields[x][y]["det"]["instead_img"];
 			}else{
 			     var instead_img = fields[x][y]["det"]["img"];
 			 }
+						       }
                                 add_name_html = "";
                             }
                        {% endif %}
@@ -4771,7 +4954,9 @@ success: function(data){
         for(i =0;i<pid.length;i++){
                 $("#"+pid[i]).hover(
                     function(){
+			       if($(this).attr("card_id")){
                     $("#card_img").html("<img class=\"explain_card\" src=\""+static_url+"/img/"+$(this).attr("card_id")+"\">");
+					      }
                 },
                     function(){
                     //$("#card_img").html("");
@@ -4827,10 +5012,21 @@ function makeFields(data,koka,success2){
                     }
                 }else{
                     if(show_img == false){
-                    result="<table><tr><td style=\"color:black;background-color:"+color+"\"  colspan=\"2\">"+fields[x][y]["det"]["monster_name"]+"</td></tr>";
-                    for(i=0;i<fields[x][y]["det"]["variables"].length;i++){
-                            result += "<tr><td style=\"background-color:"+color+"\" >"+fields[x][y]["det"]["variables"][i]["name"]+"</td><td>"+fields[x][y]["det"]["variables"][i]["str"]+"</td></tr>";
-                    }
+	            var instead_img = "";
+                    var card_data="<table class=\"character\"><tr><td colspan=\"2\">"+fields[x][y]["det"]["monster_name"]+"</td></tr>";
+		    var keys = Object.keys(fields[x][y]["det"]["variables"]);
+                    for(var l=0;l<keys.length;l++){
+		    if(fields[x][y]["det"]["variables"][keys[l]]["show"] == 1){
+		    if(fields[x][y]["det"]["variables"][keys[l]]["kind_id"] == 1){
+                            card_data += "<tr><td>"+fields[x][y]["det"]["variables"][keys[l]]["name"]+fields[x][y]["det"]["variables"][keys[l]]["value"]+"</td><td></td></tr>";
+		    }else{
+		    	   var kind = fields[x][y]["det"]["variables"][keys[l]]["kind"].split("|");
+                            card_data += "<tr><td>"+fields[x][y]["det"]["variables"][keys[l]]["name"]+kind[fields[x][y]["det"]["variables"][keys[l]]["value"]-1]+"</td><td></td></tr>";
+		    }
+		    }
+		    }
+		    card_data+="</table>";
+		    result=card_data;
                     }else{
                         gray_flag = false;
                         if(checkVal(fields[x][y]["det"],"show") >= 1){
@@ -4888,11 +5084,13 @@ function makeFields(data,koka,success2){
                         pid.push(fields[x][y]["det"]["place_unique_id"]);
                         {% if config.up_reverse is False %}
                         var img_url = fields[x][y]["det"]["img"];
+			if(show_img == false){
 			if(fields[x][y]["det"]["instead_img"]){
 			     var instead_img = fields[x][y]["det"]["instead_img"];
 			}else{
 			     var instead_img = fields[x][y]["det"]["img"];
 			 }
+			   }
                         var add_name_html = "";
                             if(fields[x][y]["det"]["under"] != undefined){
                                 under = fields[x][y]["det"]["under"];
@@ -4903,19 +5101,23 @@ function makeFields(data,koka,success2){
                             if(fields[x][y]["det"]["under"] != undefined){
                                 under = fields[x][y]["det"]["under"];
                                 var img_url = under[0]["img"];
+			if(show_img == false){
 				if(under[0]["instead_img"]){
 				     var instead_img = under[0]["instead_img"];
 				}else{
 				     var instead_img = under[0]["img"];
 				 }
+							   }
                                 add_name_html = "<br>"+fields[x][y]["det"]["monster_name"];
                             }else{
                                 var img_url = fields[x][y]["det"]["img"];
+			if(show_img == false){
 				if(fields[x][y]["det"]["instead_img"]){
 				     var instead_img = fields[x][y]["det"]["instead_img"];
 				}else{
 				     var instead_img = fields[x][y]["det"]["img"];
 				 }
+							   }
                                 add_name_html = "";
                             }
                        {% endif %}
@@ -4967,7 +5169,9 @@ function makeFields(data,koka,success2){
         for(i =0;i<pid.length;i++){
                 $("#"+pid[i]).hover(
                     function(){
+			       if($(this).attr("card_id")){
                     $("#card_img").html("<img class=\"explain_card\" src=\""+static_url+"/img/"+$(this).attr("card_id")+"\">");
+					      }
                 },
                     function(){
                     //$("#card_img").html("");
@@ -4995,7 +5199,23 @@ function makeFields(data,koka,success2){
                         }
             result+="<tr>";
             for(j=0;j<hands[i]["myhandnum"];j++){
-
+                if(show_img == false){
+	            var instead_img = "";
+				 card_data="<td><table class=\"character\"><tr><td colspan=\"2\">"+hands[i]["myhand"][j]["monster_name"]+"</td></tr>";
+		    var keys = Object.keys(hands[i]["myhand"][j]["variables"]);
+                    for(var l=0;l<keys.length;l++){
+		    if(hands[i]["myhand"][j]["variables"][keys[l]]["show"] == 1){
+		    if(hands[i]["myhand"][j]["variables"][keys[l]]["kind_id"] == 1){
+                            card_data += "<tr><td>"+hands[i]["myhand"][j]["variables"][keys[l]]["name"]+hands[i]["myhand"][j]["variables"][keys[l]]["value"]+"</td><td></td></tr>";
+		    }else{
+		    	   var kind = hands[i]["myhand"][j]["variables"][keys[l]]["kind"].split("|");
+                            card_data += "<tr><td>"+hands[i]["myhand"][j]["variables"][keys[l]]["name"]+kind[hands[i]["myhand"][j]["variables"][keys[l]]["value"]-1]+"</td><td></td></tr>";
+		    }
+		    }
+		    }
+				 card_data+="</table></td>";
+		    result+= card_data;
+		}else{
                 result+="<td >";
                 img_url = hands[i]["myhand"][j]["img"];
 				 if(hands[i]["myhand"][j]["instead_img"]){
@@ -5007,6 +5227,7 @@ function makeFields(data,koka,success2){
                 pid.push(hands[i]["myhand"][j]["place_unique_id"]);
                 result+="<div card_id="+instead_img+"  id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a target=\"_blank\" title=\""+hands[i]["myhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain" %}?id="+hands[i]["myhand"][j]["id"]+"\" {% endif %}><img class=\"img_card\" style=\"\" src=\""+static_url+"/img/"+img_url+"\"></a></div>";
                 result+="</td>";
+		   }
             }
             result+="</tr>";
 
@@ -5017,7 +5238,9 @@ function makeFields(data,koka,success2){
         for(i =0;i<pid.length;i++){
                 $("#"+pid[i]).hover(
                     function(){
+			       if($(this).attr("card_id")){
                     $("#card_img").html("<img class=\"explain_card\" src=\""+static_url+"/img/"+$(this).attr("card_id")+"\">");
+					      }
                 },
                     function(){
                     //$("#card_img").html("");
@@ -5032,7 +5255,7 @@ function makeFields(data,koka,success2){
         var result;
         var pid = [];
         var tmp_width;
-        result="<table style=\"table-layout: fixed;display:inline;text-align:center;width:80%;\">";
+        result="<table style=\"table-layout: fixed;display:inline;text-align:center;overflow-y:visible;width:80%;\">";
         for(i=0;i<hands.length;i++){
             if(hands.length!= 1){
                 result+="<tr><td style=\"width:"+tmp_width+";\" colspan=\""+hands[i]["myhandnum"]+"\">"+hands[i]["hand_name"]+"</td></tr>";
@@ -5047,18 +5270,26 @@ function makeFields(data,koka,success2){
             result+="<tr style=\"width:"+tmp_width+"px;overflow-x:scroll\">";
             for(j=0;j<hands[i]["myhandnum"];j++){
 
-                result+="<td style=\"width:{{Config.card_width}}px\"  >";
+                result+="<td style=\"width:{{Config.card_width}}px;overflow-y:visible\"  >";
                 if(show_img == false){
-                    card_data="<table><tr><td colspan=\"2\">"+hands[i]["myhand"][j]["monster_name"]+"</td></tr>";
+	            var instead_img = "";
+                    card_data="<table class=\"character\"><tr><td colspan=\"2\">"+hands[i]["myhand"][j]["monster_name"]+"</td></tr>";
 		    var keys = Object.keys(hands[i]["myhand"][j]["variables"]);
                     for(var l=0;l<keys.length;l++){
-                            card_data += "<tr><td>"+hands[i]["myhand"][j]["variables"][keys[l]]["name"]+"</td><td></td></tr>";
+		    if(hands[i]["myhand"][j]["variables"][keys[l]]["show"] == 1){
+		    if(hands[i]["myhand"][j]["variables"][keys[l]]["kind_id"] == 1){
+                            card_data += "<tr><td>"+hands[i]["myhand"][j]["variables"][keys[l]]["name"]+hands[i]["myhand"][j]["variables"][keys[l]]["value"]+"</td><td></td></tr>";
+		    }else{
+		    	   var kind = hands[i]["myhand"][j]["variables"][keys[l]]["kind"].split("|");
+                            card_data += "<tr><td>"+hands[i]["myhand"][j]["variables"][keys[l]]["name"]+kind[hands[i]["myhand"][j]["variables"][keys[l]]["value"]-1]+"</td><td></td></tr>";
+		    }
+		    }
 		    }
 		    card_data+="</table>";
 
 		    }else{
-		  card_data = "<img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"	>"; 
                 img_url = hands[i]["myhand"][j]["img"];
+		  card_data = "<img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"	>"; 
 			     if(hands[i]["myhand"][j]["instead_img"]){
 	             var instead_img = hands[i]["myhand"][j]["instead_img"];
 	        }else{
@@ -5115,7 +5346,10 @@ function makeFields(data,koka,success2){
         for(i =0;i<pid.length;i++){
                 $("#"+pid[i]).hover(
                     function(){
+
+			       if($(this).attr("card_id")){
                     $("#card_img").html("<img class=\"explain_card\" src=\""+static_url+"/img/"+$(this).attr("card_id")+"\">");
+					      }
                 },
                     function(){
                     //$("#card_img").html("");
@@ -5904,7 +6138,7 @@ success: function(data){
     <div id="choices" style="height:30px;text-align:center"></div>
     <div id="choice_deck" style="height:0px;text-align:center"></div>
     <div id="choice_grave" style="height:0px;text-align:center"></div>
-<div style="float:left;text-align:center;margin:0 auto;z-index:100;overflow:auto;width:100%;background-color:rgba(255,255,255,0.65)" id="hands">
+<div style="float:left;text-align:center;margin:0 auto;z-index:100;overflow-x:scroll;width:100%;background-color:rgba(255,255,255,0.65)" id="hands">
 
 </div>
 <div class = "control">

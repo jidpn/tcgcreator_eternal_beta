@@ -1,0 +1,18 @@
+{% load static %}
+<html>
+<head>
+<style>
+</style>
+<meta charset="UTF-8"/> 
+<body>
+	<table>
+		<tr>
+			<td colspan="2">{{name}}</td>
+			{% for variable in variables %}
+			<td >{{variable.name}}</td><td>{{variable.str}}</td>
+			{% endif %}
+			<td colspan="2">{{monster_sentence}}</td>
+		</tr>
+	</table>
+</body>
+</html>

@@ -1071,6 +1071,7 @@ class MonsterVariables(models.Model):
     monster_variable_minus = models.BooleanField(default=False)
     monster_variable_show = models.IntegerField(default=0)
     monster_variable_show2 = models.IntegerField(default=0)
+    monster_variable_show_battle = models.IntegerField(default=1)
     priority = models.IntegerField()
     default_value = models.CharField(max_length=32)
 

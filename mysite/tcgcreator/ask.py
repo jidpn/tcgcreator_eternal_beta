@@ -1286,6 +1286,11 @@ def show(duel, user, room_number, ask, decks, graves, hands):
     tmp_val["max_equation_number"] = duelobj.calculate_boland(
         monster_effect_det["max_equation_number"], None, other_user_flag
     )
+    if monster_effect_det["equation"]["equation_kind"] == "number":
+        tmp_val["kind_flag"] = False
+    else:
+        tmp_val["kind_flag"] = True
+        
     tmp_val["whether_monster"] = whether_monster
     tmp_val["sentence"] = sentence
     tmp_val["prompt"] = duelobj.write_prompt(prompt,user)

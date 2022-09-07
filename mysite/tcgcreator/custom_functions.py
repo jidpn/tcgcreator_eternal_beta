@@ -406,6 +406,9 @@ def cheat_get(id, deck_id, owner, place):
         tmp5["value"] = monsteritem.monster_item_text
         tmp5["i_val"] = monsteritem.monster_item_text
         tmp5["i_i_val"] = monsteritem.monster_item_text
+        tmp5["show"] = monster_variable.monster_variable_show_battle
+        tmp5["kind"] = monster_variable.monster_variable_kind_id.monster_variable_sentence 
+        tmp5["kind_id"] = monster_variable.monster_variable_kind_id.id
         tmp2 = monsteritem.monster_item_text.split("_")
         if monster_variable.monster_variable_kind_id.monster_variable_name == "数値":
             tmp5["str"] = tmp5["value"]
@@ -463,6 +466,9 @@ def create_user_deck_det(user_deck, deck_id, owner):
             tmp5["value"] = monsteritem.monster_item_text
             tmp5["i_val"] = monsteritem.monster_item_text
             tmp5["i_i_val"] = monsteritem.monster_item_text
+            tmp5["show"] = monster_variable.monster_variable_show_battle
+            tmp5["kind"] = monster_variable.monster_variable_kind_id.monster_variable_sentence 
+            tmp5["kind_id"] = monster_variable.monster_variable_kind_id.id
             tmp2 = monsteritem.monster_item_text.split("_")
             if monster_variable.monster_variable_kind_id.monster_variable_name == "数値":
                 tmp5["str"] = tmp5["value"]
