@@ -2,16 +2,24 @@
 <html>
 <head>
 <style>
+table {
+
+	width:100%
+}
+table td{
+	border:1px solid black
+}
 </style>
 <meta charset="UTF-8"/> 
 <body>
 	<table>
 		<tr>
-			<td colspan="2">{{name}}</td>
+			<td colspan="2" style="background-color:#EEEEFF">{{name}}</td>
+		</tr>
 			{% for variable in variables %}
-			<td >{{variable.name}}</td><td>{{variable.str}}</td>
-			{% endif %}
-			<td colspan="2">{{monster_sentence}}</td>
+			<tr>	<td >{{variable.name}}</td><td>{{variable.str}}</td></tr>
+			{% endfor %}
+		<tr>	<td colspan="2" style="background-color:#EEFFEE">{{monster_sentence}}</td>
 		</tr>
 	</table>
 </body>

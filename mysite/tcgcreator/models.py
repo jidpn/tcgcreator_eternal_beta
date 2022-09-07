@@ -1850,7 +1850,7 @@ class Config(models.Model):
     add_variables_show = models.CharField(default="",blank=True,max_length=32)
     show_message = models.BooleanField(default=True)
     ai = models.BooleanField(default = False,blank = True)
-    return_url = models.CharField(default="",max_length = 128,blank=True)
+    return_url = models.CharField(default="../choose/",max_length = 128,blank=True)
     shori = models.IntegerField(choices=SHORI, default=1)
     order = models.IntegerField(choices=ORDER, default=0)
     show_img = models.IntegerField(choices=SHOW_IMG,default = 0,blank = True)

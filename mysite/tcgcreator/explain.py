@@ -1,10 +1,11 @@
 from .models import (
-    Monster,Config
+    Monster,Config,MonsterItem
 )
 from django.http import HttpResponse
 from django.db.models import Q
 from django.shortcuts import render
 from pprint import pprint
+import json
 
 
 def explain(request):
@@ -25,18 +26,19 @@ def explain(request):
             .select_related("monster_variables_id__monster_variable_kind_id")
         )
         return_value  = {}
-        return_value["name"] = Monster.monster_name
-        return_value["monster_sentence"] = Monster.monster_sentence
+        return_value["name"] = monster.monster_name
+        return_value["monster_sentence"] = monster.monster_sentence
         tmp6 = []
         for monsteritem in monsteritems:
             tmp5 = {}
             monster_variable = monsteritem.monster_variables_id
+            if monster_variable.monster_variable_show_battle == 0:
+                continue
             tmp5["name"] = monster_variable.monster_variable_name
             tmp5["minus"] = monster_variable.monster_variable_minus
             tmp5["value"] = monsteritem.monster_item_text
             tmp5["i_val"] = monsteritem.monster_item_text
             tmp5["i_i_val"] = monsteritem.monster_item_text
-            tmp5["show"] = monster_variable.monster_variable_show_battle
             tmp5["kind"] = monster_variable.monster_variable_kind_id.monster_variable_sentence 
             tmp5["kind_id"] = monster_variable.monster_variable_kind_id.id
             tmp2 = monsteritem.monster_item_text.split("_")
@@ -50,5 +52,5 @@ def explain(request):
                     )
                 tmp5["str"] += tmp4[int(tmp5["value"]) - 1]
             tmp6.append(tmp5)  
-        return_value["variable"] = tmp6
-        return render(request, "tcgcreator/explain_no_img.html", json.dumps(tmp5))
+        return_value["variables"] = tmp6
+        return render(request, "tcgcreator/explain_no_img.html", return_value)
