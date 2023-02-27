@@ -222,6 +222,8 @@ def new_monster_variables(request):
 
 
 def new_monster(request):
+    if not request.user.is_staff:
+        return HttpResponse("error")
     if request.method == "POST":
         form = EditMonsterForm(request.POST)
         if form.is_valid():
@@ -4892,7 +4894,13 @@ def index(request):
     else:
         user_flag = False
     config = Config.objects.get();
-    return render(request, "tcgcreator/index.html", {"user_flag": user_flag,"config":config})
+    if Background.objects.first():
+        background = Background.objects.order_by("?")[0]
+        background_file_name = background.file_name
+    else:
+        background_file_name = ""
+    return render(request, "tcgcreator/index.html", {"user_flag": user_flag,"config":config, "Background": background_file_name,
+    })
 
 
 def howto(request):
@@ -5207,166 +5215,49 @@ def save_unit(request):
     pwd = os.path.dirname(__file__)
     data_file = open(pwd + "/data.csv", mode="r", encoding="utf-8")
     data2 = data_file.readlines()
-    for data in data2 :
+    data_label = data2[0];
+    datas = data_label.split(",")
+    data_label_det = []
+    i=-1
+    for data in datas:
+        i+=1
+        if(i<3):
+            continue
+        data = data.strip("\n");
+        monster_variable = MonsterVariables.objects.get(monster_variable_name = data);
+        obj = {}
+        obj["num"] = i
+        obj["val_id"] = monster_variable
+        obj["id"] = monster_variable.monster_variable_kind_id.id
+        obj["sentence"] = (monster_variable.monster_variable_kind_id.monster_variable_sentence)
+        data_label_det.append(obj)
+    data_label_det2 = sorted(data_label_det,key=lambda x:x["val_id"].id)
+    data3 = data2[1:]
+    for data in data3 :
         datas = data.split(",")
+        datas[-1] = datas[-1].strip("\n")
         monster = Monster()
-        monster.monster_name = datas[2]
-        monster.monster_sentence = datas[9]
+        monster.img = datas[0]
+        monster.monster_name = datas[1]
+        monster.monster_sentence = datas[2]
         monster.limit = 2
         monster.deck = 1
-        monster_variables = MonsterVariables.objects.order_by("priority")
-        i = 8
+        i = 0
         monster.save()
-        for monster_variable  in monster_variables:
-            if i == 8:
-                i=6
-                if(datas[8] == "クイーンサイド"):
-                    monster_item = MonsterItem(
-                        monster_id=monster,
-                        monster_variables_id=monster_variable,
-                        monster_item_text="1"
-                    )
-                    monster_item.save()
-                elif(datas[8] == "パイロマンサー"):
-                     monster_item = MonsterItem(
-                        monster_id=monster,
-                        monster_variables_id=monster_variable,
-                         monster_item_text="2"
-                    )
-                     monster_item.save()
-                elif(datas[8] == "ディシプリン"):
-                     monster_item = MonsterItem(
-                        monster_id=monster,
-                        monster_variables_id=monster_variable,
-                         monster_item_text="3"
-                    )
-                     monster_item.save()
-                elif(datas[8] == "ナイトパクト"):
-                     monster_item = MonsterItem(
-                        monster_id=monster,
-                        monster_variables_id=monster_variable,
-                         monster_item_text="4"
-                    )
-                     monster_item.save()
-                elif(datas[8] == "ルクスリアス"):
-                     monster_item = MonsterItem(
-                        monster_id=monster,
-                        monster_variables_id=monster_variable,
-                         monster_item_text="5"
-                    )
-                     monster_item.save()
+        for data_obj in data_label_det2:
+                if(data_obj["id"] == 1):
+                    text = datas[data_obj["num"]]
                 else:
-                     monster_item = MonsterItem(
-                        monster_id=monster,
-                        monster_variables_id=monster_variable,
-                         monster_item_text="0"
-                    )
-                     monster_item.save()
-            elif i == 6:
-                i=5
-                if(datas[6] == "ヒーロー"):
-                    monster_item = MonsterItem(
-                        monster_id=monster,
-                        monster_variables_id=monster_variable,
-                        monster_item_text="1"
-                    )
-                    monster_item.save()
-                elif(datas[6] == "ユニット"):
-                    monster_item = MonsterItem(
-                        monster_id=monster,
-                        monster_variables_id=monster_variable,
-                        monster_item_text="2"
-                    )
-                    monster_item.save()
-                elif(datas[6] == "上官・ユニット"):
-                    monster_item = MonsterItem(
-                        monster_id=monster,
-                        monster_variables_id=monster_variable,
-                        monster_item_text="3"
-                    )
-                    monster_item.save()
-                elif(datas[6] == "マーシャル・ロウ"):
-                    monster_item = MonsterItem(
-                        monster_id=monster,
-                        monster_variables_id=monster_variable,
-                        monster_item_text="4"
-                    )
-                    monster_item.save()
-                elif(datas[6] == "紅蓮炸裂"):
-                    monster_item = MonsterItem(
-                        monster_id=monster,
-                        monster_variables_id=monster_variable,
-                        monster_item_text="5"
-                    )
-                    monster_item.save()
-                elif(datas[6] == "尊行・ユニット"):
-                    monster_item = MonsterItem(
-                        monster_id=monster,
-                        monster_variables_id=monster_variable,
-                        monster_item_text="6"
-                    )
-                    monster_item.save()
-                elif(datas[6] == "アビリティ"):
-                    monster_item = MonsterItem(
-                        monster_id=monster,
-                        monster_variables_id=monster_variable,
-                        monster_item_text="7"
-                    )
-                    monster_item.save()
-                elif(datas[6] == "尊行"):
-                    monster_item = MonsterItem(
-                        monster_id=monster,
-                        monster_variables_id=monster_variable,
-                        monster_item_text="8"
-                    )
-                    monster_item.save()
-            elif i == 5:
-                i=4
-                if datas[5] != "":
-                    monster_item = MonsterItem(
-                        monster_id=monster,
-                        monster_variables_id=monster_variable,
-                        monster_item_text=datas[5]
-                    )
-                    monster_item.save()
-                else:
-                    monster_item = MonsterItem(
-                        monster_id=monster,
-                        monster_variables_id=monster_variable,
-                        monster_item_text="0"
-                    )
-                    monster_item.save()
-            elif i == 4:
-                i=3
-                if datas[4] != "":
-                    monster_item = MonsterItem(
-                        monster_id=monster,
-                        monster_variables_id=monster_variable,
-                        monster_item_text=datas[4]
-                    )
-                    monster_item.save()
-                else:
-                    monster_item = MonsterItem(
-                        monster_id=monster,
-                        monster_variables_id=monster_variable,
-                        monster_item_text="0"
-                    )
-                    monster_item.save()
-            elif i == 3:
-                if datas[3] != "":
-                    monster_item = MonsterItem(
-                        monster_id=monster,
-                        monster_variables_id=monster_variable,
-                        monster_item_text=datas[3]
-                    )
-                    monster_item.save()
-                else:
-                    monster_item = MonsterItem(
-                        monster_id=monster,
-                        monster_variables_id=monster_variable,
-                        monster_item_text="0"
-                    )
-                    monster_item.save()
+                    item_sentence = data_obj["sentence"].split("|")
+                    text = str(item_sentence.index(datas[data_obj["num"]])+1)
+                if text == "":
+                    text = "0"
+                monster_item = MonsterItem(
+                    monster_id=monster,
+                    monster_variables_id=data_obj["val_id"],
+                    monster_item_text=text
+                )
+                monster_item.save()
 
-    HttpResponse("OK")
+    return HttpResponse("OK")
 

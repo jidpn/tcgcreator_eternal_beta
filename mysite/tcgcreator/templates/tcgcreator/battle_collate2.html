@@ -94,7 +94,7 @@
     border:1px #000000 solid;
 }
 body {
-        background-image:url({% get_static_prefix %}tcgcreator/img/background/{{Duel.background_image}});
+        background-image:url({% get_static_prefix %}tcgcreator/img/background/{{Background}});
         background-position:right top;
 	background-size: 100%;
         background-repeat:no-repeat;
@@ -1007,6 +1007,7 @@ function ask_det2(type,k,l,under_id = ""){
         tmp["x_and_y"] = k+"_"+l;
         tmp["under_id"] = under_id;
         global_ask_unders.push(tmp);
+        global_ask_under_id.push(under_id);
         tmp["val"] = k+"_"+l;
         tmp["under_id"] = under_id;
         tmp["type"] = "under";;
@@ -1034,7 +1035,7 @@ function ask_det2(type,k,l,under_id = ""){
     $("#end_chain").hide();
     global_field_fields = null;
 	var field_flag = false;
-        if(ask_field != undefined || ask_whether_0 != undefined){
+        if(ask_field != undefined || ask_whether_0 != undefined || ask_under != undefined){
             field_flag = makeFieldsChoose(org_data,ask_field,ask_under)
         }
     var deck_i = 0;
@@ -1212,7 +1213,7 @@ function ask_det2(type,k,l,under_id = ""){
                 }
                 );
         }
-	if(field_flag == false && deck_flag == false && grave_flag == false && hand_flag == false && player_flag == false){
+	if(field_flag == false && undef_flag == false && deck_flag == false && grave_flag == false && hand_flag == false && player_flag == false){
 		Success2();
         	sendAnswer();
       }
@@ -1371,8 +1372,8 @@ function YesOrNoDet(data){
             buttons += "<input type=\"button\" value=\""+det["sentence"][i]+"\" onclick=\"AnswerMultiple('"+det["monster_effect_wrapper"][i]+"')\">";
         }
         var result_html = sentence+"<br>";
+        result_html += buttons;
         $("#choosing_area").html(result_html);
-    result_html += buttons;
     	showChoosingArea();
 }
 function ChooseOrder(i){
@@ -1781,6 +1782,7 @@ function ask_det(data){
     global_answer_hand = [];
     global_ask_fields= [];
     global_ask_unders= [];
+    global_ask_under_id= [];
     min_equation_number = data["min_equation_number"];
     max_equation_number = data["max_equation_number"];
 	kind_flag = data["kind_flag"];
@@ -1821,6 +1823,7 @@ function ask_det(data){
     var hands = [];
     global_ask_fields = [];
     global_ask_unders= [];
+    global_ask_under_id= [];
     // フィールドで複数回ループが回るときよう
     global_ask_fields2 = [];
     var i,j;
@@ -1832,6 +1835,7 @@ function ask_det(data){
         var space = false;
         if(ask_field != undefined || ask_under != undefined || ask_whether_0 != undefined){
             auto_flag = false;
+	    global_under_ids = false;
             makeFieldsChoose(org_data,ask_field,ask_under);
         }else{
             space = true
@@ -4313,7 +4317,6 @@ success: function(data){
         {% endif %}
         return;
     }
-	console.log(data["ask"]);
 							 
     if(data["ask"] != false){
         PlayAskMusic();
@@ -4485,7 +4488,7 @@ success: function(data){
                 );
         }
     }
-    function makeFieldsChoose2(result_x,result_y){
+    function makeFieldsChoose2(result_x,result_y,under_choosing = false,under_id=null){
         var fields = global_field_fields;
         var gray_flag = false;
         var arrow_html = "";
@@ -4495,16 +4498,28 @@ success: function(data){
         var under;
 
         var tmp = {};
-        tmp["val"] = result_x+"_"+result_y;
-        tmp["type"] = "field";
-        global_all_result.push(tmp);
-        global_ask_fields.push(tmp["val"]);
+	if(under_choosing == false){				      
+        	tmp["val"] = result_x+"_"+result_y;
+        	tmp["type"] = "field";
+        	global_all_result.push(tmp);
+        	global_ask_fields.push(tmp["val"]);
+	}else{
+        	var tmp = {}
+        	tmp["x_and_y"] = result_x+"_"+result_y;
+        	tmp["under_id"] = under_id;
+        	global_ask_unders.push(tmp);
+        	global_ask_under_id.push(under_id);
+        	tmp["val"] = result_x+"_"+result_y;
+        	tmp["under_id"] = under_id;
+        	tmp["type"] = "under";;
+        	global_all_result.push(tmp);
+	}
         var under_flag;
         var pid=[];
         if(global_under_ids){
-            under_flag = false;
-        }else{
             under_flag = true;
+        }else{
+            under_flag = false;
         }
         if(global_all_result.length == max_equation_number){
             sendAnswer();
@@ -4550,17 +4565,41 @@ success: function(data){
                             $("#"+x+"_"+({{field_y}}-y-1)).html(result);
                         }
                     }else{
-                        if(user == 1){
-                            $("#"+x+"_"+y).html("&nbsp;");
-                        }else{
-                            $("#"+x+"_"+({{field_y}}-y-1)).html("");
-                        }
+                    	if(fields[x][y]["hide"] == true){
+                    		if(user == 1){
+                        		$("#"+x+"_"+y).html('<div style="width:150px;height:210px;background-color:black"></div>');
+		                }else{
+					$("#"+x+"_"+({{field_y}}-y-1)).html('<div style="width:150px;height:210px;background-color:black"></div>');
+                    		}
+                    	}else{
+                    		if(user == 1){
+                        		$("#"+x+"_"+y).html("&nbsp;");
+                    		}else{
+                        		$("#"+x+"_"+({{ field_y}}-y-1)).html("&nbsp;");
+                    		}
+                    	}
                     }
                 }else{
+                            if(checkVal(fields[x][y]["det"],gray_out) >= 1){
+
+                                gray_flag = true;
+                            }else{
+                                gray_flag = false;
+                            }
+                            if(checkVal(fields[x][y]["det"],"rotate")>=1){
+                                rotate_css = "transform: rotate(90deg)"
+                            }else{
+                                rotate_css = "";
+                            }
+                         add_val_html = checkAddVal(fields[x][y]["det"]);
 
                     if(show_img == false){
 	            var instead_img = "";
-                    var card_data="<table class=\"character\"><tr><td colspan=\"2\">"+fields[x][y]["det"]["monster_name"]+"</td></tr>";
+			    if(gray_flag == true){
+                    var card_data="<table class=\"character\" style=\""+rotate_css+"\"><tr><td colspan=\"2\" style=\"opacity:0.4;"+rotate_css+"\">"+fields[x][y]["det"]["monster_name"]+"</td></tr>";
+			    }else{
+                    var card_data="<table class=\"character\" style=\""+rotate_css+"\"><tr><td colspan=\"2\" >"+fields[x][y]["det"]["monster_name"]+"</td></tr>";
+			    }
 		    var keys = Object.keys(fields[x][y]["det"]["variables"]);
                     for(var l=0;l<keys.length;l++){
 		    if(fields[x][y]["det"]["variables"][keys[l]]["show"] == 1){
@@ -4572,17 +4611,14 @@ success: function(data){
 		    }
 		    }
 		}
+		    if(add_val_html != ""){
+			card_data += "<tr><td colspan=\"2\">"+add_val_html+"</td></tr>";
+			}
 		    card_data+="</table>";
 		    result=card_data;
                     }else{
 
                         gray_flag = false;
-                            if(checkVal(fields[x][y]["det"],gray_out) >= 1){
-
-                                gray_flag = true;
-                            }else{
-                                gray_flag = false;
-                            }
                             if(checkVal(fields[x][y]["det"],"arrow")>=1){
                                 if(fields[x][y]["mine_or_other"] == user){
                                     arrow_html_before = "<img class=\"arrow\" style=\"transform: rotate(180deg)\" src=\""+static_url+"/img/yajirusi.png\"><br>";
@@ -4595,16 +4631,10 @@ success: function(data){
                                 arrow_html_before = "";
                                 arrow_html = "";
                             }
-                            if(checkVal(fields[x][y]["det"],"rotate")>=1){
-                                rotate_css = "transform: rotate(90deg)"
-                            }else{
-                                rotate_css = "";
-                            }
-                         add_val_html = checkAddVal(fields[x][y]["det"]);
                         pid.push(fields[x][y]["det"]["place_unique_id"]);
-                        {% if config.up_reverse is False %}
+                        {% if Config.up_reverse is False %}
                         var img_url = fields[x][y]["det"]["img"];
-			    if(instead_img == false){
+			if(show_img == true){
 			if(fields[x][y]["det"]["instead_img"]){
 			     instead_img = fields[x][y]["det"]["instead_img"];
 			}else{
@@ -4615,13 +4645,14 @@ success: function(data){
                             if(fields[x][y]["det"]["under"] != undefined){
                                 under = fields[x][y]["det"]["under"];
                                 for(var i=0;i<under.length;i++){
-                                    add_name_html += "<br>"+fields[x][y]["det"]["monster_name"];
+                                                           add_name_html += "<br>"+fields[x][y]["det"]["under"][i]["monster_name"];
                                 }
+                            }
                         {% else %}
                             if(fields[x][y]["det"]["under"] != undefined){
                                 under = fields[x][y]["det"]["under"];
                                 var img_url = under[0]["img"];
-							 if(instead_img == false){
+			if(show_img == true){
 			if(under[0]["instead_img"]){
 			     instead_img = under[0]["instead_img"];
 			}else{
@@ -4631,7 +4662,7 @@ success: function(data){
                                 add_name_html = "<br>"+fields[x][y]["det"]["monster_name"];
                             }else{
                                 var img_url = fields[x][y]["det"]["img"];
-							 if(instead_img == false){
+			if(show_img == true){
 			if(fields[x][y]["det"]["instead_img"]){
 			     instead_img = fields[x][y]["det"]["instead_img"];
 			}else{
@@ -4662,12 +4693,13 @@ success: function(data){
                             if(fields[x][y]["det"]["under"] != undefined){
                                 under = fields[x][y]["det"]["under"];
                                 for(i=0;i<under.length;i++){
-                                    tmp = {};
-                                    tmp["x_and_y"] == x+"_"+y;
-                                    tmp["under_id"] == under[i]["place_unique_id"];
+                                    var tmp = {};
+                                    tmp["x_and_y"] = x+"_"+y;
+                                    tmp["under_id"] = under[i]["place_unique_id"];
                                     if($.inArray(under[i]["place_unique_id"],global_under_ids)!=-1){
-                                        if($.inArray(tmp,global_ask_unders)== -1){
-                                            result += "<input style=\"height:30px\" type=\"button\" onclick=\"ask_det2('under',"+x+","+y+",'"+under[i]["place_unique_id"]+"')\" value=\""+under[i]["monster_name"]+"\">";
+				
+                                        if($.inArray(under[i]["place_unique_id"],global_ask_under_id)== -1){
+                                            result += "<input style=\"height:30px\" type=\"button\" onclick=\"makeFieldsChoose2("+x+","+y+",true,'"+under[i]["place_unique_id"]+"')\" value=\""+under[i]["monster_name"]+"\">";
                                         }
                                     }
                                 }
@@ -4754,10 +4786,11 @@ success: function(data){
                 $("#"+x+"_"+({{field_y}}-y-1)).html(result);
             }
   }
+var global_under_ids = false;
     function makeFieldsChoose(data,field_ids,under_ids){
         var tmp;
-        var global_field_ids = field_ids;
-        var global_under_ids = under_ids;
+        global_field_ids = field_ids;
+        global_under_ids = under_ids;
         var fields = global_field_info;
         var color;
         var sentence;
@@ -4806,7 +4839,7 @@ success: function(data){
                         if($.inArray(tmp,ask_whether_0) == -1){
 				continue;
 			}
-                        result="<input type=\"button\" style=\"background-color:"+color+";height:30px\" value=\""+global_field_sentence+"\" onclick=\"ask_det2('field',"+x+","+y+")\")>";
+                        result="<input type=\"button\" style=\"background-color:"+color+";height:30px\" value=\""+global_field_sentence+"\" onclick=\"makeFieldsChoose2("+x+","+y+")\")>";
                         tmp = x+"_"+y;
                         global_ask_fields2.push(tmp);
 
@@ -4816,18 +4849,40 @@ success: function(data){
                             $("#"+x+"_"+({{field_y}}-y-1)).html(result );
                         }
                     }else{
-                        if(user == 1){
-                            $("#"+x+"_"+y).html("&nbsp;");
-                        }else{
-                            $("#"+x+"_"+({{field_y}}-y-1)).html("");
-                        }
+                    	if(fields[x][y]["hide"] == true){
+                    		if(user == 1){
+                        		$("#"+x+"_"+y).html('<div style="width:150px;height:210px;background-color:black"></div>');
+		                }else{
+					$("#"+x+"_"+({{field_y}}-y-1)).html('<div style="width:150px;height:210px;background-color:black"></div>');
+                    		}
+                    	}else{
+                    		if(user == 1){
+                        		$("#"+x+"_"+y).html("&nbsp;");
+                    		}else{
+                        		$("#"+x+"_"+({{ field_y}}-y-1)).html("&nbsp;");
+                    		}
+                    	}
                     }
                 }
             }else{
                 if($.inArray(x+"_"+y,global_ask_fields2)== -1 && $.inArray(x+"_"+y,global_ask_fields)== -1){
+                        if(checkVal(fields[x][y]["det"],gray_out) >= 1){
+                            gray_flag = true;
+                        }else{
+                            gray_flag = false;
+                        }
+                    if(checkVal(fields[x][y]["det"],"rotate")>=1){
+                        rotate_css = "transform: rotate(90deg)"
+                    }else{
+                        rotate_css = ""
+                    }
                     if(show_img == false){
 	            var instead_img = "";
-                    var card_data="<table class=\"character\"><tr><td colspan=\"2\">"+fields[x][y]["det"]["monster_name"]+"</td></tr>";
+			    if(gray_flag == true){
+                    var card_data="<table class=\"character\" style=\""+rotate_css+"\"><tr><td colspan=\"2\" style=\"opacity:0.4;"+rotate_css+"\">"+fields[x][y]["det"]["monster_name"]+"</td></tr>";
+			    }else{
+                    var card_data="<table class=\"character\" style=\""+rotate_css+"\"><tr><td colspan=\"2\" >"+fields[x][y]["det"]["monster_name"]+"</td></tr>";
+			    }
 		    var keys = Object.keys(fields[x][y]["det"]["variables"]);
                     for(var l=0;l<keys.length;l++){
 		    if(fields[x][y]["det"]["variables"][keys[l]]["show"] == 1){
@@ -4844,11 +4899,6 @@ success: function(data){
 
                     }else{
                         gray_flag = false;
-                        if(checkVal(fields[x][y]["det"],gray_out) >= 1){
-                            gray_flag = true;
-                        }else{
-                            gray_flag = false;
-                        }
                         if(checkVal(fields[x][y]["det"],"arrow")>=1){
                             if(fields[x][y]["mine_or_other"] == user){
                                 arrow_html_before = "<img class=\"arrow\" style=\"transform: rotate(180deg)\" src=\""+static_url+"/img/yajirusi.png\"><br>";
@@ -4861,16 +4911,11 @@ success: function(data){
                             arrow_html_before = "";
                             arrow_html = "";
                         }
-                    if(checkVal(fields[x][y]["det"],"rotate")>=1){
-                        rotate_css = "transform: rotate(90deg)"
-                    }else{
-                        rotate_css = ""
-                    }
                          add_val_html = checkAddVal(fields[x][y]["det"]);
                         pid.push(fields[x][y]["det"]["place_unique_id"]);
-                        {% if config.up_reverse is False %}
+                        {% if Config.up_reverse is False %}
                         var img_url = fields[x][y]["det"]["img"];
-			if(show_img == false){
+			if(show_img == true){
 			if(fields[x][y]["det"]["instead_img"]){
 			     var instead_img = fields[x][y]["det"]["instead_img"];
 			}else{
@@ -4881,13 +4926,14 @@ success: function(data){
                             if(fields[x][y]["det"]["under"] != undefined){
                                 under = fields[x][y]["det"]["under"];
                                 for(var i=0;i<under.length;i++){
-                                    add_name_html += "<br>"+fields[x][y]["det"]["monster_name"];
+                                                           add_name_html += "<br>"+fields[x][y]["det"]["under"][i]["monster_name"];
                                 }
+                            }
                         {% else %}
                             if(fields[x][y]["det"]["under"] != undefined){
                                 under = fields[x][y]["det"]["under"];
                                 var img_url = under[0]["img"];
-			if(show_img == false){
+			if(show_img == true){
 			if(under[0]["instead_img"]){
 			     var instead_img = under[0]["instead_img"];
 			}else{
@@ -4897,7 +4943,7 @@ success: function(data){
                                 add_name_html = "<br>"+fields[x][y]["det"]["monster_name"];
                             }else{
                                 var img_url = fields[x][y]["det"]["img"];
-			if(show_img == false){
+			if(show_img == true){
 			if(fields[x][y]["det"]["instead_img"]){
 			     var instead_img = fields[x][y]["det"]["instead_img"];
 			}else{
@@ -4921,16 +4967,22 @@ success: function(data){
                             global_ask_fields2.push(tmp);
 			    return_flag = true;
                             if(under_flag == false){
-                                result="<table><tr><td style=\"background-color:"+color+"\" >"+arrow_html_before+"<a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" onclick=\"ask_det2('field',"+x+","+y+")\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+instead_img+"\"   {% if Config.card_href %} href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\"  style=\""+rotate_css+"\" src=\""+static_url+"/img/"+fields[x][y]["det"]["img"]+"\"></a>"+sentence+arrow_html+add_val_html+"</td></tr>";
-                                result+="<tr><td style=\"height:30px;background-color:"+color+"\" ><input type=\"button\" value=\""+global_field_sentence+"\" onclick=\"ask_det2('field',"+x+","+y+")\"></td></tr>";
+                                result="<table><tr><td style=\"background-color:"+color+"\" >"+arrow_html_before+"<a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\" onclick=\"makeFieldsChoose2("+x+","+y+")\" id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+instead_img+"\"   {% if Config.card_href %} href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\"  style=\""+rotate_css+"\" src=\""+static_url+"/img/"+fields[x][y]["det"]["img"]+"\"></a>"+sentence+arrow_html+add_val_html+"</td></tr>";
+                                result+="<tr><td style=\"height:30px;background-color:"+color+"\" ><input type=\"button\" value=\""+global_field_sentence+"\" onclick=\"makeFieldsChoose2("+x+","+y+")\"></td></tr>";
                                 tmp_flag = true;
                             }else{
                                 if(fields[x][y]["det"]["under"] != undefined){
                                     under = fields[x][y]["det"]["under"];
                                     for(i=0;i<under.length;i++){
                                         if($.inArray(under[i]["place_unique_id"],under_ids) != -1){
+
                                             if($.inArray(tmp,global_ask_unders)== -1){
-                                                result += "<input type=\"button\" style=\"height:30px;background-color:"+color+"\"  onclick=\"ask_det2('under',"+x+","+y+",'"+under[i]["place_unique_id"]+"')\" value=\""+under[i]["monster_name"]+"\">";
+						if(tmp_flag == false){
+                                		tmp_flag = true;
+                                result="<table><tr><td style=\"background-color:"+color+"\" >"+arrow_html_before+"<a target=\"_blank\" title=\""+fields[x][y]["det"]["monster_sentence"]+"\"  id=\""+fields[x][y]["det"]["place_unique_id"]+"\" card_id=\""+instead_img+"\"   {% if Config.card_href %} href=\"{% url "tcgcreator:explain"%}?id="+fields[x][y]["det"]["id"]+"\" {% endif %}> <img class=\"img_card\"  style=\""+rotate_css+"\" src=\""+static_url+"/img/"+fields[x][y]["det"]["img"]+"\"></a>"+sentence+arrow_html+add_val_html+"</td></tr>";
+						 }
+						
+                                                result += "<input type=\"button\" style=\"height:30px;background-color:"+color+"\"  onclick=\"makeFieldsChoose2("+x+","+y+",true,'"+under[i]["place_unique_id"]+"')\" value=\""+under[i]["monster_name"]+"\">";
                                             }
                                         }
                                     }
@@ -5011,9 +5063,24 @@ function makeFields(data,koka,success2){
                     }
                     }
                 }else{
+                        if(checkVal(fields[x][y]["det"],gray_out) >= 1){
+                            gray_flag = true;
+                        }else{
+                            gray_flag = false;
+                        }
+                        if(checkVal(fields[x][y]["det"],"rotate")>=1){
+                            rotate_css = "transform: rotate(90deg)"
+                        }else{
+                            rotate_css = ""
+                        }
+                            add_val_html = checkAddVal(fields[x][y]["det"]);
                     if(show_img == false){
 	            var instead_img = "";
-                    var card_data="<table class=\"character\"><tr><td colspan=\"2\">"+fields[x][y]["det"]["monster_name"]+"</td></tr>";
+			    if(gray_flag == true){
+                    var card_data="<table class=\"character\" style=\""+rotate_css+"\"><tr><td colspan=\"2\" style=\"opacity:0.4;"+rotate_css+"\">"+fields[x][y]["det"]["monster_name"]+"</td></tr>";
+			    }else{
+                    var card_data="<table class=\"character\" style=\""+rotate_css+"\"><tr><td colspan=\"2\" >"+fields[x][y]["det"]["monster_name"]+"</td></tr>";
+			    }
 		    var keys = Object.keys(fields[x][y]["det"]["variables"]);
                     for(var l=0;l<keys.length;l++){
 		    if(fields[x][y]["det"]["variables"][keys[l]]["show"] == 1){
@@ -5025,6 +5092,9 @@ function makeFields(data,koka,success2){
 		    }
 		    }
 		    }
+			if(add_val_html != ""){
+				card_data+="<tr><td colspan=\"2\">"+add_val_html+"</td></tr>";
+			}
 		    card_data+="</table>";
 		    result=card_data;
                     }else{
@@ -5034,11 +5104,6 @@ function makeFields(data,koka,success2){
 			}else{
 				var style = "";
 			}
-                        if(checkVal(fields[x][y]["det"],gray_out) >= 1){
-                            gray_flag = true;
-                        }else{
-                            gray_flag = false;
-                        }
                         relate_str = "";
                         if(fields[x][y]["det"]["rel"] != undefined){
                             for(relation in  fields[x][y]["det"]["rel"]){
@@ -5062,11 +5127,6 @@ function makeFields(data,koka,success2){
                                 }
                             }
                         }
-                        if(checkVal(fields[x][y]["det"],"rotate")>=1){
-                            rotate_css = "transform: rotate(90deg)"
-                        }else{
-                            rotate_css = ""
-                        }
                             if(checkVal(fields[x][y]["det"],"arrow")>=1){
                                 if(fields[x][y]["mine_or_other"] == user){
                                     arrow_html_before = "<img class=\"arrow\" style=\"transform: rotate(180deg)\" src=\""+static_url+"/img/yajirusi.png\"><br>";
@@ -5079,12 +5139,11 @@ function makeFields(data,koka,success2){
                                 arrow_html_before = "";
                                 arrow_html = "";
                             }
-                            add_val_html = checkAddVal(fields[x][y]["det"]);
 
                         pid.push(fields[x][y]["det"]["place_unique_id"]);
-                        {% if config.up_reverse is False %}
+                        {% if Config.up_reverse is False %}
                         var img_url = fields[x][y]["det"]["img"];
-			if(show_img == false){
+			if(show_img == true){
 			if(fields[x][y]["det"]["instead_img"]){
 			     var instead_img = fields[x][y]["det"]["instead_img"];
 			}else{
@@ -5095,13 +5154,14 @@ function makeFields(data,koka,success2){
                             if(fields[x][y]["det"]["under"] != undefined){
                                 under = fields[x][y]["det"]["under"];
                                 for(var i=0;i<under.length;i++){
-                                    add_name_html += "<br>"+fields[x][y]["det"]["monster_name"];
+                                                           add_name_html += "<br>"+fields[x][y]["det"]["under"][i]["monster_name"];
                                 }
+                            }
                         {% else %}
                             if(fields[x][y]["det"]["under"] != undefined){
                                 under = fields[x][y]["det"]["under"];
                                 var img_url = under[0]["img"];
-			if(show_img == false){
+			if(show_img == true){
 				if(under[0]["instead_img"]){
 				     var instead_img = under[0]["instead_img"];
 				}else{
@@ -5111,7 +5171,7 @@ function makeFields(data,koka,success2){
                                 add_name_html = "<br>"+fields[x][y]["det"]["monster_name"];
                             }else{
                                 var img_url = fields[x][y]["det"]["img"];
-			if(show_img == false){
+			if(show_img == true){
 				if(fields[x][y]["det"]["instead_img"]){
 				     var instead_img = fields[x][y]["det"]["instead_img"];
 				}else{
@@ -5199,6 +5259,11 @@ function makeFields(data,koka,success2){
                         }
             result+="<tr>";
             for(j=0;j<hands[i]["myhandnum"];j++){
+                if(checkVal(hands[i]["myhand"][j],"rotate")>=1){
+                    rotate_css = " style='transform: rotate(90deg)' "
+                }else{
+                    rotate_css = "";
+                }
                 if(show_img == false){
 	            var instead_img = "";
 				 card_data="<td><table class=\"character\"><tr><td colspan=\"2\">"+hands[i]["myhand"][j]["monster_name"]+"</td></tr>";
@@ -5225,7 +5290,7 @@ function makeFields(data,koka,success2){
 	         }
                 // 選択中は出さない
                 pid.push(hands[i]["myhand"][j]["place_unique_id"]);
-                result+="<div card_id="+instead_img+"  id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a target=\"_blank\" title=\""+hands[i]["myhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain" %}?id="+hands[i]["myhand"][j]["id"]+"\" {% endif %}><img class=\"img_card\" style=\"\" src=\""+static_url+"/img/"+img_url+"\"></a></div>";
+                result+="<div "+rotate_css+" card_id="+instead_img+"  id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a target=\"_blank\" title=\""+hands[i]["myhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain" %}?id="+hands[i]["myhand"][j]["id"]+"\" {% endif %}><img class=\"img_card\"  src=\""+static_url+"/img/"+img_url+"\"></a></div>";
                 result+="</td>";
 		   }
             }
@@ -5255,7 +5320,7 @@ function makeFields(data,koka,success2){
         var result;
         var pid = [];
         var tmp_width;
-        result="<table style=\"table-layout: fixed;display:inline;text-align:center;overflow-y:visible;width:80%;\">";
+        result="<table style=\"table-layout: fixed;display:inline;text-align:center;overflow-y:hidden;width:80%;\">";
         for(i=0;i<hands.length;i++){
             if(hands.length!= 1){
                 result+="<tr><td style=\"width:"+tmp_width+";\" colspan=\""+hands[i]["myhandnum"]+"\">"+hands[i]["hand_name"]+"</td></tr>";
@@ -5270,7 +5335,12 @@ function makeFields(data,koka,success2){
             result+="<tr style=\"width:"+tmp_width+"px;overflow-x:scroll\">";
             for(j=0;j<hands[i]["myhandnum"];j++){
 
-                result+="<td style=\"width:{{Config.card_width}}px;overflow-y:visible\"  >";
+                result+="<td style=\"width:{{Config.card_width}}px;overflow-y:hidden\"  >";
+                if(checkVal(hands[i]["myhand"][j],"rotate")>=1){
+                    rotate_css = "transform: rotate(90deg)"
+                }else{
+                    rotate_css = "";
+                }
                 if(show_img == false){
 	            var instead_img = "";
                     card_data="<table class=\"character\"><tr><td colspan=\"2\">"+hands[i]["myhand"][j]["monster_name"]+"</td></tr>";
@@ -5300,9 +5370,9 @@ function makeFields(data,koka,success2){
                 if(mode == 0){
                     pid.push(hands[i]["myhand"][j]["place_unique_id"]);
                     if(hands[i]["show"] == 4 && checkVal(hands[i]["myhand"][j],"show") == 0){
-                        var style="style='opacity:0.8;background-color:gray'";
+                        var style=" style='opacity:0.8;background-color:gray;"+rotate_css+"'";
                     }else{
-                        var style="";
+                        var style=" style='"+rotate_css+"'";
                     }
                     if(hands[i]["myhand"][j]["trigger"] != undefined && hands[i]["myhand"][j]["trigger"].length  ){
 		        if(hands[i]["myhand"][j]["trigger"].length == 1){ 
@@ -5316,21 +5386,21 @@ function makeFields(data,koka,success2){
 				trigger_names += hands[i]["myhand"][j]["trigger"][k]["name"] + ",";
 				}
 
-			    result+="<div"+style+" card_id="+instead_img+" id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a href=\"javascript:chooseHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+trigger_ids+"','"+trigger_names+"',1,'"+img_url+"')\"></a></div>";
+			    result+="<div"+style+" card_id="+instead_img+" id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a href=\"javascript:chooseHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+trigger_ids+"','"+trigger_names+"',1,'"+img_url+"')\">"+card_data+"</a></div>";
 			for(var k=0;k<hands[i]["myhand"][j]["trigger"].length;k++){ 
-//			    result+="<div"+style+" card_id="+instead_img+" id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a href=\"javascript:sendHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+hands[i]["myhand"][j]["trigger"][k]["id"]+"',1)\">"+card_data+"</a></div>";
+//			    result+="<div"+style+" card_id="+instead_img+" id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a href=\"javascript:sendHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+hands[i]["myhand"][j]["trigger"][k]["id"]+"',1)\"></a></div>";
                                 result+= "<br><input type=\"button\" onclick=\"sendHandTrigger('"+(i+1)+"','"+hands[i]["myhand"][j]["place_unique_id"]+"','"+hands[i]["myhand"][j]["trigger"][k]["id"]+"',1)\" value=\""+hands[i]["myhand"][j]["trigger"][k]["name"]+"\">";
 			}
 			}
 	       }else{
-                   var style="style='opacity:0.4;background-color:gray'";
+                   var style="style='opacity:0.4;background-color:gray;"+rotate_css+"'";
                     result+="<div "+style+" card_id="+instead_img+"  id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a target=\"_blank\" title=\""+hands[i]["myhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain" %}?id="+hands[i]["myhand"][j]["id"]+"\" {% endif %}>"+card_data+"</a></div>";
 	       	}
                 }else{
                     if(hands[i]["show"] == 4 && checkVal(hands[i]["myhand"][j],"show") == 0){
-                        var style="style='opacity:0.8;background-color:gray'";
+                        var style="style='opacity:0.8;background-color:gray'"+rotate_css+"'";
                     }else{
-                        var style="";
+                        var style=" style='"+rotate_css+"'";
                     }
                     pid.push(hands[i]["myhand"][j]["place_unique_id"]);
                     result+="<div "+style+" card_id="+instead_img+"  id=\""+hands[i]["myhand"][j]["place_unique_id"]+"\"><a target=\"_blank\" title=\""+hands[i]["myhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain" %}?id="+hands[i]["myhand"][j]["id"]+"\" {% endif %}>"+card_data+"</a></div>";
@@ -5572,7 +5642,7 @@ function makeFields(data,koka,success2){
                 }
                 result+="<td>";
                 for(j=0;j<hands[i]["otherhandnum"];j++){
-                    result += "■ ";
+	    result += "<span style=\"border:1px solid #FFF;background-color:#000\">■</span> ";
                 }
                     result += hands[i]["otherhandnum"]+"枚";
                 result += "</td></tr>";
@@ -5592,15 +5662,20 @@ function makeFields(data,koka,success2){
 	        }else{
 	             var instead_img = hands[i]["otherhand"][j]["img"];
 	         }
+                if(checkVal(hands[i]["otherhand"][j],"rotate")>=1){
+                    rotate_css = " style='transform: rotate(90deg)' "
+                }else{
+                    rotate_css = "";
+                }
                 if(hands[i]["otherhand"][j]["trigger"] != undefined && hands[i]["otherhand"][j]["trigger"].length != 0  ){
                     for(k=0;k<hands[i]["otherhand"][j]["trigger"].length;k++){
                         if(k==0){
-                            result+="<a target=\"_blank\" onclick=\"sendHandTrigger('"+(i+1)+"','"+hands[i]["otherhand"][j]["place_unique_id"]+"','"+hands[i]["otherhand"][j]["trigger"][k]["id"]+"',1)\"  title=\""+hands[i]["otherhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain"%}?id="+hands[i]["otherhand"][j]["id"]+"\" {% endif %}><img class=\"img_card\" src=\""+static_url+"/img/"+img_url+"\"></a>";
+                            result+="<a target=\"_blank\" "+rotate_css+" onclick=\"sendHandTrigger('"+(i+1)+"','"+hands[i]["otherhand"][j]["place_unique_id"]+"','"+hands[i]["otherhand"][j]["trigger"][k]["id"]+"',1)\"  title=\""+hands[i]["otherhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain"%}?id="+hands[i]["otherhand"][j]["id"]+"\" {% endif %}><img class=\"img_card\" src=\""+static_url+"/img/"+img_url+"\"></a>";
                         }
                         result += "<br><input type=\"button\" onclick=\"sendHandTrigger('"+(i+1)+"','"+hands[i]["otherhand"][j]["place_unique_id"]+"','"+hands[i]["otherhand"][j]["trigger"][k]["id"]+"',1)\" value=\""+hands[i]["otherhand"][j]["trigger"][k]["name"]+"\">";
                     }
                 }else{
-                    result+="<a target=\"_blank\" title=\""+hands[i]["otherhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain"%}?id="+hands[i]["otherhand"][j]["id"]+"\" {% endif %}><img class=\"img_card\" src=\""+static_url+"/img/"+img_url+"\"></a>";
+                    result+="<a target=\"_blank\" "+rotate_css+" title=\""+hands[i]["otherhand"][j]["monster_sentence"]+"\" {% if Config.card_href %}   href=\"{% url "tcgcreator:explain"%}?id="+hands[i]["otherhand"][j]["id"]+"\" {% endif %}><img class=\"img_card\" src=\""+static_url+"/img/"+img_url+"\"></a>";
                 }
                 result+="</td>";
             }

@@ -2114,6 +2114,7 @@ def chain_variable(request):
             return HttpResponseRedirect(reverse("tcgcreator:watch_battle"))
     duelobj.duel = duel
     duelobj.room_number = room_number
+    pprint("abc")
     if duel.user_1 == request.user or (ID1 == ID and duel.guest_flag is True):
         user = 1
         other_user = 2
@@ -2302,7 +2303,7 @@ def chain_variable(request):
                             chain_variable_name
                         ] = chain_variable
                         duel.chain_variable = json.dumps(chain_variable_det)
-        elif duel.user_2 == request.user:
+        elif duel.user_2 == request.user or (ID2 == ID and duel.guest_flag2 is True):
             if duel.user_turn == 2:
                 if duel.ask == 1 or duel.ask == 3:
                     duel.ask -= 1
@@ -5611,13 +5612,37 @@ def answer_det_cost(duelobj, duel, user, answer, request, del_ask, room_number, 
     else:
         whether_monster = 0
     cost_text = cost_text["monster"]
+    counter = 0
+    for tmp in answer:
+        if cost_text[0]["equation"]["equation_kind"] == "x":
+            counter += tmp["x"]
+        elif cost_text[0]["equation"]["equation_kind"] == "y":
+            counter += tmp["y"]
+        elif cost_text[0]["equation"]["equation_kind"] == "kind":
+            if tmp["id"] not in variety:
+                variety.append(tmp["id"]) 
+        elif cost_text[0]["equation"]["equation_kind"] == "number":
+            counter += 1
+        else:
+            counter += int(tmp["variables"][cost_text[0]["equation"]["equation_kind"]]["value"])
+    if cost_text[0]["equation"]["equation_kind"] == "kind":
+        counter = len(variety)
+
+    if counter < duelobj.calculate_boland(
+        cost_text[0]["min_equation_number"], None, other_user_flag
+    ) or counter > duelobj.calculate_boland(
+        cost_text[0]["max_equation_number"], None, other_user_flag
+    ):
+        free_lock(room_number, lock)
+        return HttpResponse("error")
+    '''
     if len(answer) < duelobj.calculate_boland(
         cost_text[0]["min_equation_number"], None, other_user_flag
     ) or len(answer) > duelobj.calculate_boland(
         cost_text[0]["max_equation_number"], None, other_user_flag
     ):
-        free_lock(room_number, lock)
         return HttpResponse("error")
+    '''
     own_player_flag = False
     other_player_flag = True
     for answer_val in answer:
@@ -6106,6 +6131,7 @@ def answer_det_cost(duelobj, duel, user, answer, request, del_ask, room_number, 
         else:
             duel.cost_det = 0
             next_effect = None
+        pprint(duel.current_trigger)
         trigger = Trigger.objects.get(id=duel.current_trigger)
         tmp = duelobj.pay_cost(next_effect, user,duel.chain,trigger)
         if next_effect == 0 or tmp is True:

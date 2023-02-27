@@ -11,6 +11,7 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.db.models import Prefetch, Max
 import copy
 from .models import (
+    Background,
     Monster,
     FieldSize,
     Field,
@@ -252,10 +253,16 @@ def battle(request, room_number):
         default_deck_groups = None
     if duel.is_ai == True:
         enemy_deck_groups = EnemyDeckGroup.objects.all()
+    if Background.objects.first():
+        background = Background.objects.order_by("?")[0]
+        background_file_name = background.file_name
+    else:
+        background_file_name = ""
     return render(
         request,
         "tcgcreator/"+html,
         {
+            "Background": background_file_name,
             "user":user,
             "user_flag":user_flag,
             "room_number": room_number,

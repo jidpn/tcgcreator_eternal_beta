@@ -46,7 +46,6 @@ def explain_grave(request):
     i = 0
     graves = Grave.objects.all()
     for grave in graves:
-        pprint(grave.id)
         if grave_number == grave.id:
             if grave.mine_or_other == 1:
                 if grave.show >= 1:
