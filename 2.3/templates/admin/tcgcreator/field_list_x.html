@@ -1,0 +1,22 @@
+{% extends "admin/base_site.html" %}
+{% load tcgcreatorlookup %}
+{% load static %}
+{% csrf_token %}
+
+{% block extrastyle %}
+	{{ block.super}}
+	<link rel="stylesheet" href="{% static "/tcgcreator/css/field_kind.css" %}" type="text/css" >
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js" ></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" ></script>
+	<script src="{% static "/tcgcreator/js/field_kind.js" %}" ></script>
+	<script src="{% static "/tcgcreator/js/ajax.js" %}" ></script>
+{% endblock extrastyle %}
+{% block content %}
+<form action = "{% url 'field_list_view_x' %}" method="POST">
+{% csrf_token %}
+{{form.as_p}}
+<input type="hidden" name="y" id="id_y" value="{{y}}">
+<input type="submit" value="送信">
+</form>
+{% endblock content %}
+

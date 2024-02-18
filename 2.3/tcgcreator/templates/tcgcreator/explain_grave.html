@@ -1,0 +1,83 @@
+<html>
+<head>
+<script>
+    $(document).ready(function(){
+	let result_html = "";
+	{% for grave_obj in graves_obj %}
+    {% if grave_obj == -1 %}
+result_html +=  `
+<tr>
+<td>裏向きのカード</td>
+</tr>
+`
+    {% else %}
+	add_html = "";
+	{% if add_variable in grave_obj %}
+		if ("{{add_variable}}".substr(0,1) == "!"){
+            flag2 = true
+        }else{
+            flag2 = false
+		}
+		{% for variable in graves_obj.add_variable %}
+            value = monster["add_variable"][{{add_variable}}];
+		 	{% if variable in grave_obj.variables %}
+				i_value = 0;
+			{% else %}
+				i_value = grave_obj["variables"][{{variable}}]["i_val"];
+			{% endif %}
+        if(i_value < value){
+
+            add_html += "+" + String(value - i_value);
+            if(flag2 == false){
+                add_html += "+" + String(value - i_value);
+                flag = true;
+            }else{
+                html += tmp.substr(1) + "+" + String(i_value - value);
+
+            }
+       } else if(i_value > value){
+            if(flag2 == false){
+                add_html += "-" + String(i_value - value);
+                flag = true;
+            }else{
+                html += tmp.substr(1) + "-" + String(i_value - value);
+            }
+       } else if(i_value == value){
+            if( flag2 == false){
+                add_html += "+0";
+            }
+       }
+		{% endfor %}
+	{% endif %}
+result_html += `
+    <tr>
+        <td><a target="_blank" href="{% url 'tcgcreator:explain'%}?id={{grave_obj.id}}">{{grave_obj.monster_name}}</a>
+`;
+result_html += add_html;
+result_html +=`
+			</td>
+    </tr>
+`
+    {% endif %}
+{% endfor %}
+	$("#grave_content").html(result_html);
+	});
+</script>	
+<style>
+table {
+	width:50%;
+	text-align:center;
+	background-color:#fffff0;
+}
+table td {
+	border:1px solid black;
+	padding:0px ;
+	margin:0px ;
+}
+</style>
+<meta charset="UTF-8"/> 
+<body>
+<table  id="grave_content">
+</table>
+</body>
+</html>

@@ -1,0 +1,89 @@
+{% extends "admin/trigger.html" %}
+{% block mess %}
+<div id="monster_effect_change_turn" style="width:50%;min-height:200px;display:none;background-color:white;border:1px solid #000000">
+<select id="monster_change_turn">
+</select>
+    <input type="checkbox" id="turn_end_change_turn_flag" checked>ターンを動かす
+<input type="button" value="追加" onclick="putMonsterEffectChangeTurn()">
+</div>
+<div id="monster_effect_phase_move" style="width:50%;min-height:200px;display:none;background-color:white;border:1px solid #000000">
+<select id="monster_change_phase">
+</select>
+<input type="button" value="追加" onclick="putMonsterEffectMovePhase()">
+</div>
+<div id="variable_change" style="width:50%;min-height:200px;display:none;background-color:white;border:1px solid #000000">
+<div style="background-color:#EEEEFF;height:15px;text-align:center">条件</div>
+<select id="variable_name">
+</select>
+<select id="variable_who">
+<option value="0">共通</option>
+<option value="1">自分</option>
+<option value="2">相手</option>
+</select>
+<div id="variable_change_main">
+<select id="variable_change_kind" onchange="getVariableChangeKind(this.value)">
+<option value="0">変数変更</option>
+</select>
+<select id="variable_change_how">
+<option value="0">増やす</option>
+<option value="1">減らす</option>
+<option value="2">指定</option>
+</select>
+<input type="text" id="variable_change_val" onfocus="showVariableEquation()">
+<input type="button" id="variable_change_single" value="追加" onclick="putVariableChange()">
+<input type="button" id="variable_change_multiple" value="マルチ追加" style="display:none" onclick="putVariableChangeMultiple()">
+</div>
+</div>
+</div>
+<div id="shuffle" style="display:none">
+<select id="monster_effect_shuffle_place" class="monster_effect_shuffle_place" ></select><br>
+<input type="button" value="追加" onclick="putShuffle('id_monster_effect')">
+</div>
+<div id="raise_trigger" style="display:none">
+<select id="monster_effect_raise_trigger" class="monster_effect_raise_trigger" ></select><br>
+<input type="button" value="追加" onclick="putRaiseTrigger('id_monster_effect')">
+</div>
+<div id="raise_eternal" style="display:none">
+    <select id="monster_effect_raise_eternal" class="monster_effect_raise_eternal" ></select><br>
+    <input type="button" value="追加" onclick="putRaiseEternal('id_monster_effect')">
+</div>
+<div id="clear" style="display:none">
+<select id="clear_place" class="clear_place" ></select><br>
+<input type="button" value="追加" onclick="putClear()">
+</div>
+<div id="clear_relation" style="display:none">
+    <select id="clear_place_relation" class="clear_place_relation" ></select><br>
+    <input type="text" id="clear_relation_name" ></input><br>
+    <select id="clear_relation_kind" class="clear_place_kind" ></select><br>
+    <select id="clear_relation_to" class="clear_place_kind" ><option value="0">リレーションする</option><option value="1">リレーションされる</option></select><br>
+    <input type="button" value="追加" onclick="putClearRelation()">
+</div>
+<div id="monster_effect_change_timing" style="width:50%;min-height:200px;display:none;background-color:white;border:1px solid #000000">
+<select id="monster_change_timing">
+</select>
+    <select id="t_num">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+    </select>
+    <input type="button" value="追加" onclick="putMonsterEffectChangeTiming()">
+<input type="button" value="追加" onclick="putMonsterEffectChangeTiming()">
+</div>
+<div id="monster_effect_timing_variable" style="width:50%;min-height:200px;display:none;background-color:white;border:1px solid #000000">
+    変数名<input type="text" id="timing_variable_org_monster">
+    as<input type="text" id="timing_variable_monster">
+    <input type="button" value="追加" onclick="putMonsterEffectTimingToVariable()">
+</div>
+<div id="monster_effect_global_variable" style="width:50%;min-height:200px;display:none;background-color:white;border:1px solid #000000">
+        グローバル変数名<select id="global_variable"> </select>
+    min<input type="text" onfocus = "showChainMinEquation()" id="global_variable_min" >
+    max<input type="text" onfocus = "showChainMaxEquation()" id="global_variable_max" >
+    <input type="button" value="追加" onclick="putGlobalVariableChange()">
+</div>
+<div id="monster_effect_chain_variable" style="width:50%;min-height:200px;display:none;background-color:white;border:1px solid #000000">
+    チェーン内変数名<input type="text" value="" id="chain_variable">
+    min<input type="text" onfocus = "showChainMinEquation()" id="chain_variable_min" >
+    max<input type="text" onfocus = "showChainMaxEquation()" id="chain_variable_max" >
+    <input type="button" value="追加" onclick="putChainVariableChange()">
+</div>
+{% endblock %}

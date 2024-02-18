@@ -1,0 +1,540 @@
+common.js:      var copy_kind_i = 0;
+common.js:		getCopyKindChange(copy_kind_i)
+common.js:		for(var i=0;i<copy_kind_i;i++){
+common.js:			$("#copy_kind-"+i).remove()
+common.js:		$("#id_copy_kind").val("");
+common.js:		copy_kind_i=0;
+common.js:   'url': "/tcgcreator/get_monster_kind/",
+common.js:   'data': "delete_flag=0&id=copy_kind&id2=copy_kind&num="+num,
+common.js:			$("#copy_kind").after(data);
+common.js:			copy_kind_i++;
+common.js:			$("#copy_kind-"+(num-1)).after(data);
+common.js:			copy_kind_i++;
+common.js:		   'url': "/tcgcreator/get_effect_kind/",
+common.js:			$("#rel_kind_editor").html(data);
+common.js:			$("#monster_effect_kind_common").html(data);
+common.js:			$("#monster_effect_kind_select").html(data);
+common.js:		$("#copy_kind").after("<input type=\"button\" onclick=\"getCopyKindChangeBefore()\" value=\"追加\"><input type=\"button\" onclick=\"deleteCopyKindChange(0)\" value=\"削除\"><br>");
+common.js:   'url': "/tcgcreator/get_effect_kind/",
+common.js:		$("#monster_variable_change_effect_kind_0").html(data);
+common.js:		var result = '<table><tr><td>変数変更名</td><td><input type="text" id="monster_variable_change_name_'+i+'"></td></tr><tr><td>寿命</td><td><select id="monster_variable_change_life_'+i+'"></select><input type="text" id="monster_variable_change_life_length_'+i+'"></td></tr><tr><td>種別</td><td><select id="monster_variable_change_effect_kind_'+i+'"></select></td></tr><tr><td>元々の値</td><td><select id="monster_variable_change_initial_'+i+'"><option value="1">元々の値</option><option value="0">値</option></select><select id="monster_variable_change_add_'+i+'"><option value="0">加える</option><option value="1">にする</option><option value="2">引く</option></select>persist<input type="checkbox" id="persist_'+i+'"><input type="text" id="monster_variable_change_val_'+i+'" onfocus="showMonsterVariableEquation('+i+')"></td></tr><tr><td>minus<input type="checkbox" id="monster_variable_change_minus_'+i+'"</td></tr><tr><input type="button" onclick="addMonsterVariableChange('+i+')" class="add_button_monster_variable_change" value="追加" id="add_button_monster_variable_change_'+i+'"></td></tr>';
+common.js:   'url': "/tcgcreator/get_effect_kind/",
+common.js:		$("#monster_variable_change_effect_kind_"+i).html(data);
+common.js:        result+= 'リレーションタイプ<input type="text" id="put_relation_kind_'+String(i)+'">';
+common.js:		addKindType("put_relation_kind_"+i,'put_relation_kind');
+common.js:        if($("#rel_kind_editor").val() == "0"){
+common.js:            tmp+=$("#rel_kind_editor").val()+":";
+common.js:        tmp+=$("#monster_effect_kind_get_val").val()+":";
+common.js:            if($("#rel_kind_editor").val() == "0"){
+common.js:                tmp+=$("#rel_kind_editor").val()+":";
+common.js:		   'url': "/tcgcreator/get_place_kind/",
+common.js:		   'url': "/tcgcreator/get_variable_kind/",
+common.js:		result+="リレーションタイプ<input type=\"text\" id=\"relation_kind_"+id[0]+"_"+id[1]+"_"+id[2]+"_"+id[3]+"\">";
+common.js:		addKindType("relation_kind_"+id[0]+"_"+id[1]+"_"+id[2]+"_"+id[3],'relation_kind');
+common.js:   'url': "/tcgcreator/get_monster_kind/",
+common.js:        result+= 'リレーションタイプ<input type="text" id="relation_condition_kind_'+String(i)+'">';
+common.js:		addKindType("relation_condition_kind_"+i,'relation_kind');
+common.js:        if($("#monster_effect_kind_get_val").val() == ""){
+common.js:            $("#monster_effect_kind_get_val").val($("#monster_effect_kind_select").val());
+common.js:            $("#monster_effect_kind_get_val").val($("#monster_effect_kind_get_val").val()+"_"+$("#monster_effect_kind_select").val());
+common.js:        kinds = monster_variable.monster_variable_kind_id.monster_variable_sentence
+common.js:        kinds_org = kinds
+common.js:        kinds = kinds.split("|")
+common.js:        for kind in kinds:
+common.js:            result+="<option value=\""+str(k)+"\">"+kind+"</option>"
+common.js:        result+='<select id="monster_variable_and_or_'+str(monster_variable.id)+'_0" > <option value=""></option> <option value="and">かつ</option> <option value="or">または</option> </select><input id="monster_variable_add'+"_"+str(monster_variable.id)+'_0" type="button" value="追加"  onclick="addMonsterEquation2(\''+str(i)+'_'+str(monster_variable.id)+'_0\',\''+kinds_org+'\')"><br>'
+common.js:	function addUnderEquation2(id,kinds_org){
+common.js:		kinds = kinds_org.split("|")
+common.js:			for(var i=1;i<=kinds.length;i++){
+common.js:					result+="<option value=\""+i+"\">"+kinds[i-1]+"</option>"
+common.js:			result+='<input id="under_variable_add_'+id[0]+"_"+id[1]+'_'+id[2]+'_'+id[3]+'" value="追加" type="button" onclick="addUnderEquation2(\''+id[0]+'_'+id[1]+'_'+id[2]+'_'+id[3]+'\',\''+kinds_org+'\')"><br>'
+common.js:			for(var i=1;i<=kinds.length;i++){
+common.js:					result+="<option value=\""+i+"\">"+kinds[i-1]+"</option>"
+common.js:			result+='<input id="under_variable_add_'+id[0]+"_"+id[1]+'_'+id[2]+'" value="追加" type="button" onclick="addUnderEquation2(\''+id[0]+'_'+id[1]+'_'+id[2]+'\',\''+kinds_org+'\')"><br>'
+common.js:			for(var i=1;i<=kinds.length;i++){
+common.js:					result+="<option value=\""+i+"\">"+kinds[i-1]+"</option>"
+common.js:			result+='<input id="under_variable_add_'+id[0]+'_'+id[1]+'" value="追加" type="button" onclick="addUnderEquation2(\''+id[0]+'_'+id[2]+'\',\''+kinds_org+'\')"><br>'
+common.js:	function addMonsterEquation2(id,kinds_org){
+common.js:		kinds = kinds_org.split("|")
+common.js:			for(var i=1;i<=kinds.length;i++){
+common.js:					result+="<option value=\""+i+"\">"+kinds[i-1]+"</option>"
+common.js:			result+='<input id="monster_variable_add_'+id[0]+"_"+id[1]+'_'+id[2]+'_'+id[3]+'" value="追加" type="button" onclick="addMonsterEquation2(\''+id[0]+'_'+id[1]+'_'+id[2]+'_'+id[3]+'\',\''+kinds_org+'\')"><br>'
+common.js:			for(var i=1;i<=kinds.length;i++){
+common.js:					result+="<option value=\""+i+"\">"+kinds[i-1]+"</option>"
+common.js:			result+='<input id="monster_variable_add_'+id[0]+"_"+id[1]+'_'+id[2]+'" value="追加" type="button" onclick="addMonsterEquation2(\''+id[0]+'_'+id[1]+'_'+id[2]+'\',\''+kinds_org+'\')"><br>'
+common.js:			for(var i=1;i<=kinds.length;i++){
+common.js:					result+="<option value=\""+i+"\">"+kinds[i-1]+"</option>"
+common.js:			result+='<input id="monster_variable_add_'+id[0]+'_'+id[1]+'" value="追加" type="button" onclick="addMonsterEquation2(\''+id[0]+'_'+id[2]+'\',\''+kinds_org+'\')"><br>'
+common.js:		   'url': "/tcgcreator/get_place_kind/",
+common.js:	    json["copy_kind"] =$("#copy_kind").val();
+common.js:        $(".show_multiple_effect_kind").hide();
+common.js:        $(".hide_multiple_effect_kind").show();
+common.js:        $(".multiple_effect_kind_box").show();
+common.js:        $(".show_multiple_effect_kind").show();
+common.js:        $(".hide_multiple_effect_kind").hide();
+common.js:        $(".multiple_effect_kind_box").hide();
+common.js:		    addKindType("put_relation_kind_"+0,'put_relation_kind');
+common.js:   'url': "/tcgcreator/get_place_kind/",
+common.js:		   'url': "/tcgcreator/get_variable_kind/",
+common.js:		        id = 'monster_kind';
+common.js:		        id2 = 'id_trigger_kind';
+common.js:    tmp = $('#monster_effect_kind_'+j+'_'+i).val();
+common.js:    tmp2 = $('#monster_effect_kind_choose_'+j+'_'+i).val();
+common.js:    $('#monster_effect_kind_'+j+'_'+i).val(tmp+tmp2);
+common.js:   'url': "/tcgcreator/get_effect_kind/",
+common.js:		$("#eternal_kind_choose_for_editor").html(data);
+common.js:	    tmp2 = $("#eternal_kind_choose_for_editor").val();
+common.js:   'url': "/tcgcreator/get_place_kind/",
+common.js:		   'url': "/tcgcreator/get_variable_kind/",
+common.js:		        id = 'monster_kind';
+common.js:		        id2 = 'id_trigger_kind';
+common.js:    tmp = $('#monster_effect_kind_'+j+'_'+i).val();
+common.js:    tmp2 = $('#monster_effect_kind_choose_'+j+'_'+i).val();
+common.js:    $('#monster_effect_kind_'+j+'_'+i).val(tmp+tmp2);
+common.js:   'url': "/tcgcreator/get_effect_kind/",
+common.js:		$("#eternal_kind_choose_for_editor").html(data);
+common.js:	    tmp2 = $("#eternal_kind_choose_for_editor").val();
+cost.js:	var monster_kind_id = [];
+cost.js:   'url': "/tcgcreator/get_place_kind/",
+cost.js:   'url': "/tcgcreator/get_place_kind/",
+cost.js:   'url': "/tcgcreator/get_effect_kind/",
+cost.js:		$("#clear_relation_kind").html(data);
+cost.js:		var relation_kind = $("#clear_relation_kind").val();
+cost.js:		json["relation"]["relation_kind"]= relation_kind
+cost.js:			json["monster_variable_change_name"]["monster_name_kind"] = "";
+cost.js:			json["monster_variable_change_name"]["monster_name_kind"] = {};
+cost.js:			json["monster_variable_change_name"]["monster_name_kind"]["operator"] = "=";
+cost.js:			json["monster_variable_change_name"]["monster_name_kind"]["monster_name"] =$("#monster_name").val();
+cost.js:			json["monster_variable_change_name"]["monster_name_kind"] = {};
+cost.js:			json["monster_variable_change_name"]["monster_name_kind"]["operator"] = "like";
+cost.js:			json["monster_variable_change_name"]["monster_name_kind"]["monster_name"] =$("#monster_name").val();
+cost.js:		json["equation_kind"] = $("#get_equation_kind").val();
+cost.js:			json["monster_name_kind"] = "";
+cost.js:			json["monster_name_kind"] = {};
+cost.js:			json["monster_name_kind"]["operator"] = "=";
+cost.js:			json["monster_name_kind"]["monster_name"] =$("#monster_name").val();
+cost.js:			json["monster_name_kind"] = {};
+cost.js:			json["monster_name_kind"]["operator"] = "like";
+cost.js:			json["monster_name_kind"]["monster_name"] =$("#monster_name").val();
+cost.js:		   'url': "/tcgcreator/get_variable_kind/",
+cost.js:			$("#monster_kind-"+i).remove()
+cost.js:		$("#id_cost_move_kinds").val("");
+cost.js:			tmp_str+=$("#monster_kind-"+(i)).val()+"_";;
+cost.js:		$("#id_cost_move_kinds").val(tmp_str);
+cost.js:		   'url': "/tcgcreator/get_variable_kind/",
+cost.js:		   'url': "/tcgcreator/get_place_kind/",
+cost.js:		   'url': "/tcgcreator/get_place_kind/",
+cost.js:			json["cost_name"]["monster_name_kind"] = "";
+cost.js:			json["cost_name"]["monster_name_kind"] = {};
+cost.js:			json["cost_name"]["monster_name_kind"]["operator"] = "=";
+cost.js:			json["cost_name"]["monster_name_kind"]["monster_name"] =$("#monster_name").val();
+cost.js:			json["cost_name"]["monster_name_kind"] = {};
+cost.js:			json["cost_name"]["monster_name_kind"]["operator"] = "like";
+cost.js:			json["cost_name"]["monster_name_kind"]["monster_name"] =$("#monster_name").val();
+cost.js:		json["equation_kind"] = $("#get_equation_kind").val();
+cost.js:			json["monster_name_kind"] = "";
+cost.js:			json["monster_name_kind"] = {};
+cost.js:			json["monster_name_kind"]["operator"] = "=";
+cost.js:			json["monster_name_kind"]["monster_name"] =$("#monster_name").val();
+cost.js:			json["monster_name_kind"] = {};
+cost.js:			json["monster_name_kind"]["operator"] = "like";
+cost.js:			json["monster_name_kind"]["monster_name"] =$("#monster_name").val();
+cost.js:	function getCostConditionKind(cost_kind){
+cost.js:		if(cost_kind == "0" || cost_kind == "1"){
+cost.js:		if(cost_kind == "2"){
+cost.js:   'url': "/tcgcreator/get_place_kind/",
+cost.js:		   'url': "/tcgcreator/get_variable_kind/",
+cost.js:			json["equation"][0]["equation_kind"] = $("#get_equation_kind").val();
+cost.js:				json["equation"][i-1]["equation_kind"] = $("#get_equation_kind"+i).val();
+cost.js:			json["monster_name_condition"]["monster_name_kind"] = "";
+cost.js:			json["monster_name_condition"]["monster_name_kind"] = {};
+cost.js:			json["monster_name_condition"]["monster_name_kind"]["operator"] = "=";
+cost.js:			json["monster_name_condition"]["monster_name_kind"]["monster_name"] =$("#monster_name").val();
+cost.js:			json["monster_name_condition"]["monster_name_kind"] = {};
+cost.js:			json["monster_name_condition"]["monster_name_kind"]["operator"] = "like";
+cost.js:			json["monster_name_condition"]["monster_name_kind"]["monster_name"] =$("#monster_name").val();
+cost_kind.js:	var monster_kind_id = [];
+cost_kind.js:	var cost_kind_i = 0;
+cost_kind.js:   'url': "/tcgcreator/get_monster_kind/",
+cost_kind.js:   'data': "delete_flag=0&num=0&id=monster_kind_rel&id2=monster_kind_rel",
+cost_kind.js:		$("#id_cost_kind_rel").after("<input type=\"button\" onclick=\"changeCostKindNumRel()\" value=\"追加\"><br>");
+cost_kind.js:			$("#id_cost_kind_rel").after(data);
+cost_kind.js:   'url': "/tcgcreator/get_monster_kind/",
+cost_kind.js:		$("#id_cost_kind").after("<input type=\"button\" onclick=\"changeCostKindNum()\" value=\"追加\"><br>");
+cost_kind.js:			$("#id_cost_kind").after(data);
+cost_kind.js:		$("#id_cost_kind").val("");
+cost_kind.js:		tmp = $("#id_cost_kind").val();
+cost_kind.js:		tmp_str=$("#monster_kind-0").val();
+cost_kind.js:		$("#id_cost_kind").val(tmp);
+cost_kind.js:		tmp = $("#id_cost_kind_rel").val();
+cost_kind.js:		tmp_str=$("#monster_kind_rel-0").val();
+cost_kind.js:		$("#id_cost_kind_rel").val(tmp);
+cost_wrapper.js:		$("#id_cost_next").after("<input type=\"button\" onclick=\"getCostNextSpecify('id_cost_next')\" value=\"絞り込み\"><input type=\"text\" id=\"id_cost_next_name_specify\"><select id=\"id_cost_next_effect_kind\"></select>");
+cost_wrapper.js:		$("#id_cost_next").after("<input type=\"button\" onclick=\"getLastCostNextSpecify('id_cost_next')\" value=\"最新\"><input type=\"text\" id=\"id_cost_next_name_specify\"><select id=\"id_cost_next_effect_kind\"></select>");
+cost_wrapper.js:		$("#id_cost_next2").after("<input type=\"button\" onclick=\"getCostNextSpecify('id_cost_next2')\" value=\"絞り込み\"><input type=\"text\" id=\"id_cost_next2_name_specify\"><select id=\"id_cost_next2_effect_kind\"></select>");
+cost_wrapper.js:		$("#id_cost_next2").after("<input type=\"button\" onclick=\"getLastCostNextSpecify('id_cost_next2')\" value=\"最新\"><input type=\"text\" id=\"id_cost_next2_name_specify\"><select id=\"id_cost_next2_effect_kind\"></select>");
+cost_wrapper.js:		$("#id_pac").after("<input type=\"button\" onclick=\"getPacCostNextSpecify('id_pac')\" value=\"絞り込み\"><input type=\"text\" id=\"id_pac_name_specify\"><select id=\"id_pac_effect_kind\"></select>");
+cost_wrapper.js:		$("#id_pac").after("<input type=\"button\" onclick=\"getLastPacCostNextSpecify('id_pac')\" value=\"最新\"><input type=\"text\" id=\"id_pac_name_specify\"><select id=\"id_pac_effect_kind\"></select>");
+cost_wrapper.js:		$("#id_pac2").after("<input type=\"button\" onclick=\"getPacCostNextSpecify('id_pac2')\" value=\"絞り込み\"><input type=\"text\" id=\"id_pac2_name_specify\"><select id=\"id_pac2_effect_kind\"></select>");
+cost_wrapper.js:		$("#id_pac2").after("<input type=\"button\" onclick=\"getLastPacCostNextSpecify('id_pac2')\" value=\"最新\"><input type=\"text\" id=\"id_pac2_name_specify\"><select id=\"id_pac2_effect_kind\"></select>");
+cost_wrapper.js:		$("#id_pac_next").after("<input type=\"button\" onclick=\"getPacCostNextSpecify('id_pac_next')\" value=\"絞り込み\"><input type=\"text\" id=\"id_pac_next_name_specify\"><select id=\"id_pac_next_effect_kind\"></select>");
+cost_wrapper.js:		$("#id_pac_next").after("<input type=\"button\" onclick=\"getLastPacCostNextSpecify('id_pac_next')\" value=\"最新\"><input type=\"text\" id=\"id_pac_next_name_specify\"><select id=\"id_pac_next_effect_kind\"></select>");
+cost_wrapper.js:		$("#id_pac_next2").after("<input type=\"button\" onclick=\"getPacCostNextSpecify('id_pac_next2')\" value=\"絞り込み\"><input type=\"text\" id=\"id_pac_next2_name_specify\"><select id=\"id_pac_next2_effect_kind\"></select>");
+cost_wrapper.js:		$("#id_pac_next2").after("<input type=\"button\" onclick=\"getLastPacCostNextSpecify('id_pac_next2')\" value=\"最新\"><input type=\"text\" id=\"id_pac_next2_name_specify\"><select id=\"id_pac_next2_effect_kind\"></select>");
+cost_wrapper.js:   'url': "/tcgcreator/get_effect_kind/",
+cost_wrapper.js:		$("#id_cost_next_effect_kind").html(data);
+cost_wrapper.js:		$("#id_cost_next2_effect_kind").html(data);
+cost_wrapper.js:		$("#id_pac_effect_kind").html(data);
+cost_wrapper.js:		$("#id_pac2_effect_kind").html(data);
+cost_wrapper.js:		$("#id_pac_next_effect_kind").html(data);
+cost_wrapper.js:		$("#id_pac_next2_effect_kind").html(data);
+cost_wrapper.js:	        cost_val=$("#"+id+"_effect_kind").val();
+cost_wrapper.js:	        pac_val=$("#"+id+"_effect_kind").val();
+eternal_effect.js:	var eternal_effect_kind_id = [];
+eternal_effect.js:   'url': "/tcgcreator/get_monster_kind/",
+eternal_effect.js:   'data': "delete_flag=0&num=0&id=eternal_kind&id2=eternal_kind",
+eternal_effect.js:		$("#id_eternal_kind").after("<input type=\"button\" onclick=\"changeMonsterKindNum('id_eternal_kind','eternal_kind',1)\" value=\"追加\"><input type=\"button\" onclick=\"deleteMonsterChangeKind()\" value=\"削除\"><br>");
+eternal_effect.js:			$("#id_eternal_kind").after(data);
+eternal_effect.js:   'url': "/tcgcreator/get_monster_kind/",
+eternal_effect.js:   'data': "delete_flag=0&num=0&id=invalid_eternal_kind&id2=invalid_eternal_kind",
+eternal_effect.js:		$("#id_invalid_eternal_kind").after("<input type=\"button\" onclick=\"changeMonsterKindNum('id_invalid_eternal_kind','invalid_eternal_kind',1)\" value=\"追加\"><input type=\"button\" onclick=\"deleteMonsterChangeKind()\" value=\"削除\"><br>");
+eternal_effect.js:			$("#id_invalid_eternal_kind").after(data);
+eternal_effect.js:		   'url': "/tcgcreator/get_variable_kind/",
+eternal_effect.js:		   'url': "/tcgcreator/get_variable_kind/",
+eternal_effect.js:	var monster_kind_i = 0;
+eternal_effect.js:	var invalid_monster_kind_i = 0;
+eternal_effect.js:		getEternalEffectChange(monster_kind_i)
+eternal_effect.js:		getInvalidEternalEffectChange(invalid_monster_kind_i)
+eternal_effect.js:		for(var i=0;i<monster_kind_i;i++){
+eternal_effect.js:			$("#monster_kind-"+i).remove()
+eternal_effect.js:		$("#id_eternal_kind").val("");
+eternal_effect.js:		monster_kind_i=0;
+eternal_effect.js:			tmp_str+=$("#monster_kind-"+(i)).val()+"_";;
+eternal_effect.js:		$("#id_eternal_effect_effect_kind").val(tmp_str);
+eternal_effect.js:            'url': "/tcgcreator/get_place_kind/",
+eternal_effect.js:            'url': "/tcgcreator/get_place_kind_to/",
+eternal_effect.js:	function getEternalEffectCostKind(cost_kind){
+eternal_effect.js:		if(cost_kind == "0" || cost_kind == "1"){
+eternal_effect.js:		if(cost_kind == "0"){
+eternal_effect.js:   'url': "/tcgcreator/get_place_kind/",
+eternal_effect.js:		var tmp2 =$("#monster_cost_kind").val();
+eternal_effect.js:		equation_kind = "(equation_kind = "+$("#get_equation_kind").val()+")";
+eternal_effect.js:			monster_name_kind = "";
+eternal_effect.js:			monster_name_kind = '(monster_name_kind = "+$("#monster_name").val()+")';
+eternal_effect.js:			monster_name_kind = '(monster_name_kind like "+$("#monster_name").val()+")';
+eternal_effect.js:		val += "{"+place+place_to+monster_name_kind+monster_cost+equation+equation_kind+equation_number+"}";
+eternal_effect.js:			tmp_str+=$("#monster_kind-"+(i)).val()+"_";;
+eternal_effect.js:		$("#id_eternal_effect_effect_kind").val(tmp_str);
+eternal_effect.js:   'url': "/tcgcreator/get_place_kind/",
+eternal_effect.js:		var tmp2 =$("#monster_monster_kind").val();
+eternal_effect.js:			json["monster_name_kind"] = "";
+eternal_effect.js:			json["monster_name_kind"] = {};
+eternal_effect.js:			json["monster_name_kind"]["operator"] = "=";
+eternal_effect.js:			json["monster_name_kind"]["monster_name"] =$("#monster_name").val();
+eternal_effect.js:			json["monster_name_kind"] = {};
+eternal_effect.js:			json["monster_name_kind"]["operator"] = "like";
+eternal_effect.js:			json["monster_name_kind"]["monster_name"] =$("#monster_name").val();
+eternal_effect_variable.js:	var eternal_effect_kind_id = [];
+eternal_effect_variable.js:		   'url': "/tcgcreator/get_variable_kind/",
+field_kind.js:	var monster_kind_id = [];
+field_kind.js:   'url': "/tcgcreator/get_field_kind/",
+field_kind.js:			$("#id_kind").after("<input type=\"button\" onclick=\"changeFieldNum()\" value=\"追加\"><input type=\"button\" onclick=\"deleteFieldChange()\" value=\"削除\"><br>");
+field_kind.js:			$("#id_kind").after(data);
+field_kind.js:		$("#id_kind").val("");
+field_kind.js:		tmp = $("#id_kind").val();
+field_kind.js:		tmp_str=$("#field_kind-0").val();
+field_kind.js:		$("#id_kind").val(tmp);
+field_kind2.js:	var monster_kind_id = [];
+field_kind2.js:			tmp_str+=$("#field_kind-"+(i)).val()+"_";;
+field_kind2.js:		$("#id_kind").val(tmp_str);
+field_kind2.js:   'url': "/tcgcreator/get_field_kind2/",
+field_kind2.js:		$("#id_kind").prop("type","hidden");
+field_kind2.js:			$("#field_kind-"+(num-1)).after(data);
+fusion.js:		$("#id_unique_effect").after("<input type=\"button\" onclick=\"getMonsterEffectNextSpecify('id_unique_effect')\" value=\"絞り込み\"><input type=\"text\" id=\"id_unique_effect_name_specify\"><select id=\"id_unique_effect_effect_kind\"></select>");
+monster_condition.js:   'url': "/tcgcreator/get_place_kind/",
+monster_condition.js:   'url': "/tcgcreator/get_place_kind/",
+monster_condition.js:   'url': "/tcgcreator/get_place_kind/",
+monster_condition.js:   'url': "/tcgcreator/get_place_kind/",
+monster_condition.js:    function getConditionKind(id_det,kind,y,x){
+monster_condition.js:		   'url': "/tcgcreator/get_variable_kind/",
+monster_condition.js:        global_mode = kind;
+monster_condition.js:        if(kind == undefined){
+monster_condition.js:            kind =-1;
+monster_condition.js:        if(kind == 3 || kind == 57 || kind == 4 || kind == 1 || kind== 36 || kind == 50 || kind == 51 || kind == 70){
+monster_condition.js:   'url': "/tcgcreator/get_place_kind_to/",
+monster_condition.js:        if(kind == 4 || kind == 1 || kind == 36 || kind == 50 || kind == 51 || kind == 57 || kind == 70) {
+monster_condition.js:        if(kind == 57 || kind == 0 || kind == 1 || kind==2 || kind==3 || kind == 4 || kind == 5  || kind==6 || kind == 73 || kind == 81 || kind == 30 || kind == 31|| kind==35 || kind==36 || kind == 50 || kind == 25 || kind == 38 || kind == 51 || kind == 70 || kind == 71){
+monster_condition.js:        if(kind == 2){
+monster_condition.js:        if(kind == 6 ){
+monster_condition.js:        }else if(kind == 30 || kind == 31){
+monster_condition.js:            $(".show_multiple_effect_kind").show();
+monster_condition.js:   'url': "/tcgcreator/get_effect_kind/",
+monster_condition.js:        $("#multiple_effect_kind").html(data);
+monster_condition.js:   'url': "/tcgcreator/get_place_kind/",
+monster_condition.js:        getConditionKindWithData(id_det,kind,y,x);
+monster_condition.js:    function getConditionKindWithData(id_det,kind,y,x){
+monster_condition.js:        global_mode = kind;
+monster_condition.js:        if(kind == undefined){
+monster_condition.js:            kind =-1;
+monster_condition.js:   'url': "/tcgcreator/get_place_kind/",
+monster_condition.js:        if(kind == 57 || kind == 3 || kind == 4 || kind == 1 || kind == 0 || kind == 70 || kind == 81){
+monster_condition.js:        'url': "/tcgcreator/get_place_kind_to/",
+monster_condition.js:		   'url': "/tcgcreator/get_variable_kind/",
+monster_condition.js:            $("#monster_variable_change_effect_kind_"+0).val(val["monster_variable_change_effect_kind"][0]);
+monster_condition.js:                $("#monster_variable_change_effect_kind_"+k).val(val["monster_variable_change_effect_kind"][k]);
+monster_condition.js:            $("#put_relation_kind_"+0).val(val["relation_kind"][0]) ;
+monster_condition.js:                $("#put_relation_kind_"+k).val(val["relation_kind"][k]) ;
+monster_condition.js:        if(kind == 30 || kind == 31){
+monster_condition.js:        if(kind == 57 ||  kind == 4 || kind == 1 || kind == 17 || kind == 36 || kind == 50 || kind == 51 || kind == 70){
+monster_condition.js:        kind = global_mode;
+monster_condition.js:   'url': "/tcgcreator/get_place_kind/",
+monster_condition.js:                    $("#get_monster_name_equal_"+i).val(monster[i-1]["monster_name_kind"]["operator"]);
+monster_condition.js:                    $("#get_monster_name_"+i).val(monster[i-1]["monster_name_kind"]["monster_name"]);
+monster_condition.js:                    if(kind != 3){
+monster_condition.js:                            $("#get_equation_kind_"+c).val(equ["equation_kind"]);
+monster_condition.js:        for(var j=0;json["monster_name_kind"][j] != undefined;j++){
+monster_condition.js:                $("#get_monster_name_equal_"+m+"_1_"+j).val(json["monster_name_kind"][j]["operator"]) ;
+monster_condition.js:                $("#monster_name_"+m+"_1_"+j).val(json["monster_name_kind"][j]["monster_name"]);
+monster_condition.js:                $("#monster_name_and_or_"+m+"_1_"+j).val(json["monster_name_kind"][j]["and_or"]);
+monster_condition.js:            $("#get_under_equation_kind_"+m).val(under["equation"]["equation_kind"]);
+monster_condition.js:                $("#relation_kind_"+m+"_1_"+j+"_"+0).val(json["relation_kind"][j]);
+monster_condition.js:        $("#monster_effect_kind_"+m+"_"+1).val(val["monster"][m]["monster"]["effect_valid"]);
+monster_condition.js:        $("#get_equation_kind_"+m).val(val["monster"][m]["equation"]["equation_kind"]);
+monster_condition.js:            val["multiple_effect_kind"] = $("#multiple_effect_kind").val();
+monster_condition.js:        val["monster_variable_change_effect_kind"]=[];
+monster_condition.js:        val["put_relation_kind"]=[];
+monster_condition.js:        val["monster_variable_change_effect_kind"][k] = $("#monster_variable_change_effect_kind_"+k).val();
+monster_condition.js:        val["put_relation_kind"][k]=$("#put_relation_kind_"+k).val();
+monster_condition.js:            json["monster_name_kind"] = [];
+monster_condition.js:                json["monster_name_kind"][j] = {};
+monster_condition.js:                json["monster_name_kind"][j]["operator"] = "";
+monster_condition.js:                json["monster_name_kind"][j]["monster_name"] ="";
+monster_condition.js:                json["monster_name_kind"][j]["and_or"] = "";
+monster_condition.js:                json["monster_name_kind"][j] = {};
+monster_condition.js:                json["monster_name_kind"][j]["operator"] = "=";
+monster_condition.js:                json["monster_name_kind"][j]["monster_name"] =$("#monster_name_"+m+"_"+i+"_"+j).val();
+monster_condition.js:                json["monster_name_kind"][j]["and_or"] =$("#monster_name_and_or_"+m+"_"+i+"_"+j).val();
+monster_condition.js:                json["monster_name_kind"][j] = {};
+monster_condition.js:                json["monster_name_kind"][j]["operator"] = "like";
+monster_condition.js:                json["monster_name_kind"][j]["and_or"] =$("#monster_name_and_or_"+m+"_"+i+"_"+j).val();
+monster_condition.js:                json["monster_name_kind"][j]["monster_name"] =$("#monster_name_"+m+"_"+i+"_"+j).val();
+monster_condition.js:                json["monster_name_kind"][j] = {};
+monster_condition.js:                json["monster_name_kind"][j]["operator"] = "!=";
+monster_condition.js:                json["monster_name_kind"][j]["and_or"] =$("#monster_name_and_or_"+m+"_"+i+"_"+j).val();
+monster_condition.js:                json["monster_name_kind"][j]["monster_name"] =$("#monster_name_"+m+"_"+i+"_"+j).val();
+monster_condition.js:                json["monster_name_kind"][j] = {};
+monster_condition.js:                json["monster_name_kind"][j]["operator"] = "notlike";
+monster_condition.js:                json["monster_name_kind"][j]["and_or"] =$("#monster_name_and_or_"+m+"_"+i+"_"+j).val();
+monster_condition.js:                json["monster_name_kind"][j]["monster_name"] =$("#monster_name_"+m+"_"+i+"_"+j).val();
+monster_condition.js:            under["equation"]["equation_kind"] = $("#get_under_equation_kind_"+m).val();
+monster_condition.js:            under["monster_name_kind"] = [];
+monster_condition.js:                under["monster_name_kind"][j] = {};
+monster_condition.js:                under["monster_name_kind"][j]["operator"] = "";
+monster_condition.js:                under["monster_name_kind"][j]["monster_name"] ="";
+monster_condition.js:                under["monster_name_kind"][j]["and_or"] = "";
+monster_condition.js:                under["monster_name_kind"][j] = {};
+monster_condition.js:                under["monster_name_kind"][j]["operator"] = "=";
+monster_condition.js:                under["monster_name_kind"][j]["monster_name"] =$("#under_name_"+m+"_"+i+"_"+j).val();
+monster_condition.js:                under["monster_name_kind"][j]["and_or"] =$("#under_name_and_or_"+m+"_"+i+"_"+j).val();
+monster_condition.js:                under["monster_name_kind"][j] = {};
+monster_condition.js:                under["monster_name_kind"][j]["operator"] = "like";
+monster_condition.js:                under["monster_name_kind"][j]["and_or"] =$("#under_name_and_or_"+m+"_"+i+"_"+j).val();
+monster_condition.js:                under["monster_name_kind"][j]["monster_name"] =$("#under_name_"+m+"_"+i+"_"+j).val();
+monster_condition.js:            json["relation_kind"] = [];
+monster_condition.js:                json["relation_kind"][k] = $("#relation_kind_"+m+"_"+i+"_0_"+k).val();
+monster_condition.js:            json["effect_valid"] = parseInt($("#monster_effect_kind_"+m+"_"+i).val());
+monster_condition.js:        tmp["equation"]["equation_kind"] = $("#get_equation_kind_"+m).val();
+monster_condition.js:   'url': "/tcgcreator/get_place_kind/",
+monster_condition.js:		   'url': "/tcgcreator/get_variable_kind/",
+monster_condition.js:		   'url': "/tcgcreator/get_variable_kind/",
+monster_condition.js:		   'url': "/tcgcreator/get_variable_kind/",
+monster_condition.js:		   'url': "/tcgcreator/get_variable_kind/",
+monster_condition.js:		   'url': "/tcgcreator/get_variable_kind/",
+monster_effect.js:	var monster_kind_id = [];
+monster_effect.js:		var relation_kind = $("#clear_relation_kind").val();
+monster_effect.js:		json["relation"]["relation_kind"]= relation_kind
+monster_effect.js:		   'url': "/tcgcreator/get_variable_kind/",
+monster_effect.js:		   'url': "/tcgcreator/get_variable_kind/",
+monster_effect.js:   'url': "/tcgcreator/get_place_kind/",
+monster_effect.js:   'url': "/tcgcreator/get_effect_kind/",
+monster_effect.js:		$("#clear_relation_kind").html(data);
+monster_effect.js:   'url': "/tcgcreator/get_place_kind/",
+monster_effect.js:			$("#monster_kind-"+i).remove()
+monster_effect.js:		$("#id_monster_effect_move_kinds").val("");
+monster_effect.js:			tmp_str+=$("#monster_kind-"+(i)).val()+"_";;
+monster_effect.js:		$("#id_monster_effect_move_kinds").val(tmp_str);
+monster_effect.js:		   'url': "/tcgcreator/get_variable_kind/",
+monster_effect.js:   'url': "/tcgcreator/get_place_kind/",
+monster_effect.js:   'url': "/tcgcreator/get_place_kind/",
+monster_effect.js:					$("#get_monster_name_equal_"+i).val(val[i-1]["monster_name_kind"]["operator"]);
+monster_effect.js:					$("#get_monster_name_"+i).val(val[i-1]["monster_name_kind"]["monster_name"]);
+monster_effect.js:			json["monster_name_kind"] = "";
+monster_effect.js:			json["monster_name_kind"] = {};
+monster_effect.js:			json["monster_name_kind"]["operator"] = "=";
+monster_effect.js:			json["monster_name_kind"]["monster_name"] =$("#monster_name_"+i).val();
+monster_effect.js:			json["monster_name_kind"] = {};
+monster_effect.js:			json["monster_name_kind"]["operator"] = "like";
+monster_effect.js:			json["monster_name_kind"]["monster_name"] =$("#monster_name_"+i).val();
+monster_effect.js:		   'url': "/tcgcreator/get_variable_kind/",
+monster_effect.js:			json["monster_name_kind"] = "";
+monster_effect.js:			json["monster_name_kind"] = {};
+monster_effect.js:			json["monster_name_kind"]["operator"] = "=";
+monster_effect.js:			json["monster_name_kind"]["monster_name"] =$("#monster_name_"+i).val();
+monster_effect.js:			json["monster_name_kind"] = {};
+monster_effect.js:			json["monster_name_kind"]["operator"] = "like";
+monster_effect.js:			json["monster_name_kind"]["monster_name"] =$("#monster_name_"+i).val();
+monster_effect.js:		val["equation"]["equation_kind"] = $("#get_equation_kind"+i).val();
+monster_effect_kind.js:	var monster_kind_id = [];
+monster_effect_kind.js:	var monster_effect_kind_i = 0;
+monster_effect_kind.js:   'url': "/tcgcreator/get_monster_kind/",
+monster_effect_kind.js:		$("#id_monster_effect_kind").after("<input type=\"button\" onclick=\"changeMonsterKindNum('id_monster_effect_kind','monster_kind',1)\" value=\"追加\"><input type=\"button\" onclick=\"deleteMonsterChangeKind()\" value=\"削除\"><br>");
+monster_effect_kind.js:			$("#id_monster_effect_kind").after(data);
+monster_effect_kind.js:   'url': "/tcgcreator/get_monster_kind/",
+monster_effect_kind.js:   'data': "delete_flag=0&num=0&id=monster_kind_rel&id2=monster_kind_rel",
+monster_effect_kind.js:		$("#id_monster_effect_kind_rel").after("<input type=\"button\" onclick=\"changeMonsterKindNum('id_monster_effect_kind_rel','monster_kind_rel',1)\" value=\"追加\"><br>");
+monster_effect_kind.js:			$("#id_monster_effect_kind_rel").after(data);
+monster_effect_kind.js:		$("#id_monster_effect_kind").val("");
+monster_effect_wrapper.js:		$("#id_monster_effect_next").after("<input type=\"button\" onclick=\"getMonsterEffectNextSpecify('id_monster_effect_next')\" value=\"絞り込み\"><input type=\"text\" id=\"id_monster_effect_next_name_specify\"><select id=\"id_monster_effect_next_effect_kind\"></select>");
+monster_effect_wrapper.js:		$("#id_monster_effect_next2").after("<input type=\"button\" onclick=\"getMonsterEffectNextSpecify('id_monster_effect_next2')\" value=\"絞り込み\"><input type=\"text\" id=\"id_monster_effect_next2_name_specify\"><select id=\"id_monster_effect_next2_effect_kind\"></select>");
+monster_effect_wrapper.js:		$("#id_pac").after("<input type=\"button\" onclick=\"getPacNextSpecify('id_pac')\" value=\"絞り込み\"><input type=\"text\" id=\"id_pac_name_specify\"><select id=\"id_pac_kind\"></select>");
+monster_effect_wrapper.js:		$("#id_pac2").after("<input type=\"button\" onclick=\"getPacNextSpecify('id_pac2')\" value=\"絞り込み\"><input type=\"text\" id=\"id_pac2_name_specify\"><select id=\"id_pac2_kind\"></select>");
+monster_effect_wrapper.js:   'url': "/tcgcreator/get_effect_kind/",
+monster_effect_wrapper.js:		$("#id_monster_effect_next_effect_kind").html(data);
+monster_effect_wrapper.js:		$("#id_monster_effect_next2_effect_kind").html(data);
+monster_effect_wrapper.js:		$("#id_pac_kind").html(data);
+monster_effect_wrapper.js:		$("#id_pac2_kind").html(data);
+monster_effect_wrapper.js:	        monster_effect_val=$("#"+id+"_effect_kind").val();
+monster_effect_wrapper.js:	        monster_effect_val=$("#"+id+"_kind").val();
+monster_item.js:	var monster_kind_id = [];
+monster_item.js:   'url': "/tcgcreator/get_monster_kind_type_for_new_monster/",
+monster_move.js:	function getMoveKind(id,kind,y,x){
+monster_move.js:		if(kind == undefined){
+monster_move.js:			kind =-1;
+monster_move.js:		if(kind == "0" || kind == "1"){
+monster_move.js:		if(kind == "2"){
+monster_move.js:   'url': "/tcgcreator/get_place_kind/",
+monster_move.js:   'url': "/tcgcreator/get_place_kind/",
+monster_move.js:					$("#get_monster_name_equal_"+i).val(monster[i-1]["monster_name_kind"]["operator"]);
+monster_move.js:					$("#get_monster_name_"+i).val(monster[i-1]["monster_name_kind"]["monster_name"]);
+monster_move.js:							$("#get_equation_kind_"+c).val(equ["equation_kind"]);
+monster_move.js:		json["monster_name_kind"] = [];
+monster_move.js:			json["monster_name_kind"][j] = {};
+monster_move.js:			json["monster_name_kind"][j]["operator"] = "";
+monster_move.js:			json["monster_name_kind"][j]["monster_name"] ="";
+monster_move.js:			json["monster_name_kind"][j] = {};
+monster_move.js:			json["monster_name_kind"][j]["operator"] = "=";
+monster_move.js:			json["monster_name_kind"][j]["monster_name"] =$("#monster_name_"+m+"_"+i+"_"+j).val();
+monster_move.js:			json["monster_name_kind"][j]["and_or"] =$("#monster_name_and_or_"+m+"_"+i+"_"+j).val();
+monster_move.js:			json["monster_name_kind"][j] = {};
+monster_move.js:			json["monster_name_kind"][j]["operator"] = "like";
+monster_move.js:			json["monster_name_kind"][j]["and_or"] =$("#monster_name_and_or_"+m+"_"+i+"_"+j).val();
+monster_move.js:			json["monster_name_kind"][j]["monster_name"] =$("#monster_name_"+m+"_"+i+"_"+j).val();
+monster_move.js:		tmp["equation"]["equation_kind"] = $("#get_equation_kind_"+m).val();
+monster_move.js:   'url': "/tcgcreator/get_place_kind/",
+pac.js:		$("#id_pac_next").after("<input type=\"button\" onclick=\"getPacNextSpecify('id_pac_next')\" value=\"絞り込み\"><input type=\"text\" id=\"id_pac_next_name_specify\"><select id=\"id_pac_next_kind\"></select>");
+pac.js:   'url': "/tcgcreator/get_effect_kind/",
+pac.js:		$("#id_pac_next_kind").html(data);
+pac.js:	        monster_effect_val=$("#"+id+"_kind").val();
+pac_cost.js:		$("#id_pac_cost_next").after("<input type=\"button\" onclick=\"getCostNextSpecify('id_pac_cost_next')\" value=\"絞り込み\"><input type=\"text\" id=\"id_pac_cost_next_name_specify\"><select id=\"id_pac_cost_next_effect_kind\"></select>");
+pac_cost.js:   'url': "/tcgcreator/get_effect_kind/",
+pac_cost.js:		$("#id_pac_cost_next_effect_kind").html(data);
+pac_cost_wrapper.js:   'url': "/tcgcreator/get_effect_kind/",
+pac_cost_wrapper.js:		$("#id_pac_next_kind").html(data);
+pac_wrapper.js:		$("#id_monster_effect_next").after("<input type=\"button\" onclick=\"getMonsterEffectNextSpecify('id_monster_effect_next')\" value=\"絞り込み\"><input type=\"text\" id=\"id_monster_effect_next_name_specify\"><select id=\"id_monster_effect_next_effect_kind\"></select>");
+pac_wrapper.js:		$("#id_monster_effect_next2").after("<input type=\"button\" onclick=\"getMonsterEffectNextSpecify('id_monster_effect_next2')\" value=\"絞り込み\"><input type=\"text\" id=\"id_monster_effect_next2_name_specify\"><select id=\"id_monster_effect_next2_effect_kind\"></select>");
+pac_wrapper.js:		$("#id_pac_next").after("<input type=\"button\" onclick=\"getPacNextSpecify('id_pac_next')\" value=\"絞り込み\"><input type=\"text\" id=\"id_pac_next_name_specify\"><select id=\"id_pac_next_kind\"></select>");
+pac_wrapper.js:		$("#id_pac_next2").after("<input type=\"button\" onclick=\"getPacNextSpecify('id_pac_next2')\" value=\"絞り込み\"><input type=\"text\" id=\"id_pac_next2_name_specify\"><select id=\"id_pac_next2_kind\"></select>");
+pac_wrapper.js:   'url': "/tcgcreator/get_effect_kind/",
+pac_wrapper.js:		$("#id_pac_next_kind").html(data);
+pac_wrapper.js:		$("#id_pac_next2_kind").html(data);
+pac_wrapper.js:	        monster_effect_val=$("#"+id+"_kind").val();
+pac_wrapper.js:	        monster_effect_val=$("#"+id+"_effect_kind").val();
+trigger.js:	var trigger_kind_id = [];
+trigger.js:		$("#id_next_effect").after("<input type=\"button\" onclick=\"getMonsterEffectNextSpecify('id_next_effect')\" value=\"絞り込み\"><input type=\"text\" id=\"id_next_effect_name_specify\"><select id=\"id_next_effect_effect_kind\"></select>");
+trigger.js:		$("#id_trigger_cost").after("<input type=\"button\" onclick=\"getCostNextSpecify('id_trigger_cost')\" value=\"絞り込み\"><input type=\"text\" id=\"id_trigger_cost_name_specify\"><select id=\"id_trigger_cost_effect_kind\"></select>");
+trigger.js:		$("#id_trigger_cost_pac").after("<input type=\"button\" onclick=\"getPacCostNextSpecify('id_trigger_cost_pac')\" value=\"絞り込み\"><input type=\"text\" id=\"id_trigger_cost_pac_name_specify\"><select id=\"id_trigger_cost_pac_effect_kind\"></select>");
+trigger.js:		$("#id_pac").after("<input type=\"button\" onclick=\"getPacNextSpecify('id_pac')\" value=\"絞り込み\"><input type=\"text\" id=\"id_pac_name_specify\"><select id=\"id_pac_effect_kind\"></select>");
+trigger.js:   'url': "/tcgcreator/get_effect_kind/",
+trigger.js:		$("#id_next_effect_effect_kind").html(data);
+trigger.js:		$("#id_pac_kind").html(data);
+trigger.js:		$("#id_trigger_cost_effect_kind").html(data);
+trigger.js:		$("#id_trigger_cost_pac_effect_kind").html(data);
+trigger.js:   'url': "/tcgcreator/get_monster_kind/",
+trigger.js:   'data': "delete_flag=0&num=0&id=trigger_kind&id2=trigger_kind",
+trigger.js:		$("#id_trigger_kind").after("<input type=\"button\" onclick=\"changeMonsterKindNum('id_trigger_kind','trigger_kind',1)\" value=\"追加\"><br>");
+trigger.js:			$("#id_trigger_kind").after(data);
+trigger.js:			tmp_str+=$("#monster_kind-"+(i)).val()+"_";;
+trigger.js:		$("#id_trigger_effect_kind").val(tmp_str);
+trigger.js:	var monter_kind_i = 0;
+trigger.js:	var chain_kind_i = 0;
+trigger.js:		getChainKindChange(chain_kind_i)
+trigger.js:			tmp_str+=$("#monster_kind-"+(i)).val()+"_";
+trigger.js:		$("#id_trigger_effect_kind").val(tmp_str);
+trigger.js:	function getTriggerCostKind(cost_kind){
+trigger.js:		if(cost_kind == "0" || cost_kind == "1"){
+trigger.js:		if(cost_kind == "0"){
+trigger.js:   'url': "/tcgcreator/get_place_kind/",
+trigger.js:		var tmp2 =$("#monster_cost_kind").val();
+trigger.js:		equation_kind = "(equation_kind = "+$("#get_equation_kind").val()+")";
+trigger.js:			monster_name_kind = "";
+trigger.js:			monster_name_kind = '(monster_name_kind = "+$("#monster_name").val()+")';
+trigger.js:			monster_name_kind = '(monster_name_kind like "+$("#monster_name").val()+")';
+trigger.js:		val += "{"+place+place_to+monster_name_kind+monster_cost+equation+equation_kind+equation_number+"}";
+trigger.js:			tmp_str+=$("#monster_kind-"+(i)).val()+"_";;
+trigger.js:		$("#id_trigger_effect_kind").val(tmp_str);
+trigger.js:   'url': "/tcgcreator/get_place_kind/",
+trigger.js:		var tmp2 =$("#monster_monster_kind").val();
+trigger.js:			json["monster_name_kind"] = "";
+trigger.js:			json["monster_name_kind"] = {};
+trigger.js:			json["monster_name_kind"]["operator"] = "=";
+trigger.js:			json["monster_name_kind"]["monster_name"] =$("#monster_name").val();
+trigger.js:			json["monster_name_kind"] = {};
+trigger.js:			json["monster_name_kind"]["operator"] = "like";
+trigger.js:			json["monster_name_kind"]["monster_name"] =$("#monster_name").val();
+trigger.js:	        monster_effect_val=$("#"+id+"_effect_kind").val();
+trigger_monster.js:	function getTriggerMonsterKind(id,kind){
+trigger_monster.js:		if(kind == undefined){
+trigger_monster.js:			kind =-1;
+trigger_monster.js:   'url': "/tcgcreator/get_place_kind/",
+trigger_monster.js:   'url': "/tcgcreator/get_place_kind/",
+trigger_monster.js:					$("#get_monster_name_equal_"+i).val(monster[i-1]["monster_name_kind"]["operator"]);
+trigger_monster.js:					$("#get_monster_name_"+i).val(monster[i-1]["monster_name_kind"]["monster_name"]);
+trigger_monster.js:							$("#get_equation_kind_"+c).val(equ["equation_kind"]);
+trigger_monster.js:		json["monster_name_kind"] = [];
+trigger_monster.js:			json["monster_name_kind"][j] = {};
+trigger_monster.js:			json["monster_name_kind"][j]["operator"] = "";
+trigger_monster.js:			json["monster_name_kind"][j]["monster_name"] ="";
+trigger_monster.js:			json["monster_name_kind"][j] = {};
+trigger_monster.js:			json["monster_name_kind"][j]["operator"] = "=";
+trigger_monster.js:			json["monster_name_kind"][j]["monster_name"] =$("#monster_name_"+m+"_"+i+"_"+j).val();
+trigger_monster.js:			json["monster_name_kind"][j]["and_or"] =$("#monster_name_and_or_"+m+"_"+i+"_"+j).val();
+trigger_monster.js:			json["monster_name_kind"][j] = {};
+trigger_monster.js:			json["monster_name_kind"][j]["operator"] = "like";
+trigger_monster.js:			json["monster_name_kind"][j]["and_or"] =$("#monster_name_and_or_"+m+"_"+i+"_"+j).val();
+trigger_monster.js:			json["monster_name_kind"][j]["monster_name"] =$("#monster_name_"+m+"_"+i+"_"+j).val();
+trigger_monster.js:		tmp["equation"]["equation_kind"] = $("#get_equation_kind_"+m).val();
+trigger_monster.js:		   'url': "/tcgcreator/get_variable_kind/",
+trigger_monster.js:   'url': "/tcgcreator/get_place_kind/",
+trigger_timing.js:monster_kind_i = 0;
+trigger_timing.js:		$("#id_trigger").after("<input type=\"button\" onclick=\"getTriggerSpecify('id_trigger')\" value=\"絞り込み\"><input type=\"text\" id=\"id_trigger_specify\"><select id=\"id_trigger_kind\"></select>");
+trigger_timing.js:   'url': "/tcgcreator/get_effect_kind/",
+trigger_timing.js:		$("#id_trigger_kind").html(data);
+trigger_timing.js:   'url': "/tcgcreator/get_monster_kind/",
+trigger_timing.js:   'data': "delete_flag=0&num=0&id=kinds&id2=kinds",
+trigger_timing.js:		$("#id_kinds").after("<input type=\"button\" onclick=\"changeMonsterKindNum('id_kinds','kinds',1)\" value=\"追加\"><br>");
+trigger_timing.js:			$("#id_kinds").after(data);
+trigger_timing.js:   'url': "/tcgcreator/get_monster_kind/",
+trigger_timing.js:   'data': "delete_flag=0&num=0&id=exist_kinds&id2=exist_kinds",
+trigger_timing.js:		$("#id_exist_kinds").after("<input type=\"button\" onclick=\"changeMonsterKindNum('id_exist_kinds','exist_kinds',1)\" value=\"追加\"><br>");
+trigger_timing.js:			$("#id_exist_kinds").after(data);
+trigger_timing.js:   'url': "/tcgcreator/get_monster_kind/",
+trigger_timing.js:   'data': "delete_flag=0&num=0&id=relation_kind&id2=relation_kind",
+trigger_timing.js:		$("#id_relation_kind").after("<input type=\"button\" onclick=\"changeMonsterKindNum('id_relation_kind','relation_kind',1)\" value=\"追加\"><br>");
+trigger_timing.js:			$("#id_relation_kind").after(data);
+trigger_timing.js:		getTriggerTimingKindChange(monster_kind_i)
+trigger_timing.js:		for(var i=0;i<monster_kind_i;i++){
+trigger_timing.js:			tmp_str+=$("#monster_kind-"+(i)).val()+"_";;
+trigger_timing.js:		$("#id_kinds").val(tmp_str);
+trigger_timing.js:	        trigger_val=$("#"+id+"_kind").val();
+trigger_variable.js:	var trigger_kind_id = [];
+trigger_variable.js:		   'url': "/tcgcreator/get_variable_kind/",

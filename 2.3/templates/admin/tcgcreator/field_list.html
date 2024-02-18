@@ -1,0 +1,30 @@
+{% extends "admin/base_site.html" %}
+{% load tcgcreatorlookup %}
+{% load static %}
+{% csrf_token %}
+
+{% block extrastyle %}
+	{{ block.super}}
+	<link rel="stylesheet" href="{% static "/tcgcreator/css/field_kind.css" %}" type="text/css" ">
+{% endblock extrastyle %}
+{% block content %}
+<table>
+{% for y in field_y %}
+<tr>
+{% for x in field_x %}
+<td class="mine_or_other-{{ tmp_structure|lookup:x|lookup:y|lookup:"mine_or_other" }}"> 
+<a href="{% url 'admin:tcgcreator_field_change' tmp_structure|lookup:x|lookup:y|lookup:"id"  %}">
+{% autoescape off %}
+{{ tmp_structure|lookup:x|lookup:y|lookup:"kinds" }}
+{% endautoescape  %}
+</a>
+</td>
+{% endfor %}
+<td>
+<a href="{% url 'tcgcreator:field_list_view_x'%}?y={{y}}">
+	まとめて編集
+	</a>
+</td>
+{% endfor %}
+</table>
+{% endblock content %}
